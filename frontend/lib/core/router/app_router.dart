@@ -6,6 +6,7 @@ import '../../features/account/presentation/profile_screen.dart';
 import '../../features/account/presentation/saved_screen.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/presentation/auth_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/interests_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/business/presentation/business_tab_screen.dart';
@@ -42,7 +43,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final status = ref.read(authControllerProvider).status;
       final loc = state.matchedLocation;
-      final onboarding = loc == '/onboarding' || loc == '/auth' || loc == '/splash';
+      final onboarding = loc == '/onboarding' ||
+          loc == '/auth' ||
+          loc == '/splash' ||
+          loc == '/forgot-password';
 
       if (status == AuthStatus.unknown) {
         return loc == '/splash' ? null : '/splash';
@@ -58,6 +62,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/splash', builder: (_, __) => const _Splash()),
       GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/auth', builder: (_, __) => const AuthScreen()),
+      GoRoute(
+          path: '/forgot-password',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const ForgotPasswordScreen()),
       GoRoute(path: '/interests', builder: (_, __) => const InterestsScreen()),
 
       // ── primary tab shell ──

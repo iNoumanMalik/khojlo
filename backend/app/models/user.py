@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Enum, String
+from sqlalchemy import JSON, Boolean, DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -32,6 +32,7 @@ class User(Base):
     avatar_tone: Mapped[str] = mapped_column(String(16), default="gold")
     # list of interest slugs powering personalization ("food", "gym", ...)
     interests: Mapped[list] = mapped_column(JSON, default=list)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     businesses = relationship(

@@ -163,6 +163,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     return null;
                   },
                 ),
+                if (!_isSignUp) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => context.push('/forgot-password'),
+                      child: Text('Forgot password?',
+                          style: AppType.sans(
+                              size: 12.5,
+                              weight: FontWeight.w700,
+                              color: AppColors.emerald)),
+                    ),
+                  ),
+                ],
                 if (state.error != null) ...[
                   const SizedBox(height: 14),
                   _ErrorBanner(message: state.error!),

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Used as the expected audience when verifying Google ID tokens from the app.
     GOOGLE_WEB_CLIENT_ID: str | None = None
 
-    # ── SMTP / email (future — optional) ──
+    # ── SMTP / email ──
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USERNAME: str | None = None
@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "no-reply@khojlo.app"
     SMTP_FROM_NAME: str = "Khojlo"
     SMTP_USE_TLS: bool = True
+
+    # ── Email OTP (verification + password reset) ──
+    OTP_EXPIRE_MINUTES: int = 10
+    OTP_RESEND_COOLDOWN_SECONDS: int = 45
+    OTP_MAX_PER_DAY: int = 5
+    OTP_MAX_ATTEMPTS: int = 5
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 10
 
     # ── Firebase / FCM push (future — optional) ──
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None

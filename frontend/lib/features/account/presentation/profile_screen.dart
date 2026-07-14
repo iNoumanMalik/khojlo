@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
+import '../../auth/presentation/email_verification_sheet.dart';
 import '../account_providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -56,15 +59,35 @@ class ProfileScreen extends ConsumerWidget {
                     KhojloAvatar(
                         initials: user.initials, tone: user.avatarTone, size: 88),
                     const SizedBox(height: 14),
-                    Text(user.fullName, style: AppType.serif(size: 26)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(user.fullName, style: AppType.serif(size: 26)),
+                        if (user.isVerified) ...[
+                          const SizedBox(width: 6),
+                          const _VerifiedTick(),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text(user.email,
                         style: AppType.sans(
                             size: 13, color: AppColors.inkA(0.53))),
                     const SizedBox(height: 8),
-                    KhojloBadge(
-                        label: user.isOwner ? 'Business owner' : 'Explorer',
-                        tone: BadgeTone.gold),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        KhojloBadge(
+                            label: user.isOwner ? 'Business owner' : 'Explorer',
+                            tone: BadgeTone.gold),
+                        if (!user.isVerified)
+                          _UnverifiedBadge(
+                              onTap: () => showEmailVerificationSheet(context)),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -124,6 +147,70 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 60),
         ],
+      ),
+    );
+  }
+}
+
+/// Small emerald checkmark badge next to the name — the "Instagram tick" for
+/// a verified email.
+class _VerifiedTick extends StatelessWidget {
+  const _VerifiedTick();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [AppColors.emerald, Color(0xFF123F34)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: AppShadows.glow(AppColors.emerald),
+      ),
+      child: const Icon(Icons.check_rounded, color: Colors.white, size: 13),
+    )
+        .animate()
+        .scale(
+          begin: const Offset(0.3, 0.3),
+          end: const Offset(1, 1),
+          curve: Curves.elasticOut,
+          duration: 600.ms,
+        )
+        .fadeIn(duration: 250.ms);
+  }
+}
+
+/// Muted pill that opens the verification sheet when unverified.
+class _UnverifiedBadge extends StatelessWidget {
+  const _UnverifiedBadge({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.ink.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Unverified',
+                style: AppType.sans(
+                    size: 10.5, weight: FontWeight.w700, color: AppColors.inkA(0.6))),
+            const SizedBox(width: 6),
+            Text('Verify now',
+                style: AppType.sans(
+                    size: 10.5, weight: FontWeight.w700, color: AppColors.emerald)),
+          ],
+        ),
       ),
     );
   }

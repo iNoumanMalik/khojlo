@@ -125,6 +125,13 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Verifies the current user's email with an OTP. Throws on failure (the
+  /// caller shows the specific error inline); on success syncs [state.user].
+  Future<void> verifyEmailCode(String code) async {
+    final user = await _repo.verifyEmail(code);
+    state = state.copyWith(user: user);
+  }
+
   Future<void> setInterests(List<String> interests) async {
     try {
       final user = await _repo.setInterests(interests);

@@ -10,6 +10,7 @@ from app.core.config import settings
 
 ACCESS_TOKEN = "access"
 REFRESH_TOKEN = "refresh"
+PASSWORD_RESET_TOKEN = "password_reset"
 
 # bcrypt only considers the first 72 bytes of the password.
 _MAX_BCRYPT_BYTES = 72
@@ -69,6 +70,14 @@ def create_access_token(subject: str | int) -> str:
 def create_refresh_token(subject: str | int) -> str:
     return _create_token(
         subject, REFRESH_TOKEN, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    )
+
+
+def create_password_reset_token(subject: str | int) -> str:
+    return _create_token(
+        subject,
+        PASSWORD_RESET_TOKEN,
+        timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
     )
 
 

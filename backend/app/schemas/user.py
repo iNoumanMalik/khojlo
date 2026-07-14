@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     avatar_tone: str
     initials: str
     interests: list[str]
+    is_verified: bool
     created_at: datetime
 
 

@@ -23,6 +23,23 @@ def _schema():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def sent_emails(monkeypatch):
+    """Registration/OTP flows send email in a background task — capture instead of hitting
+    real SMTP, and let tests assert on the code that would have been emailed.
+    """
+    sent: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        "app.services.otp_service.send_verify_email_otp",
+        lambda to, code: sent.append(("verify_email", to, code)),
+    )
+    monkeypatch.setattr(
+        "app.services.otp_service.send_password_reset_otp",
+        lambda to, code: sent.append(("reset_password", to, code)),
+    )
+    return sent
+
+
 @pytest.fixture
 def client():
     def override_get_db():

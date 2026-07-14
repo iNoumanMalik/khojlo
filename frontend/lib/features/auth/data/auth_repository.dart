@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/models/otp.dart';
 import '../../../core/models/user.dart';
 import '../../../core/network/google_auth_config.dart';
 import '../../../core/providers.dart';
@@ -101,4 +102,44 @@ class AuthRepository {
   Future<void> logout() => _tokens.clear();
 
   Future<bool> hasToken() async => (await _tokens.accessToken) != null;
+
+  // ── email verification ──
+
+  Future<OtpSentInfo> sendVerificationEmail() async {
+    final res = await _dio.post('/auth/email/verify/send');
+    return OtpSentInfo.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<AppUser> verifyEmail(String code) async {
+    final res = await _dio.post('/auth/email/verify', data: {'code': code});
+    return AppUser.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  // ── forgot / reset password ──
+
+  Future<OtpSentInfo> forgotPassword(String email) async {
+    final res = await _dio.post(
+      '/auth/password/forgot',
+      data: {'email': email},
+      options: Options(extra: {'skipAuth': true}),
+    );
+    return OtpSentInfo.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<ResetTokenInfo> verifyResetOtp({required String email, required String code}) async {
+    final res = await _dio.post(
+      '/auth/password/forgot/verify',
+      data: {'email': email, 'code': code},
+      options: Options(extra: {'skipAuth': true}),
+    );
+    return ResetTokenInfo.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<void> resetPassword({required String resetToken, required String newPassword}) async {
+    await _dio.post(
+      '/auth/password/reset',
+      data: {'reset_token': resetToken, 'new_password': newPassword},
+      options: Options(extra: {'skipAuth': true}),
+    );
+  }
 }

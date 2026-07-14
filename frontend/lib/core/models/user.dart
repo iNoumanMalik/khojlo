@@ -21,6 +21,7 @@ class AppUser {
     required this.avatarTone,
     required this.initials,
     required this.interests,
+    required this.isVerified,
   });
 
   final int id;
@@ -30,6 +31,7 @@ class AppUser {
   final String avatarTone;
   final String initials;
   final List<String> interests;
+  final bool isVerified;
 
   bool get isOwner => role == UserRole.businessOwner || role == UserRole.admin;
 
@@ -41,5 +43,6 @@ class AppUser {
         avatarTone: j['avatar_tone'] as String? ?? 'gold',
         initials: j['initials'] as String? ?? '?',
         interests: (j['interests'] as List?)?.cast<String>() ?? const [],
+        isVerified: j['is_verified'] as bool? ?? false,
       );
 }
