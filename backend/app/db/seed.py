@@ -23,7 +23,6 @@ from app.models.user import User, UserRole
 CATEGORIES = [
     ("cafes", "Cafés", "emerald"),
     ("restaurants", "Restaurants", "gold"),
-    ("bars", "Bars & Lounges", "plum"),
     ("beauty", "Beauty", "coral"),
     ("gym", "Fitness", "emerald"),
     ("healthcare", "Healthcare", "emerald"),
@@ -39,8 +38,6 @@ BUSINESSES = [
     ("Forno Italiano", "restaurants", "gold", "Wood-fired Neapolitan pizza", "$$", 33.6810, 73.0530, 4.7, 301, 120),
     ("Ramen no Michi", "restaurants", "gold", "18-hour tonkotsu broth", "$$", 33.6790, 73.0490, 4.8, 176, 84),
     ("Ember & Oak", "restaurants", "coral", "Live-fire seasonal plates", "$$$", 33.6930, 73.0470, 4.6, 143, 52),
-    ("Sky Eleven Rooftop", "bars", "plum", "360° city views, craft cocktails", "$$$", 33.6850, 73.0440, 4.9, 312, 210),
-    ("Vin & Velvet", "bars", "plum", "Natural wine & vinyl nights", "$$$", 33.6820, 73.0505, 4.7, 98, 47),
     ("Iron & Ash Gym", "gym", "emerald", "Strength-first, no crowds", "$$", 33.6905, 73.0520, 4.6, 74, 33),
     ("Glow Studio", "beauty", "coral", "Skin, nails & slow beauty", "$$", 33.6865, 73.0465, 4.8, 121, 58),
     ("Pixel Arena", "gaming", "ink", "Next-gen consoles & LAN nights", "$", 33.6885, 73.0535, 4.5, 66, 29),
@@ -51,11 +48,6 @@ BUSINESSES = [
 ]
 
 OFFERS = {
-    "Sky Eleven Rooftop": [
-        ("20% off cocktails before 8PM", "Jun 1", "Jul 31", OfferStatus.active, "emerald", 142, 18),
-        ("Free starter for first 50 guests", "Aug 1", "Aug 15", OfferStatus.scheduled, "gold", 0, 0),
-        ("Happy hour — 2 for 1 wine", "Mar 1", "May 31", OfferStatus.ended, "ink", 389, 64),
-    ],
     "Brew & Bloom": [
         ("Buy one, plant one — free seedling", "Jul 1", "Jul 20", OfferStatus.active, "emerald", 96, 40),
     ],
@@ -65,7 +57,7 @@ OFFERS = {
 }
 
 REVIEWS = [
-    ("Ayesha K.", "plum", 5, "Genuinely the best rooftop view in the city. Cocktails were incredible."),
+    ("Ayesha K.", "plum", 5, "Cosy spot with genuinely great coffee — quickly became my go-to for slow mornings."),
     ("Bilal R.", "emerald", 5, "Coffee is on another level and the staff remembered my order."),
     ("Sana M.", "gold", 4, "Cosy and quiet — perfect for getting work done."),
     ("Hamza T.", "coral", 5, "Found this through Khojlo before it blew up. Hidden gem for real."),
@@ -174,8 +166,8 @@ def run() -> None:
 
         # a saved list for the demo customer
         weekend = SavedList(user_id=customer.id, name="Weekend", tone="gold")
-        weekend.items.append(SavedBusiness(business_id=biz_by_name["Sky Eleven Rooftop"].id))
         weekend.items.append(SavedBusiness(business_id=biz_by_name["Brew & Bloom"].id))
+        weekend.items.append(SavedBusiness(business_id=biz_by_name["Forno Italiano"].id))
         coffee = SavedList(user_id=customer.id, name="Coffee tour", tone="emerald")
         coffee.items.append(SavedBusiness(business_id=biz_by_name["The Reading Room"].id))
         db.add_all([weekend, coffee])

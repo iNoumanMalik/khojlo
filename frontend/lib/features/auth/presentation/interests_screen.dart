@@ -22,7 +22,6 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   static const _interests = [
     ('Food', '🍜', 'restaurants'),
     ('Cafés', '☕', 'cafes'),
-    ('Bars', '🍸', 'bars'),
     ('Gym', '💪', 'gym'),
     ('Healthcare', '🏥', 'healthcare'),
     ('Gaming', '🎮', 'gaming'),

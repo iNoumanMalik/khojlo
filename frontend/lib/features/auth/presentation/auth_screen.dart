@@ -209,7 +209,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   onTap: state.googleLoading ? null : _continueWithGoogle,
                 ),
                 const SizedBox(height: 12),
-                const GhostButton(label: 'Continue with Apple'),
+                // const GhostButton(label: 'Continue with Apple'),
+                // const SizedBox(height: 22),
                 const SizedBox(height: 22),
                 Center(
                   child: Text(

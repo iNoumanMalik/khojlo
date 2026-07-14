@@ -27,7 +27,7 @@ class ReviewsScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          TopBar(title: 'Reviews', subtitle: 'Sky Eleven Rooftop', onBack: () => context.pop()),
+          TopBar(title: 'Reviews', subtitle: 'Brew & Bloom', onBack: () => context.pop()),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(22, 0, 22, 90),
@@ -86,7 +86,7 @@ class ReviewsScreen extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                            'AI summary: guests love the view and cocktails; a few note it gets busy on weekends.',
+                            'AI summary: guests love the coffee and cosy atmosphere; a few note it gets busy on weekend mornings.',
                             style: AppType.sans(
                                 size: 12.5,
                                 height: 1.4,

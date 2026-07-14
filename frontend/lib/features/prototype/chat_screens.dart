@@ -160,12 +160,12 @@ class KaiScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 ChatBubble(
                   text:
-                      'Sky Eleven Rooftop is a great pick — 360° views and craft cocktails, 4.9★ and only 0.6 km away.',
+                      'Ember & Oak is a great pick — live-fire seasonal plates, 4.6★ and only 0.6 km away.',
                   glass: true,
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
-                  onTap: () => context.push('/business/7'),
+                  onTap: () => context.push('/business/6'),
                   child: GlassSurface(
                     radius: 18,
                     padding: const EdgeInsets.all(10),
@@ -174,15 +174,15 @@ class KaiScreen extends StatelessWidget {
                         SizedBox(
                             width: 56,
                             height: 56,
-                            child: ImageTile(tone: 'plum', radius: 12)),
+                            child: ImageTile(tone: 'coral', radius: 12)),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Sky Eleven Rooftop',
+                              Text('Ember & Oak',
                                   style: AppType.serif(size: 15)),
-                              Text('★ 4.9 · 0.6 km · \$\$\$',
+                              Text('★ 4.6 · 0.6 km · \$\$\$',
                                   style: AppType.mono(
                                       size: 10.5,
                                       color: AppColors.inkA(0.6))),
@@ -216,7 +216,7 @@ class ConversationScreen extends StatelessWidget {
       body: Column(
         children: [
           TopBar(
-              title: 'Sky Eleven Rooftop',
+              title: 'Ember & Oak',
               subtitle: 'Usually replies within an hour',
               onBack: () => context.pop()),
           Expanded(
