@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/models/user.dart';
 import '../../core/network/api_client.dart';
@@ -11,12 +12,14 @@ class AuthState {
     this.status = AuthStatus.unknown,
     this.user,
     this.loading = false,
+    this.googleLoading = false,
     this.error,
   });
 
   final AuthStatus status;
   final AppUser? user;
   final bool loading;
+  final bool googleLoading;
   final String? error;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
@@ -25,6 +28,7 @@ class AuthState {
     AuthStatus? status,
     AppUser? user,
     bool? loading,
+    bool? googleLoading,
     String? error,
     bool clearError = false,
   }) {
@@ -32,6 +36,7 @@ class AuthState {
       status: status ?? this.status,
       user: user ?? this.user,
       loading: loading ?? this.loading,
+      googleLoading: googleLoading ?? this.googleLoading,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -96,6 +101,26 @@ class AuthController extends StateNotifier<AuthState> {
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: describeApiError(e));
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    state = state.copyWith(googleLoading: true, clearError: true);
+    try {
+      final user = await _repo.signInWithGoogle();
+      state = state.copyWith(
+          status: AuthStatus.authenticated, user: user, googleLoading: false);
+      return true;
+    } on GoogleSignInException catch (e) {
+      final canceled = e.code == GoogleSignInExceptionCode.canceled;
+      state = state.copyWith(
+        googleLoading: false,
+        error: canceled ? null : 'Google sign-in failed. Please try again.',
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(googleLoading: false, error: describeApiError(e));
       return false;
     }
   }

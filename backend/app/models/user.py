@@ -22,7 +22,9 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    # null for accounts created via a social provider (e.g. Google) that never set a password.
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, native_enum=False, length=32), default=UserRole.customer, nullable=False

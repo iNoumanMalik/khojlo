@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from jose import JWTError, jwt
 
 from app.core.config import settings
@@ -12,6 +14,8 @@ REFRESH_TOKEN = "refresh"
 # bcrypt only considers the first 72 bytes of the password.
 _MAX_BCRYPT_BYTES = 72
 
+_google_request = google_requests.Request()
+
 
 def _to_bytes(password: str) -> bytes:
     return password.encode("utf-8")[:_MAX_BCRYPT_BYTES]
@@ -21,11 +25,28 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(_to_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
-def verify_password(plain: str, hashed: str) -> bool:
+def verify_password(plain: str, hashed: str | None) -> bool:
+    if not hashed:
+        return False
     try:
         return bcrypt.checkpw(_to_bytes(plain), hashed.encode("utf-8"))
     except (ValueError, TypeError):
         return False
+
+
+def verify_google_id_token(token: str) -> dict[str, Any] | None:
+    """Verifies a Google-issued ID token and returns its claims, or None if invalid."""
+    if not settings.GOOGLE_WEB_CLIENT_ID:
+        return None
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            token, _google_request, audience=settings.GOOGLE_WEB_CLIENT_ID
+        )
+    except ValueError:
+        return None
+    if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        return None
+    return claims
 
 
 def _create_token(subject: str | int, token_type: str, expires: timedelta) -> str:

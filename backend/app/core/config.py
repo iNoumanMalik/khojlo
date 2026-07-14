@@ -20,6 +20,11 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080,http://localhost:5000"
 
+    # ── Google Sign-In ──
+    # The "Web client" OAuth client ID (client_type 3) from google-services.json.
+    # Used as the expected audience when verifying Google ID tokens from the app.
+    GOOGLE_WEB_CLIENT_ID: str | None = None
+
     # ── SMTP / email (future — optional) ──
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587

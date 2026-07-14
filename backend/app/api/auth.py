@@ -10,10 +10,11 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     hash_password,
+    verify_google_id_token,
     verify_password,
 )
-from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest, TokenPair
+from app.models.user import User, UserRole
+from app.schemas.auth import GoogleAuthRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenPair
 from app.schemas.user import UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -66,6 +67,39 @@ def login_form(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
         )
+    return _tokens_for(user)
+
+
+@router.post("/google", response_model=TokenPair)
+def google_login(payload: GoogleAuthRequest, db: Session = Depends(get_db)) -> TokenPair:
+    claims = verify_google_id_token(payload.id_token)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google ID token"
+        )
+    google_id = claims["sub"]
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Google account has no email"
+        )
+
+    user = db.execute(select(User).where(User.google_id == google_id)).scalar_one_or_none()
+    if user is None:
+        user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+        if user is not None:
+            user.google_id = google_id
+        else:
+            user = User(
+                email=email,
+                full_name=claims.get("name") or email.split("@")[0],
+                hashed_password=None,
+                google_id=google_id,
+                role=UserRole.customer,
+            )
+            db.add(user)
+        db.commit()
+        db.refresh(user)
     return _tokens_for(user)
 
 

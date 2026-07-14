@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/models/user.dart';
+import '../../../core/network/google_auth_config.dart';
 import '../../../core/providers.dart';
 import '../../../core/storage/token_storage.dart';
 
@@ -17,6 +19,36 @@ class AuthRepository {
 
   final Dio _dio;
   final TokenStorage _tokens;
+  bool _googleSignInReady = false;
+
+  Future<void> _ensureGoogleSignInReady() async {
+    if (_googleSignInReady) return;
+    await GoogleSignIn.instance.initialize(
+      serverClientId: GoogleAuthConfig.serverClientId,
+    );
+    _googleSignInReady = true;
+  }
+
+  /// Signs in with Google, then exchanges the ID token for our own session
+  /// tokens (the backend finds-or-creates the user and issues a [TokenPair]).
+  Future<AppUser> signInWithGoogle() async {
+    await _ensureGoogleSignInReady();
+    final account = await GoogleSignIn.instance.authenticate();
+    final idToken = account.authentication.idToken;
+    if (idToken == null) {
+      throw StateError('Google sign-in did not return an ID token.');
+    }
+    final res = await _dio.post(
+      '/auth/google',
+      data: {'id_token': idToken},
+      options: Options(extra: {'skipAuth': true}),
+    );
+    await _tokens.save(
+      access: res.data['access_token'] as String,
+      refresh: res.data['refresh_token'] as String,
+    );
+    return me();
+  }
 
   Future<AppUser> register({
     required String fullName,

@@ -54,6 +54,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  Future<void> _continueWithGoogle() async {
+    final auth = ref.read(authControllerProvider.notifier);
+    final ok = await auth.loginWithGoogle();
+    if (!ok || !mounted) return;
+    final user = ref.read(authControllerProvider).user;
+    // route brand-new customers (no interests picked yet) through onboarding
+    if (user != null && user.role == UserRole.customer && user.interests.isEmpty) {
+      context.go('/interests');
+    } else {
+      context.go('/home');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
@@ -175,7 +188,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ],
                 ),
                 const SizedBox(height: 18),
-                const GhostButton(label: 'Continue with Google'),
+                GhostButton(
+                  label: state.googleLoading
+                      ? 'Signing in…'
+                      : 'Continue with Google',
+                  onTap: state.googleLoading ? null : _continueWithGoogle,
+                ),
                 const SizedBox(height: 12),
                 const GhostButton(label: 'Continue with Apple'),
                 const SizedBox(height: 22),

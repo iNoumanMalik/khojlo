@@ -3,6 +3,9 @@
   "//api": "Backend base URL. Overrides the per-platform default in lib/core/network/api_config.dart.",
   "KHOJLO_API": "http://localhost:8000/api/v1",
 
+  "//google-signin": "Optional — overrides the Web client ID baked into lib/core/network/google_auth_config.dart.",
+  "GOOGLE_WEB_CLIENT_ID": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
+
   "//firebase": "Firebase client config (future — FCM push / social auth). Values come from the",
   "//firebase2": "Firebase console → Project settings → Your apps → SDK setup and configuration.",
   "FIREBASE_API_KEY": "your-web-api-key",

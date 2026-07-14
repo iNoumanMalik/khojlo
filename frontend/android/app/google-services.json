@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "156196820923",
+    "project_id": "khojlo-c5ba0",
+    "storage_bucket": "khojlo-c5ba0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:156196820923:android:a1342c68978caecb95969e",
+        "android_client_info": {
+          "package_name": "com.khojlo.khojlo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDChoE0GRL2dbkmQFymaaDg1hocyY_v9UE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
