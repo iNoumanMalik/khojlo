@@ -1,0 +1,46 @@
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── Python / FastAPI backend ───
+backend/.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.env
+*.sqlite3
+*.db
+
+# ─── Secrets (env + service-account keys) ───
+.env
+secrets/
+**/firebase-service-account*.json
+**/*-service-account*.json
+frontend/dart_defines.json
+
+# ─── Flutter / Dart frontend ───
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/build/
+frontend/.claude/
+frontend/.pub-cache/
+frontend/.pub/
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/key.properties
+frontend/**/GeneratedPluginRegistrant.*
+frontend/.env
+
+# ─── Editors ───
+.idea/
+.vscode/
+.claude/
+*.iml
+*.log

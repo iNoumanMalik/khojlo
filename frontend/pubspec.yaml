@@ -1,0 +1,40 @@
+name: khojlo
+description: "Khojlo — discover local businesses"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # state management
+  flutter_riverpod: ^2.6.1
+
+  # routing
+  go_router: ^14.6.2
+
+  # networking + auth storage
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.4
+
+  # design system
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
+
+  # maps (Module 6 prototype)
+  google_maps_flutter: ^2.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

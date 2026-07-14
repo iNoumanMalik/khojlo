@@ -1,0 +1,14 @@
+{
+  "//": "Copy to dart_defines.json and pass with --dart-define-from-file=dart_defines.json.",
+  "//api": "Backend base URL. Overrides the per-platform default in lib/core/network/api_config.dart.",
+  "KHOJLO_API": "http://localhost:8000/api/v1",
+
+  "//firebase": "Firebase client config (future — FCM push / social auth). Values come from the",
+  "//firebase2": "Firebase console → Project settings → Your apps → SDK setup and configuration.",
+  "FIREBASE_API_KEY": "your-web-api-key",
+  "FIREBASE_APP_ID": "1:1234567890:web:abcdef",
+  "FIREBASE_PROJECT_ID": "your-firebase-project-id",
+  "FIREBASE_MESSAGING_SENDER_ID": "1234567890",
+  "FIREBASE_AUTH_DOMAIN": "your-project.firebaseapp.com",
+  "FIREBASE_STORAGE_BUCKET": "your-project.appspot.com"
+}

@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: khojlo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: khojlo
+      POSTGRES_PASSWORD: khojlo
+      POSTGRES_DB: khojlo
+    ports:
+      - "5432:5432"
+    volumes:
+      - khojlo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khojlo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  khojlo_pgdata:
