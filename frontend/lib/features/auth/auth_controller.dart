@@ -105,23 +105,42 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> loginWithGoogle() async {
+  /// Mobile: runs Google's account picker, then signs in to Khojlo.
+  Future<bool> loginWithGoogle() => _loginWithGoogle(_repo.signInWithGoogle);
+
+  /// Web: signs in to Khojlo with an account Google's rendered button already
+  /// signed in (delivered on [googleSignInEvents]).
+  Future<bool> loginWithGoogleAccount(GoogleSignInAccount account) =>
+      _loginWithGoogle(() => _repo.signInWithGoogleAccount(account));
+
+  /// Must complete before Google's web button can render.
+  Future<void> prepareGoogleSignIn() => _repo.ensureGoogleSignInReady();
+
+  Stream<GoogleSignInAuthenticationEvent> get googleSignInEvents =>
+      _repo.googleAuthEvents;
+
+  Future<bool> _loginWithGoogle(Future<AppUser> Function() signIn) async {
     state = state.copyWith(googleLoading: true, clearError: true);
     try {
-      final user = await _repo.signInWithGoogle();
+      final user = await signIn();
       state = state.copyWith(
           status: AuthStatus.authenticated, user: user, googleLoading: false);
       return true;
-    } on GoogleSignInException catch (e) {
-      final canceled = e.code == GoogleSignInExceptionCode.canceled;
+    } catch (e) {
+      googleSignInFailed(e);
+      return false;
+    }
+  }
+
+  void googleSignInFailed(Object error) {
+    if (error is GoogleSignInException) {
+      final canceled = error.code == GoogleSignInExceptionCode.canceled;
       state = state.copyWith(
         googleLoading: false,
         error: canceled ? null : 'Google sign-in failed. Please try again.',
       );
-      return false;
-    } catch (e) {
-      state = state.copyWith(googleLoading: false, error: describeApiError(e));
-      return false;
+    } else {
+      state = state.copyWith(googleLoading: false, error: describeApiError(error));
     }
   }
 

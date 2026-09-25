@@ -44,3 +44,5 @@ frontend/.env
 .claude/
 *.iml
 *.log
+
+commands.md

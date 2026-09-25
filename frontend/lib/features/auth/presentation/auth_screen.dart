@@ -1,12 +1,18 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/models/user.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../auth_controller.dart';
+import 'google_web_button_stub.dart'
+    if (dart.library.js_interop) 'google_web_button_web.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -26,8 +32,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   bool get _isSignUp => _mode == 1;
 
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _googleEvents;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      // On web, Google's rendered button signs the user in and reports the
+      // result on this stream instead of returning it from a call.
+      final auth = ref.read(authControllerProvider.notifier);
+      _googleEvents = auth.googleSignInEvents.listen(
+        (event) {
+          if (event is GoogleSignInAuthenticationEventSignIn) {
+            _finishGoogleSignIn(auth.loginWithGoogleAccount(event.user));
+          }
+        },
+        onError: auth.googleSignInFailed,
+      );
+      auth.prepareGoogleSignIn();
+    }
+  }
+
   @override
   void dispose() {
+    _googleEvents?.cancel();
     _name.dispose();
     _email.dispose();
     _password.dispose();
@@ -54,9 +82,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  Future<void> _continueWithGoogle() async {
-    final auth = ref.read(authControllerProvider.notifier);
-    final ok = await auth.loginWithGoogle();
+  void _continueWithGoogle() =>
+      _finishGoogleSignIn(ref.read(authControllerProvider.notifier).loginWithGoogle());
+
+  Future<void> _finishGoogleSignIn(Future<bool> signIn) async {
+    final ok = await signIn;
     if (!ok || !mounted) return;
     final user = ref.read(authControllerProvider).user;
     // route brand-new customers (no interests picked yet) through onboarding
@@ -202,12 +232,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ],
                 ),
                 const SizedBox(height: 18),
-                GhostButton(
-                  label: state.googleLoading
-                      ? 'Signing in…'
-                      : 'Continue with Google',
-                  onTap: state.googleLoading ? null : _continueWithGoogle,
-                ),
+                if (state.googleLoading)
+                  const GhostButton(label: 'Signing in…', onTap: null)
+                else if (kIsWeb)
+                  LayoutBuilder(
+                    builder: (_, constraints) => Center(
+                      child: googleWebSignInButton(width: constraints.maxWidth),
+                    ),
+                  )
+                else
+                  GhostButton(
+                    label: 'Continue with Google',
+                    onTap: _continueWithGoogle,
+                  ),
                 const SizedBox(height: 12),
                 // const GhostButton(label: 'Continue with Apple'),
                 // const SizedBox(height: 22),

@@ -10,7 +10,9 @@ from app.core.database import Base
 import app.models  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser treats "%" as interpolation, so escape it — URL-encoded
+# passwords (e.g. "%40" for "@") would otherwise raise a ValueError.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

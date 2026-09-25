@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -20,21 +21,36 @@ class AuthRepository {
 
   final Dio _dio;
   final TokenStorage _tokens;
-  bool _googleSignInReady = false;
 
-  Future<void> _ensureGoogleSignInReady() async {
-    if (_googleSignInReady) return;
-    await GoogleSignIn.instance.initialize(
-      serverClientId: GoogleAuthConfig.serverClientId,
+  // GoogleSignIn.instance is a process-wide singleton that may only be
+  // initialized once, so the guard is static rather than per repository.
+  static Future<void>? _googleInit;
+
+  /// Initializes Google Sign-In once. Web takes the Web client ID as its own
+  /// client ID (it rejects serverClientId); mobile passes it as
+  /// serverClientId so the ID token is issued for the backend's audience.
+  Future<void> ensureGoogleSignInReady() {
+    return _googleInit ??= GoogleSignIn.instance.initialize(
+      clientId: kIsWeb ? GoogleAuthConfig.serverClientId : null,
+      serverClientId: kIsWeb ? null : GoogleAuthConfig.serverClientId,
     );
-    _googleSignInReady = true;
   }
 
-  /// Signs in with Google, then exchanges the ID token for our own session
-  /// tokens (the backend finds-or-creates the user and issues a [TokenPair]).
+  /// Google sign-in results. On web this is the only way to receive them:
+  /// sign-in starts from Google's rendered button, not [signInWithGoogle].
+  Stream<GoogleSignInAuthenticationEvent> get googleAuthEvents =>
+      GoogleSignIn.instance.authenticationEvents;
+
+  /// Mobile: shows Google's account picker, then signs in to Khojlo.
   Future<AppUser> signInWithGoogle() async {
-    await _ensureGoogleSignInReady();
+    await ensureGoogleSignInReady();
     final account = await GoogleSignIn.instance.authenticate();
+    return signInWithGoogleAccount(account);
+  }
+
+  /// Exchanges a signed-in Google account's ID token for our own session
+  /// tokens (the backend finds-or-creates the user and issues a [TokenPair]).
+  Future<AppUser> signInWithGoogleAccount(GoogleSignInAccount account) async {
     final idToken = account.authentication.idToken;
     if (idToken == null) {
       throw StateError('Google sign-in did not return an ID token.');
