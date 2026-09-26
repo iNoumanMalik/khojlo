@@ -72,7 +72,7 @@ class MapScreen extends StatelessWidget {
                             SizedBox(
                               width: 70,
                               height: 70,
-                              child: ImageTile(tone: b.tone, radius: 14),
+                              child: ImageTile(tone: b.tone, radius: 14, photo: b.cover),
                             ),
                             const SizedBox(width: 12),
                             Expanded(

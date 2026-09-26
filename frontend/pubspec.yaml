@@ -38,6 +38,11 @@ dependencies:
   # device location (Module 4: "near me" search, distance filter, pinning a business)
   geolocator: ^14.0.2
 
+  # business photos + profile pictures (gallery / camera roll; a file picker on web)
+  image_picker: ^1.2.3
+  # "Call" on a business page (tel: links)
+  url_launcher: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

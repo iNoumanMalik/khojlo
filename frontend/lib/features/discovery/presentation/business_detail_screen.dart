@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/photo_viewer.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../search/compare_controller.dart';
 import '../data/discovery_repository.dart';
@@ -65,6 +67,29 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       ));
   }
 
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        backgroundColor: AppColors.ink,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Text(message, style: AppType.sans(size: 13, color: Colors.white)),
+      ));
+  }
+
+  Future<void> _call(BusinessDetail b) async {
+    final phone = b.phone;
+    if (phone == null) {
+      _snack('${b.name} hasn’t added a phone number yet.');
+      return;
+    }
+    final dialable = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final opened = await launchUrl(Uri(scheme: 'tel', path: dialable));
+    if (!opened && mounted) _snack('Couldn’t open the dialer. The number is $phone.');
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(businessDetailProvider(widget.id));
@@ -90,10 +115,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         ListView(
           padding: EdgeInsets.zero,
           children: [
-            // hero
-            SizedBox(
-              height: 300,
-              child: ImageTile(tone: b.tone, radius: 0, height: 300),
+            // hero: the cover photo (tap for the full gallery), or the tone gradient
+            Semantics(
+              image: b.photos.isNotEmpty,
+              label: b.photos.isEmpty ? null : 'Photos of ${b.name}, open gallery',
+              child: GestureDetector(
+                onTap: b.photos.isEmpty ? null : () => showPhotoViewer(context, b.photos),
+                child: ImageTile(tone: b.tone, radius: 0, height: 300, photo: b.cover),
+              ),
             ),
             Transform.translate(
               offset: const Offset(0, -34),
@@ -108,9 +137,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                     children: [
                       Row(
                         children: [
-                          if (b.categoryName != null)
-                            KhojloBadge(
-                                label: b.categoryName!, tone: BadgeTone.emerald),
+                          if (b.typeLabel != null)
+                            KhojloBadge(label: b.typeLabel!, tone: BadgeTone.emerald),
                           const Spacer(),
                           if (b.isVerified)
                             KhojloBadge(
@@ -170,7 +198,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  _Action(icon: Icons.call_rounded, label: 'Call'),
+                  _Action(
+                      icon: Icons.call_rounded,
+                      label: 'Call',
+                      dimmed: b.phone == null,
+                      onTap: () => _call(b)),
                   _Action(icon: Icons.directions_rounded, label: 'Directions'),
                   _Action(
                       icon: Icons.chat_bubble_outline_rounded,
@@ -187,6 +219,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
             ),
             const SizedBox(height: 24),
             if (b.offers.isNotEmpty) _offers(b),
+            // The cover is already the hero, so the gallery appears once there's more.
+            if (b.photos.length > 1) _gallery(b),
             _sectionTitle('The story'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -251,6 +285,25 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 ),
               ),
             ),
+            if (b.phone != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: GestureDetector(
+                  onTap: () => _call(b),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.call_rounded, size: 18, color: AppColors.emerald),
+                      const SizedBox(width: 10),
+                      Text(b.phone!, style: AppType.mono(size: 13, color: AppColors.ink)),
+                      const Spacer(),
+                      Text('Call',
+                          style: AppType.sans(
+                              size: 13, weight: FontWeight.w700, color: AppColors.emerald)),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 140),
           ],
         ),
@@ -336,6 +389,39 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     );
   }
 
+  Widget _gallery(BusinessDetail b) {
+    const height = 150.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Gallery · ${b.photos.length} photos'),
+        SizedBox(
+          height: height,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: b.photos.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final photo = b.photos[i];
+              // Close to each photo's own shape, within limits so the strip stays tidy.
+              final width = (height * photo.aspectRatio).clamp(height * 0.66, height * 1.6);
+              return Semantics(
+                button: true,
+                label: 'Photo ${i + 1} of ${b.photos.length}',
+                child: GestureDetector(
+                  onTap: () => showPhotoViewer(context, b.photos, initialIndex: i),
+                  child: ImageTile(
+                      photo: photo, tone: b.tone, width: width, height: height, radius: 16),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _sectionTitle(String t) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
         child: Text(t.toUpperCase(),
@@ -368,18 +454,24 @@ class _Action extends StatelessWidget {
     required this.label,
     this.onTap,
     this.active = false,
+    this.dimmed = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool active;
 
+  /// Shown faded when the action isn't available (e.g. no phone number).
+  final bool dimmed;
+
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: Column(
+        child: Opacity(
+          opacity: dimmed ? 0.45 : 1,
+          child: Column(
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -396,6 +488,7 @@ class _Action extends StatelessWidget {
             Text(label,
                 style: AppType.sans(size: 11, color: AppColors.inkA(0.6))),
           ],
+          ),
         ),
       ),
     );

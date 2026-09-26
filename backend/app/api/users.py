@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.saved import SavedListCreate, SavedListOut
 from app.schemas.user import InterestsUpdate, UserOut, UserUpdate
 from app.services.business_service import to_card
+from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -24,10 +25,28 @@ def update_me(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    if payload.full_name is not None:
-        user.full_name = payload.full_name
-    if payload.avatar_tone is not None:
-        user.avatar_tone = payload.avatar_tone
+    changes = payload.model_dump(exclude_unset=True)
+    if changes.get("full_name") is not None:
+        user.full_name = changes["full_name"]
+    if changes.get("avatar_tone") is not None:
+        user.avatar_tone = changes["avatar_tone"]
+    if "phone" in changes:
+        user.phone = changes["phone"]
+    previous_avatar = user.avatar_media_id
+    if "avatar" in changes:
+        if changes["avatar"] is None:
+            user.avatar_media_id = None
+        else:
+            try:
+                (media,) = resolve_keys(db, [changes["avatar"]], allowed_owner=user.id)
+            except UnknownPhotos:
+                raise HTTPException(
+                    status_code=422, detail="That photo couldn't be found. Please upload it again."
+                ) from None
+            user.avatar_media_id = media.id
+    db.flush()
+    if previous_avatar is not None and previous_avatar != user.avatar_media_id:
+        delete_if_unused(db, {previous_avatar})
     db.commit()
     db.refresh(user)
     return user

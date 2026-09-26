@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.categories import categories_with_counts
 from app.api.deps import get_optional_user
 from app.core.database import get_db
-from app.models.business import BusinessProfile, Category
+from app.models.business import BusinessProfile
 from app.models.user import User
-from app.schemas.business import CategoryOut
 from app.schemas.feed import FeedResponse, FeedSection
 from app.services.business_service import card_load_options, to_card
 
@@ -44,7 +44,8 @@ def get_feed(
     by_new = sorted(businesses, key=lambda b: b.created_at, reverse=True)
     by_saves = sorted(businesses, key=lambda b: b.save_count, reverse=True)
 
-    categories = db.execute(select(Category).order_by(Category.id)).scalars().all()
+    # Home's chips: only categories with published businesses, so none leads nowhere.
+    categories = [c for c in categories_with_counts(db) if c.business_count]
 
     # personalize the "because you liked" row from the user's interest slugs
     liked_title = "Worth exploring"
@@ -100,7 +101,7 @@ def get_feed(
     return FeedResponse(
         greeting=greeting,
         headline=headline,
-        categories=[CategoryOut.model_validate(c) for c in categories],
+        categories=categories,
         sections=sections,
     )
 

@@ -25,7 +25,11 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(22, 64, 22, 0),
             child: Row(
               children: [
-                KhojloAvatar(initials: business.name[0], tone: business.tone, size: 46),
+                KhojloAvatar(
+                    initials: business.name[0],
+                    tone: business.tone,
+                    size: 46,
+                    photo: business.cover),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -135,6 +139,7 @@ class DashboardScreen extends ConsumerWidget {
                 'Edit business profile' => () =>
                     context.push('/edit-business/${business.id}'),
                 'Offers & promotions' => () => context.push('/offers/${business.id}'),
+                'Photos' => () => context.push('/edit-photos/${business.id}'),
                 'Operating hours' => () => context.push('/edit-hours/${business.id}'),
                 _ => null,
               },

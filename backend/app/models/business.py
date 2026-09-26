@@ -27,6 +27,10 @@ class OfferStatus(str, enum.Enum):
     ended = "Ended"
 
 
+# The catch-all category; its businesses describe themselves in `custom_category`.
+OTHER_CATEGORY = "other"
+
+
 class Category(Base):
     __tablename__ = "categories"
 
@@ -35,8 +39,18 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     # visual tone used by the design system (gold/plum/emerald/coral/ink)
     tone: Mapped[str] = mapped_column(String(16), default="gold")
+    emoji: Mapped[str] = mapped_column(String(16), default="")
+    # Heading the category is listed under in pickers ("Food & Drink", "Services", ...).
+    group_name: Mapped[str] = mapped_column(String(40), default="")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    # Extra words search should match, e.g. local terms: "darzi, stitching" for tailors.
+    keywords: Mapped[str] = mapped_column(Text, default="")
 
     businesses = relationship("BusinessProfile", back_populates="category")
+
+    @property
+    def is_other(self) -> bool:
+        return self.slug == OTHER_CATEGORY
 
 
 class BusinessProfile(Base):
@@ -49,11 +63,14 @@ class BusinessProfile(Base):
     )
 
     name: Mapped[str] = mapped_column(String(160), nullable=False)
+    # What kind of business it is when the category is "Other", e.g. "Calligraphy studio".
+    custom_category: Mapped[str | None] = mapped_column(String(60), nullable=True)
     tagline: Mapped[str] = mapped_column(String(200), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     tone: Mapped[str] = mapped_column(String(16), default="gold")
 
     address: Mapped[str] = mapped_column(String(255), default="")
+    phone: Mapped[str | None] = mapped_column(String(24), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_level: Mapped[str] = mapped_column(String(8), default="$$")
@@ -62,6 +79,8 @@ class BusinessProfile(Base):
     price_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Legacy, unused: photos live in `business_photos`. Kept so builds from before photo
+    # support keep working against the shared database.
     images: Mapped[list] = mapped_column(JSON, default=list)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
@@ -81,6 +100,26 @@ class BusinessProfile(Base):
     services = relationship("Service", back_populates="business", cascade="all, delete-orphan")
     hours = relationship("OpeningHours", back_populates="business", cascade="all, delete-orphan")
     offers = relationship("Offer", back_populates="business", cascade="all, delete-orphan")
+    photos = relationship(
+        "BusinessPhoto",
+        back_populates="business",
+        cascade="all, delete-orphan",
+        order_by="BusinessPhoto.position",
+    )
+
+    @property
+    def cover(self):
+        """The cover photo's media row, or None (cards then use the tone gradient)."""
+        return self.photos[0].media if self.photos else None
+
+    @property
+    def category_label(self) -> str | None:
+        """What cards show: the owner's own description for "Other", else the category."""
+        if self.category is None:
+            return None
+        if self.category.is_other and self.custom_category:
+            return self.custom_category
+        return self.category.name
 
 
 class Service(Base):

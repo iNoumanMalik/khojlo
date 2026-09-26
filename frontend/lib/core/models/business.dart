@@ -1,4 +1,6 @@
-/// Domain models mirroring the backend Pydantic schemas.
+// Domain models mirroring the backend Pydantic schemas.
+
+import 'photo.dart';
 
 class Category {
   const Category({
@@ -6,19 +8,52 @@ class Category {
     required this.slug,
     required this.name,
     required this.tone,
+    this.emoji = '',
+    this.groupName = '',
+    this.sortOrder = 0,
+    this.isOther = false,
+    this.businessCount = 0,
   });
 
   final int id;
   final String slug;
   final String name;
   final String tone;
+  final String emoji;
+
+  /// Heading the category is listed under ("Food & Drink", "Services", ...).
+  final String groupName;
+  final int sortOrder;
+
+  /// The catch-all "Other": the owner describes their business in their own words.
+  final bool isOther;
+
+  /// Published businesses in this category (from `GET /categories`).
+  final int businessCount;
+
+  /// "🧵 Tailors & Fabric".
+  String get label => emoji.isEmpty ? name : '$emoji $name';
 
   factory Category.fromJson(Map<String, dynamic> j) => Category(
         id: j['id'] as int,
         slug: j['slug'] as String,
         name: j['name'] as String,
         tone: j['tone'] as String? ?? 'gold',
+        emoji: j['emoji'] as String? ?? '',
+        groupName: j['group_name'] as String? ?? '',
+        sortOrder: j['sort_order'] as int? ?? 0,
+        isOther: j['is_other'] as bool? ?? false,
+        businessCount: j['business_count'] as int? ?? 0,
       );
+}
+
+/// Categories bucketed by group, keeping the server's order within and across groups.
+List<(String, List<Category>)> groupCategories(Iterable<Category> categories) {
+  final groups = <String, List<Category>>{};
+  for (final c in categories) {
+    groups.putIfAbsent(c.groupName, () => []).add(c);
+  }
+  return [for (final e in groups.entries) (e.key, e.value)];
 }
 
 /// Formats a rupee amount with thousands separators: 2500 → "Rs 2,500".
@@ -64,6 +99,8 @@ class BusinessCard {
     this.todayHours,
     this.hasOffer = false,
     this.isNew = false,
+    this.cover,
+    this.categoryLabel,
   });
 
   final int id;
@@ -95,6 +132,14 @@ class BusinessCard {
 
   /// Joined Khojlo recently (backend `NEW_BUSINESS_DAYS`).
   final bool isNew;
+
+  /// The main photo, shown on every card. null → the tone gradient.
+  final Photo? cover;
+
+  /// What kind of business it is: the category, or the owner's own words for "Other".
+  final String? categoryLabel;
+
+  String? get typeLabel => categoryLabel ?? categoryName;
 
   String get distanceLabel =>
       distanceKm == null ? '' : '${distanceKm!.toStringAsFixed(1)} km';
@@ -131,6 +176,8 @@ class BusinessCard {
         todayHours: j['today_hours'] as String?,
         hasOffer: j['has_offer'] as bool? ?? false,
         isNew: j['is_new'] as bool? ?? false,
+        cover: Photo.maybe(j['cover']),
+        categoryLabel: j['category_label'] as String?,
       );
 }
 
@@ -256,10 +303,15 @@ class BusinessDetail extends BusinessCard {
     super.todayHours,
     super.hasOffer,
     super.isNew,
+    super.cover,
+    super.categoryLabel,
     required this.description,
     required this.latitude,
     required this.longitude,
-    required this.images,
+    this.photos = const [],
+    this.phone,
+    this.categoryId,
+    this.customCategory,
     required this.viewCount,
     required this.services,
     required this.offers,
@@ -270,7 +322,14 @@ class BusinessDetail extends BusinessCard {
   final String description;
   final double? latitude;
   final double? longitude;
-  final List<String> images;
+
+  /// Cover first, then the rest of the gallery.
+  final List<Photo> photos;
+  final String? phone;
+  final int? categoryId;
+
+  /// The owner's description when the category is "Other".
+  final String? customCategory;
   final int viewCount;
   final List<Service> services;
   final List<Offer> offers;
@@ -299,10 +358,18 @@ class BusinessDetail extends BusinessCard {
       todayHours: card.todayHours,
       hasOffer: card.hasOffer,
       isNew: card.isNew,
+      cover: card.cover,
+      categoryLabel: card.categoryLabel,
       description: j['description'] as String? ?? '',
       latitude: (j['latitude'] as num?)?.toDouble(),
       longitude: (j['longitude'] as num?)?.toDouble(),
-      images: (j['images'] as List?)?.cast<String>() ?? const [],
+      photos: (j['photos'] as List?)
+              ?.map((e) => Photo.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      phone: j['phone'] as String?,
+      categoryId: j['category_id'] as int?,
+      customCategory: j['custom_category'] as String?,
       viewCount: j['view_count'] as int? ?? 0,
       services: (j['services'] as List?)
               ?.map((e) => Service.fromJson(e as Map<String, dynamic>))

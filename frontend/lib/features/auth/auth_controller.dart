@@ -158,10 +158,28 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {/* non-fatal */}
   }
 
-  Future<void> updateProfile({String? fullName, String? avatarTone}) async {
-    final user = await _repo.updateProfile(fullName: fullName, avatarTone: avatarTone);
+  /// Saves the edit-profile screen; throws so the screen can show what went wrong.
+  Future<void> saveProfile({
+    required String fullName,
+    required String avatarTone,
+    required String? phone,
+    required String? avatarKey,
+    required List<String> interests,
+  }) async {
+    var user = await _repo.saveProfile(
+      fullName: fullName,
+      avatarTone: avatarTone,
+      phone: phone,
+      avatarKey: avatarKey,
+    );
+    if (!_sameItems(user.interests, interests)) {
+      user = await _repo.setInterests(interests);
+    }
     state = state.copyWith(user: user);
   }
+
+  static bool _sameItems(List<String> a, List<String> b) =>
+      a.length == b.length && a.toSet().containsAll(b);
 
   Future<void> logout() async {
     await _repo.logout();

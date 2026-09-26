@@ -66,9 +66,16 @@ class SearchContext:
 
     def text(self, b: BusinessProfile) -> FoldedText:
         if b.id not in self._text:
+            category = " ".join(
+                part for part in (
+                    b.category.name if b.category else "",
+                    b.category.keywords if b.category else "",
+                    b.custom_category or "",
+                ) if part
+            )
             self._text[b.id] = FoldedText(
                 name=fold(b.name),
-                category=fold(b.category.name) if b.category else "",
+                category=fold(category),
                 services=tuple(fold(s.name) for s in b.services),
                 tagline=fold(b.tagline),
                 address=fold(b.address),
@@ -109,6 +116,9 @@ class SearchStrategy(ABC):
 class KeywordSearch(SearchStrategy):
     """Matches keywords against name, tagline, description, address, category and services.
 
+    "Category" covers the category's name and search keywords (local terms such as
+    "darzi") plus the owner's own description for businesses listed under "Other".
+
     With `match_all` every token must match somewhere (precise). Without it, any token
     may match — the engine's fallback when a multi-word search finds nothing.
     """
@@ -133,6 +143,8 @@ class KeywordSearch(SearchStrategy):
             self._ilike(BusinessProfile.description, pattern),
             self._ilike(BusinessProfile.address, pattern),
             self._ilike(Category.name, pattern),
+            self._ilike(Category.keywords, pattern),
+            self._ilike(BusinessProfile.custom_category, pattern),
             service_match,
         )
 

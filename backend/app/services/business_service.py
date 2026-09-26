@@ -8,8 +8,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import settings
 from app.models.business import BusinessProfile, OfferStatus
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
+from app.models.media import BusinessPhoto, Media
 from app.schemas.business import BusinessAnalytics, BusinessCard, WeeklyPoint
+from app.schemas.media import PhotoOut
 from app.services.hours import is_open_now, today_hours_label
+from app.services.media_service import delete_if_unused
 
 _DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"]
 
@@ -35,7 +38,35 @@ def card_load_options() -> tuple:
         selectinload(BusinessProfile.category),
         selectinload(BusinessProfile.hours),
         selectinload(BusinessProfile.offers),
+        selectinload(BusinessProfile.photos),  # media rows join in; their bytes stay deferred
     )
+
+
+def photo_out(media: Media | None) -> PhotoOut | None:
+    return PhotoOut.model_validate(media) if media is not None else None
+
+
+def set_business_photos(db: Session, b: BusinessProfile, media: list[Media]) -> None:
+    """Make `media` the gallery, in order (the first is the cover).
+
+    Rows for photos that stay are reused and only re-positioned, so the unique
+    (business, photo) constraint never sees a duplicate while the change is flushed.
+    Photos that were removed are deleted unless something else still uses them.
+    """
+    wanted = {m.id: position for position, m in enumerate(media)}
+    removed = set()
+    for photo in list(b.photos):
+        if photo.media_id in wanted:
+            photo.position = wanted.pop(photo.media_id)
+        else:
+            removed.add(photo.media_id)
+            b.photos.remove(photo)
+    for m in media:
+        if m.id in wanted:
+            b.photos.append(BusinessPhoto(media=m, position=wanted[m.id]))
+    db.flush()
+    delete_if_unused(db, removed)
+    db.expire(b, ["photos"])
 
 
 def has_active_offer(b: BusinessProfile) -> bool:
@@ -81,6 +112,8 @@ def to_card(
         today_hours=today_hours_label(b.hours, now),
         has_offer=has_active_offer(b),
         is_new=is_new_business(b, now),
+        cover=photo_out(b.cover),
+        category_label=b.category_label,
     )
 
 

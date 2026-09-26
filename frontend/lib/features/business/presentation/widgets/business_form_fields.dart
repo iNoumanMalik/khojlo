@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +8,7 @@ import '../../../../core/models/business.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../business_providers.dart';
 import '../../data/business_repository.dart';
 
 // ─────────────── price tier ───────────────
@@ -387,6 +388,202 @@ class _TimeChip extends StatelessWidget {
         ),
         child: Text(value, style: AppType.mono(size: 12.5, weight: FontWeight.w600)),
       ),
+    );
+  }
+}
+
+// ─────────────── category ───────────────
+
+/// Category chips under their group headings ("Food & Drink", "Shopping", ...).
+/// Picking "Other" reveals a field for the owner's own description, which is
+/// shown on cards and matched by search.
+class CategoryPicker extends ConsumerWidget {
+  const CategoryPicker({
+    super.key,
+    required this.selectedId,
+    required this.onSelected,
+    required this.customController,
+    this.onCustomChanged,
+  });
+
+  final int? selectedId;
+  final ValueChanged<Category> onSelected;
+  final TextEditingController customController;
+  final VoidCallback? onCustomChanged;
+
+  /// A message when "Other" is picked without a description, else null.
+  static String? customError(Category? selected, String text) =>
+      selected != null && selected.isOther && text.trim().length < 2
+          ? 'Describe your business in a few words, e.g. “Calligraphy studio”.'
+          : null;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(categoriesProvider).when(
+          loading: () => Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var i = 0; i < 8; i++)
+                SkeletonBox(width: 90 + (i % 3) * 24.0, height: 36, radius: 999),
+            ],
+          ),
+          error: (_, __) => Row(
+            children: [
+              Expanded(
+                child: Text('Couldn’t load categories',
+                    style: AppType.sans(color: AppColors.inkA(0.6))),
+              ),
+              GhostButton(
+                label: 'Retry',
+                small: true,
+                expand: false,
+                onTap: () => ref.invalidate(categoriesProvider),
+              ),
+            ],
+          ),
+          data: (list) {
+            final selected = list.where((c) => c.id == selectedId).firstOrNull;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final (group, items) in groupCategories(list)) ...[
+                  if (group.isNotEmpty) ...[
+                    Text(group.toUpperCase(), style: AppType.label()),
+                    const SizedBox(height: 8),
+                  ],
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final c in items)
+                        KhojloChip(
+                          label: c.name,
+                          emoji: c.emoji,
+                          dense: true,
+                          active: c.id == selectedId,
+                          onTap: () => onSelected(c),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                ],
+                if (selected?.isOther ?? false)
+                  AppField(
+                    label: 'What kind of business is it?',
+                    controller: customController,
+                    hint: 'e.g. Calligraphy studio',
+                    inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                    onChanged: (_) => onCustomChanged?.call(),
+                  ),
+              ],
+            );
+          },
+        );
+  }
+}
+
+// ─────────────── phone ───────────────
+
+/// Optional contact number, checked the same way as the backend (7–15 digits).
+class PhoneField extends StatelessWidget {
+  const PhoneField({
+    super.key,
+    required this.controller,
+    this.onChanged,
+    this.label = 'Phone number · optional',
+  });
+
+  final TextEditingController controller;
+  final VoidCallback? onChanged;
+  final String label;
+
+  static final _allowed = RegExp(r'^\+?[\d\s\-()]+$');
+
+  /// A message when the number doesn't look like one, else null (empty is fine).
+  static String? validate(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    final digits = t.replaceAll(RegExp(r'\D'), '').length;
+    if (!_allowed.hasMatch(t) || digits < 7 || digits > 15) {
+      return 'Enter a valid phone number, e.g. 0300 1234567';
+    }
+    return null;
+  }
+
+  /// The number to send: trimmed, or null to clear it.
+  static String? value(TextEditingController c) {
+    final t = c.text.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = validate(controller.text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppField(
+          label: label,
+          controller: controller,
+          hint: '0300 1234567',
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d\s+\-()]')),
+            LengthLimitingTextInputFormatter(24),
+          ],
+          onChanged: (_) => onChanged?.call(),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 6),
+          Text(error, style: AppType.sans(size: 12, color: AppColors.plum)),
+        ],
+      ],
+    );
+  }
+}
+
+// ─────────────── colour ───────────────
+
+/// The listing's colour: used on cards whenever there's no photo.
+class TonePicker extends StatelessWidget {
+  const TonePicker({super.key, required this.value, required this.onChanged});
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  static const tones = ['gold', 'emerald', 'plum', 'coral', 'ink'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final t in tones)
+          Semantics(
+            button: true,
+            selected: value == t,
+            label: '$t colour',
+            child: GestureDetector(
+              onTap: () => onChanged(t),
+              child: Container(
+                width: 44,
+                height: 44,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppColors.gradientFor(t),
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: value == t ? AppColors.ink : Colors.transparent,
+                    width: 2.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

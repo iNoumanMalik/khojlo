@@ -102,10 +102,18 @@ class AuthRepository {
     return AppUser.fromJson(res.data as Map<String, dynamic>);
   }
 
-  Future<AppUser> updateProfile({String? fullName, String? avatarTone}) async {
+  /// Saves the edit-profile form. `phone` / `avatarKey` null clear them.
+  Future<AppUser> saveProfile({
+    required String fullName,
+    required String avatarTone,
+    required String? phone,
+    required String? avatarKey,
+  }) async {
     final res = await _dio.patch('/users/me', data: {
-      if (fullName != null) 'full_name': fullName,
-      if (avatarTone != null) 'avatar_tone': avatarTone,
+      'full_name': fullName,
+      'avatar_tone': avatarTone,
+      'phone': phone,
+      'avatar': avatarKey,
     });
     return AppUser.fromJson(res.data as Map<String, dynamic>);
   }

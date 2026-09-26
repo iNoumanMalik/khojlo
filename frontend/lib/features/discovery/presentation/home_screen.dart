@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/business.dart';
 import '../../../core/models/feed.dart';
+import '../../../core/models/photo.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
@@ -33,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
               headline: 'Discover what’s\nnew nearby',
               initials: user?.initials ?? '?',
               tone: user?.avatarTone ?? 'gold',
+              photo: user?.avatar,
             ),
             const SizedBox(height: 24),
             _FeedError(onRetry: () => ref.refresh(feedProvider)),
@@ -49,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
                 headline: feed.headline,
                 initials: user?.initials ?? '?',
                 tone: user?.avatarTone ?? 'gold',
+                photo: user?.avatar,
               ),
               _SearchRow(),
               const SizedBox(height: 18),
@@ -70,11 +73,13 @@ class _Header extends StatelessWidget {
     required this.headline,
     required this.initials,
     required this.tone,
+    this.photo,
   });
   final String greeting;
   final String headline;
   final String initials;
   final String tone;
+  final Photo? photo;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +109,7 @@ class _Header extends StatelessWidget {
                 label: 'Profile',
                 child: GestureDetector(
                   onTap: () => context.push('/profile'),
-                  child: KhojloAvatar(initials: initials, tone: tone, size: 40),
+                  child: KhojloAvatar(initials: initials, tone: tone, size: 40, photo: photo),
                 ),
               ),
             ],
@@ -173,6 +178,7 @@ class _Categories extends ConsumerWidget {
             const SizedBox(width: 10),
             KhojloChip(
               label: c.name,
+              emoji: c.emoji,
               onTap: () {
                 search.browseCategory(c.slug);
                 context.go('/explore');

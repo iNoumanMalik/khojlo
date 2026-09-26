@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/account/presentation/edit_profile_screen.dart';
 import '../../features/account/presentation/profile_screen.dart';
 import '../../features/account/presentation/saved_screen.dart';
 import '../../features/auth/auth_controller.dart';
@@ -12,6 +13,7 @@ import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/business/presentation/business_tab_screen.dart';
 import '../../features/business/presentation/edit_business_screen.dart';
 import '../../features/business/presentation/edit_hours_screen.dart';
+import '../../features/business/presentation/edit_photos_screen.dart';
 import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
@@ -119,6 +121,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             EditHoursScreen(businessId: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
+        path: '/edit-photos/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            EditPhotosScreen(businessId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
         path: '/offers/:id',
         parentNavigatorKey: _rootKey,
         builder: (_, s) =>
@@ -128,6 +136,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/profile',
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const ProfileScreen()),
+      GoRoute(
+          path: '/edit-profile',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const EditProfileScreen()),
       GoRoute(
           path: '/saved',
           parentNavigatorKey: _rootKey,

@@ -50,7 +50,7 @@ class SearchResultRow extends StatelessWidget {
             SizedBox(
               width: 64,
               height: 64,
-              child: ImageTile(tone: b.tone, radius: 14),
+              child: ImageTile(tone: b.tone, radius: 14, photo: b.cover),
             ),
             const SizedBox(width: 14),
             Expanded(

@@ -36,6 +36,7 @@ class ProfileScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         children: [
           Stack(
+            alignment: Alignment.topCenter,
             children: [
               const SizedBox(
                   height: 250, child: MeshBackground()),
@@ -50,14 +51,21 @@ class ProfileScreen extends ConsumerWidget {
                 top: 52,
                 right: 20,
                 child: GlassIconButton(
-                    icon: Icons.settings_outlined, onTap: () {}),
+                    icon: Icons.edit_outlined,
+                    onTap: () => context.push('/edit-profile')),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 96, 24, 0),
                 child: Column(
                   children: [
-                    KhojloAvatar(
-                        initials: user.initials, tone: user.avatarTone, size: 88),
+                    GestureDetector(
+                      onTap: () => context.push('/edit-profile'),
+                      child: KhojloAvatar(
+                          initials: user.initials,
+                          tone: user.avatarTone,
+                          size: 88,
+                          photo: user.avatar),
+                    ),
                     const SizedBox(height: 14),
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -128,7 +136,10 @@ class ProfileScreen extends ConsumerWidget {
                 _Row(
                     icon: Icons.emoji_events_outlined,
                     label: 'Achievements'),
-                _Row(icon: Icons.settings_outlined, label: 'Settings'),
+                _Row(
+                    icon: Icons.manage_accounts_outlined,
+                    label: 'Edit profile',
+                    onTap: () => context.push('/edit-profile')),
               ],
             ),
           ),

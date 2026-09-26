@@ -73,6 +73,13 @@ Module 4 demo: sign in as the customer, open **Explore**, search `unstitched fab
 mockup's Abbottabad tailors), filter, tick two results and tap **Compare**. Allow location to see
 distances. Owners can set a price range, opening hours and a map pin from the dashboard.
 
+Photos, categories and profiles: as the owner, open **Business → Photos** to add a cover and a
+gallery (the cover appears on every card; without photos the listing's colour is used). Try
+**Edit business profile → Other** with your own description, or search a local term such as
+`darzi`. Anyone can open **Profile → Edit profile** to set a photo, phone number and interests.
+Photos are stored in PostgreSQL (SDD §5.1), resized on upload, and cropped automatically to fit
+each card.
+
 Run the API tests (in‑memory SQLite, no Postgres needed):
 
 ```bash

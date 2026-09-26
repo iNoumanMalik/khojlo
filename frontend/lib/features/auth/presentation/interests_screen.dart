@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../business/business_providers.dart';
 import '../auth_controller.dart';
 
 class InterestsScreen extends ConsumerStatefulWidget {
@@ -18,16 +20,35 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   final _selected = <String>{};
   bool _saving = false;
 
-  // (label, emoji, backend category slug)
-  static const _interests = [
-    ('Food', '🍜', 'restaurants'),
-    ('Cafés', '☕', 'cafes'),
-    ('Gym', '💪', 'gym'),
-    ('Healthcare', '🏥', 'healthcare'),
-    ('Gaming', '🎮', 'gaming'),
-    ('Beauty', '💄', 'beauty'),
-    ('Education', '🎓', 'education'),
-  ];
+  Widget _grouped(List<Category> categories) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (group, items) in groupCategories(categories.where((c) => !c.isOther))) ...[
+          if (group.isNotEmpty) ...[
+            Text(group.toUpperCase(), style: AppType.label()),
+            const SizedBox(height: 10),
+          ],
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final c in items)
+                _InterestChip(
+                  label: c.name,
+                  emoji: c.emoji,
+                  selected: _selected.contains(c.slug),
+                  onTap: () => setState(() {
+                    if (!_selected.remove(c.slug)) _selected.add(c.slug);
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+      ],
+    );
+  }
 
   Future<void> _continue() async {
     setState(() => _saving = true);
@@ -60,23 +81,32 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                   const SizedBox(height: 24),
                   Expanded(
                     child: SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          for (final (label, emoji, slug) in _interests)
-                            _InterestChip(
-                              label: label,
-                              emoji: emoji,
-                              selected: _selected.contains(slug),
-                              onTap: () => setState(() {
-                                _selected.contains(slug)
-                                    ? _selected.remove(slug)
-                                    : _selected.add(slug);
-                              }),
+                      // Categories come from the server, so new ones appear without an update.
+                      child: ref.watch(categoriesProvider).when(
+                            loading: () => Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                for (var i = 0; i < 9; i++)
+                                  SkeletonBox(width: 110 + (i % 3) * 20.0, height: 50, radius: 18),
+                              ],
                             ),
-                        ],
-                      ),
+                            error: (_, __) => Row(
+                              children: [
+                                Expanded(
+                                  child: Text('Couldn’t load interests. You can pick them later.',
+                                      style: AppType.sans(size: 13, color: AppColors.inkA(0.6))),
+                                ),
+                                GhostButton(
+                                  label: 'Retry',
+                                  small: true,
+                                  expand: false,
+                                  onTap: () => ref.invalidate(categoriesProvider),
+                                ),
+                              ],
+                            ),
+                            data: (list) => _grouped(list),
+                          ),
                     ),
                   ),
                   PrimaryButton(
@@ -116,7 +146,7 @@ class _InterestChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppColors.emerald : AppColors.whiteA(0.6),
           borderRadius: BorderRadius.circular(18),
@@ -136,8 +166,8 @@ class _InterestChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
+            Text(emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 7),
             Text(label,
                 style: AppType.sans(
                     size: 14,

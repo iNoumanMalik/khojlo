@@ -32,7 +32,7 @@ class BusinessMiniCard extends StatelessWidget {
                 height: 100,
                 tone: business.tone,
                 radius: 16,
-                imageUrl: business.images1st),
+                photo: business.cover),
             const SizedBox(height: 8),
             Text(business.name,
                 maxLines: 1,
@@ -68,7 +68,7 @@ class BusinessHeroCard extends StatelessWidget {
               height: 230,
               tone: business.tone,
               radius: 26,
-              imageUrl: business.images1st),
+              photo: business.cover),
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -159,7 +159,7 @@ class BusinessListRow extends StatelessWidget {
               child: ImageTile(
                   tone: business.tone,
                   radius: 14,
-                  imageUrl: business.images1st),
+                  photo: business.cover),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -185,7 +185,3 @@ class BusinessListRow extends StatelessWidget {
   }
 }
 
-extension on BusinessCard {
-  // Mock data has no photos yet — cards fall back to the tone gradient.
-  String? get images1st => null;
-}

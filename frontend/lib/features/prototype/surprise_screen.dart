@@ -155,11 +155,11 @@ class _Card extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ImageTile(height: 220, tone: business.tone, radius: 18),
+            ImageTile(height: 220, tone: business.tone, radius: 18, photo: business.cover),
             const SizedBox(height: 14),
             Text(business.name, style: AppType.serif(size: 22)),
             const SizedBox(height: 4),
-            Text(business.categoryName ?? '',
+            Text(business.typeLabel ?? '',
                 style: AppType.sans(size: 12.5, color: AppColors.inkA(0.6))),
             const Spacer(),
             Row(

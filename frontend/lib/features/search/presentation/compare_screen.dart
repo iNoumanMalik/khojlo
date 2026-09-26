@@ -130,7 +130,7 @@ class _CompareBody extends ConsumerWidget {
       _RowSpec('Offers', CompareRow.offers, (i) => i.activeOffers.isEmpty
           ? const _Cell('None')
           : _Cell('${i.activeOffers.length} active', sub: i.activeOffers.first)),
-      _RowSpec('Category', null, (i) => _Cell(i.card.categoryName ?? '—')),
+      _RowSpec('Category', null, (i) => _Cell(i.card.typeLabel ?? '—')),
       _RowSpec('Saves', CompareRow.saves, (i) => _Cell('${i.card.saveCount}')),
       _RowSpec('Verified', null,
           (i) => _Cell(i.card.isVerified ? 'Yes' : 'Not yet')),
@@ -342,7 +342,7 @@ class _PlaceCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                ImageTile(height: 78, tone: b.tone, radius: 12),
+                ImageTile(height: 78, tone: b.tone, radius: 12, photo: b.cover),
                 Positioned(
                   top: 4,
                   right: 4,
@@ -371,7 +371,7 @@ class _PlaceCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppType.serif(size: 14.5, height: 1.15)),
             const SizedBox(height: 3),
-            Text(b.categoryName ?? '',
+            Text(b.typeLabel ?? '',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppType.mono(size: 9.5, color: AppColors.inkA(0.5))),

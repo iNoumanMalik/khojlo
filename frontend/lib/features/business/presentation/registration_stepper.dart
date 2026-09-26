@@ -12,6 +12,7 @@ import '../../discovery/discovery_providers.dart';
 import '../business_providers.dart';
 import '../data/business_repository.dart';
 import 'widgets/business_form_fields.dart';
+import 'widgets/photo_manager.dart';
 
 class RegistrationStepper extends ConsumerStatefulWidget {
   const RegistrationStepper({super.key});
@@ -27,6 +28,11 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
   bool _publishing = false;
   bool _done = false;
   String? _error;
+  Category? _category;
+  bool _photosUploading = false;
+
+  /// Once the owner picks a colour, choosing a category stops overriding it.
+  bool _tonePicked = false;
 
   final _name = TextEditingController();
   final _tagline = TextEditingController();
@@ -36,17 +42,18 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
   final _serviceAmount = TextEditingController();
   final _priceMin = TextEditingController();
   final _priceMax = TextEditingController();
+  final _custom = TextEditingController();
+  final _phone = TextEditingController();
 
   static const _steps = [
-    'Name', 'Category', 'Location', 'About', 'Hours', 'Services', 'Review',
+    'Name', 'Category', 'Location', 'Photos', 'About', 'Hours', 'Services', 'Review',
   ];
-  static const _tones = ['gold', 'emerald', 'plum', 'coral', 'ink'];
 
   @override
   void dispose() {
     for (final c in [
       _name, _tagline, _description, _address, _serviceName, _serviceAmount,
-      _priceMin, _priceMax,
+      _priceMin, _priceMax, _custom, _phone,
     ]) {
       c.dispose();
     }
@@ -58,8 +65,11 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
 
   bool get _canAdvance => switch (_step) {
         0 => _name.text.trim().isNotEmpty,
-        1 => _draft.categoryId != null,
-        3 => _priceError == null,
+        1 => _draft.categoryId != null &&
+            CategoryPicker.customError(_category, _custom.text) == null,
+        2 => PhoneField.validate(_phone.text) == null,
+        3 => !_photosUploading,
+        4 => _priceError == null,
         _ => true,
       };
 
@@ -81,12 +91,15 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
       ..tagline = _tagline.text.trim()
       ..description = _description.text.trim()
       ..address = _address.text.trim()
+      ..phone = PhoneField.value(_phone)
+      ..customCategory = (_category?.isOther ?? false) ? _custom.text.trim() : null
       ..priceMin = PriceRangeFields.parse(_priceMin)
       ..priceMax = PriceRangeFields.parse(_priceMax);
     try {
       await ref.read(businessRepositoryProvider).create(_draft);
       ref.invalidate(myBusinessesProvider);
       ref.invalidate(feedProvider);
+      ref.invalidate(categoriesProvider);
       if (mounted) setState(() => _done = true);
     } catch (e) {
       if (mounted) {
@@ -182,9 +195,10 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
       0 => _nameStep(),
       1 => _categoryStep(),
       2 => _locationStep(),
-      3 => _aboutStep(),
-      4 => _hoursStep(),
-      5 => _servicesStep(),
+      3 => _photosStep(),
+      4 => _aboutStep(),
+      5 => _hoursStep(),
+      6 => _servicesStep(),
       _ => _reviewStep(),
     };
   }
@@ -216,65 +230,35 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
               onChanged: (_) => setState(() {})),
           const SizedBox(height: 24),
           Text('PICK A COLOR', style: AppType.label()),
+          const SizedBox(height: 4),
+          Text('Your cards use it until you add photos.',
+              style: AppType.sans(size: 12.5, color: AppColors.inkA(0.5))),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              for (final t in _tones) ...[
-                GestureDetector(
-                  onTap: () => setState(() => _draft.tone = t),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: AppColors.gradientFor(t),
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _draft.tone == t
-                            ? AppColors.ink
-                            : Colors.transparent,
-                        width: 2.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+          TonePicker(
+            value: _draft.tone,
+            onChanged: (t) => setState(() {
+              _draft.tone = t;
+              _tonePicked = true;
+            }),
           ),
         ],
       );
 
   Widget _categoryStep() {
-    final cats = ref.watch(categoriesProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _heading('CATEGORY', 'What kind of\nbusiness is it?',
-            'We’ll show you in the right discovery sections.'),
-        cats.when(
-          loading: () => const Center(
-              child: CircularProgressIndicator(color: AppColors.emerald)),
-          error: (_, __) => Text('Couldn’t load categories',
-              style: AppType.sans(color: AppColors.inkA(0.6))),
-          data: (list) => Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final c in list)
-                KhojloChip(
-                  label: c.name,
-                  active: _draft.categoryId == c.id,
-                  onTap: () => setState(() {
-                    _draft.categoryId = c.id;
-                    _draft.tone = c.tone;
-                  }),
-                ),
-            ],
-          ),
+            'We’ll show you in the right discovery sections. Nothing fits? Pick “Other” and describe it.'),
+        CategoryPicker(
+          selectedId: _draft.categoryId,
+          customController: _custom,
+          onCustomChanged: () => setState(() {}),
+          onSelected: (c) => setState(() {
+            _category = c;
+            _draft.categoryId = c.id;
+            if (!_tonePicked) _draft.tone = c.tone;
+          }),
         ),
       ],
     );
@@ -283,12 +267,14 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
   Widget _locationStep() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _heading('LOCATION', 'Where can\npeople find you?',
-              'An address helps us place you on the map and nearby feeds.'),
+          _heading('LOCATION & CONTACT', 'Where can\npeople find you?',
+              'An address helps us place you on the map and nearby feeds. A phone number lets people call you from your page.'),
           AppField(
               label: 'Address',
               controller: _address,
               hint: 'Street, area, city'),
+          const SizedBox(height: 16),
+          PhoneField(controller: _phone, onChanged: () => setState(() {})),
           const SizedBox(height: 16),
           LocationPinField(
             latitude: _draft.latitude,
@@ -298,6 +284,23 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
               _draft.longitude = lng;
             }),
           ),
+        ],
+      );
+
+  Widget _photosStep() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _heading('PHOTOS', 'Show people\nwhat it’s like.',
+              'A cover for your cards and up to ${maxBusinessPhotos - 1} more for your page. No photos yet? Your colour stands in, and you can add them later.'),
+          PhotoManager(
+            initial: _draft.photos,
+            tone: _draft.tone,
+            onChanged: (photos, uploading) => setState(() {
+              _draft.photos = photos;
+              _photosUploading = uploading;
+            }),
+          ),
+          const SizedBox(height: 12),
         ],
       );
 
@@ -464,7 +467,8 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ImageTile(height: 130, tone: _draft.tone, radius: 16),
+          ImageTile(
+              height: 150, tone: _draft.tone, radius: 16, photo: _draft.photos.firstOrNull),
           const SizedBox(height: 12),
           Text(preview.name, style: AppType.serif(size: 20)),
           if (preview.tagline.isNotEmpty) ...[
@@ -475,6 +479,10 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
           const SizedBox(height: 10),
           Text(
             [
+              if (_category != null)
+                _category!.isOther && _custom.text.trim().isNotEmpty
+                    ? _custom.text.trim()
+                    : _category!.name,
               preview.priceLevel,
               priceRangeLabel(PriceRangeFields.parse(_priceMin),
                   PriceRangeFields.parse(_priceMax)),
@@ -496,6 +504,18 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
               KhojloBadge(
                 label: _draft.latitude != null ? 'Location pinned' : 'No map pin',
                 tone: _draft.latitude != null ? BadgeTone.emerald : BadgeTone.ink,
+              ),
+              KhojloBadge(
+                label: switch (_draft.photos.length) {
+                  0 => 'No photos yet',
+                  1 => '1 photo',
+                  final n => '$n photos',
+                },
+                tone: _draft.photos.isEmpty ? BadgeTone.ink : BadgeTone.emerald,
+              ),
+              KhojloBadge(
+                label: PhoneField.value(_phone) != null ? 'Phone added' : 'No phone',
+                tone: PhoneField.value(_phone) != null ? BadgeTone.emerald : BadgeTone.ink,
               ),
             ],
           ),

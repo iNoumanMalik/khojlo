@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, String
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,6 +30,13 @@ class User(Base):
         Enum(UserRole, native_enum=False, length=32), default=UserRole.customer, nullable=False
     )
     avatar_tone: Mapped[str] = mapped_column(String(16), default="gold")
+    phone: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    # Profile photo; initials on `avatar_tone` are shown when there's none. `use_alter`
+    # because media also points back at users (the uploader).
+    avatar_media_id: Mapped[int | None] = mapped_column(
+        ForeignKey("media.id", ondelete="SET NULL", use_alter=True, name="fk_users_avatar_media"),
+        nullable=True,
+    )
     # list of interest slugs powering personalization ("food", "gym", ...)
     interests: Mapped[list] = mapped_column(JSON, default=list)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -41,6 +48,7 @@ class User(Base):
     saved_lists = relationship(
         "SavedList", back_populates="user", cascade="all, delete-orphan"
     )
+    avatar = relationship("Media", foreign_keys=[avatar_media_id], lazy="joined")
 
     @property
     def initials(self) -> str:

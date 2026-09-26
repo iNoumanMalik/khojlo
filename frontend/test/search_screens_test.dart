@@ -102,8 +102,8 @@ ProviderContainer makeContainer(FakeSearchRepository repo) => ProviderContainer(
       searchRepositoryProvider.overrideWithValue(repo),
       locationServiceProvider.overrideWithValue(DeniedLocation()),
       categoriesProvider.overrideWith((ref) async => const [
-            Category(id: 1, slug: 'cafes', name: 'Cafés', tone: 'emerald'),
-            Category(id: 2, slug: 'shopping', name: 'Shopping', tone: 'plum'),
+            Category(id: 1, slug: 'cafes', name: 'Cafés', tone: 'emerald', businessCount: 4),
+            Category(id: 2, slug: 'shopping', name: 'Shopping', tone: 'plum', businessCount: 3),
           ]),
     ]);
 

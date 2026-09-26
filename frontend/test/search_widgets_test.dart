@@ -123,8 +123,8 @@ void main() {
       ),
       overrides: [
         categoriesProvider.overrideWith((ref) async => const [
-              Category(id: 1, slug: 'cafes', name: 'Cafés', tone: 'emerald'),
-              Category(id: 2, slug: 'shopping', name: 'Shopping', tone: 'plum'),
+              Category(id: 1, slug: 'cafes', name: 'Cafés', tone: 'emerald', businessCount: 4),
+              Category(id: 2, slug: 'shopping', name: 'Shopping', tone: 'plum', businessCount: 3),
             ]),
         filterPreviewCountProvider.overrideWith((ref, filters) async =>
             filters.openNow ? 3 : 12),

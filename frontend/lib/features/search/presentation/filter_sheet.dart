@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/location/location_service.dart';
+import '../../../core/models/business.dart';
 import '../../../core/models/search.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -124,22 +125,43 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
                           loading: () => const SkeletonBox(height: 36, radius: 999),
                           error: (_, __) => Text('Couldn’t load categories',
                               style: AppType.sans(size: 12.5, color: AppColors.inkA(0.5))),
-                          data: (list) => Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
+                          data: (list) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              for (final c in list)
-                                KhojloChip(
-                                  label: c.name,
-                                  active: _draft.categories.contains(c.slug),
-                                  onTap: () {
-                                    final next = {..._draft.categories};
-                                    next.contains(c.slug)
-                                        ? next.remove(c.slug)
-                                        : next.add(c.slug);
-                                    _update(_draft.copyWith(categories: next));
-                                  },
+                              // Empty categories would only ever lead to "No places match".
+                              for (final (group, items) in groupCategories(list.where((c) =>
+                                  c.businessCount > 0 || _draft.categories.contains(c.slug)))) ...[
+                                if (group.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(group,
+                                        style: AppType.sans(
+                                            size: 12,
+                                            weight: FontWeight.w600,
+                                            color: AppColors.inkA(0.55))),
+                                  ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final c in items)
+                                      KhojloChip(
+                                        label: c.name,
+                                        emoji: c.emoji,
+                                        dense: true,
+                                        active: _draft.categories.contains(c.slug),
+                                        onTap: () {
+                                          final next = {..._draft.categories};
+                                          next.contains(c.slug)
+                                              ? next.remove(c.slug)
+                                              : next.add(c.slug);
+                                          _update(_draft.copyWith(categories: next));
+                                        },
+                                      ),
+                                  ],
                                 ),
+                                const SizedBox(height: 14),
+                              ],
                             ],
                           ),
                         ),

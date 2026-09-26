@@ -14,4 +14,8 @@ class ApiConfig {
     }
     return 'http://localhost:8000/api/v1';
   }
+
+  /// Turns a path the API returns (e.g. `/api/v1/media/abc`) into a full URL on
+  /// the same host. Absolute URLs pass through unchanged.
+  static String resolve(String path) => Uri.parse(baseUrl).resolve(path).toString();
 }

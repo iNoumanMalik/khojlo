@@ -4,6 +4,14 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Khojlo uses your location to show how far places are and to find businesses near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Khojlo lets you choose photos for your business listing and your profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Khojlo lets you take photos for your business listing and your profile picture.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

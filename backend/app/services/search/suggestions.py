@@ -32,9 +32,17 @@ def suggest(db: Session, q: str, limit: int = 8) -> list[Suggestion]:
     ranked: list[tuple[int, int, str, Suggestion]] = []
 
     for cat in db.execute(
-        select(Category).where(Category.name.ilike(pattern, escape=LIKE_ESCAPE))
+        select(Category).where(
+            Category.name.ilike(pattern, escape=LIKE_ESCAPE)
+            | Category.keywords.ilike(pattern, escape=LIKE_ESCAPE)
+        )
     ).scalars():
         rank = prefix_rank(cat.name)
+        if rank is None:
+            # A keyword match ("darzi") ranks below names that start with the text.
+            keywords = [k.strip() for k in (cat.keywords or "").split(",")]
+            if any(prefix_rank(k) is not None for k in keywords if k):
+                rank = 1
         if rank is not None:
             ranked.append(
                 (rank, 0, fold(cat.name),
@@ -57,7 +65,7 @@ def suggest(db: Session, q: str, limit: int = 8) -> list[Suggestion]:
             ranked.append(
                 (rank, 1, fold(b.name),
                  Suggestion(type="business", label=b.name,
-                            sublabel=b.category.name if b.category else None,
+                            sublabel=b.category_label,
                             business_id=b.id))
             )
 

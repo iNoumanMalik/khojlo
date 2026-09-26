@@ -54,15 +54,60 @@ DEMO_USERS = [
     dict(email="admin@khojlo.app", full_name="Admin", role=UserRole.admin),
 ]
 
+# (slug, name, emoji, group, tone, sort order, search keywords). The migration
+# b7d3f1a9c2e4 installs the same catalogue; `--reset` recreates it from here.
 CATEGORIES = [
-    ("cafes", "Cafés", "emerald"),
-    ("restaurants", "Restaurants", "gold"),
-    ("beauty", "Beauty", "coral"),
-    ("gym", "Fitness", "emerald"),
-    ("healthcare", "Healthcare", "emerald"),
-    ("gaming", "Gaming", "ink"),
-    ("education", "Education", "gold"),
-    ("shopping", "Shopping", "plum"),
+    ("restaurants", "Restaurants", "🍽️", "Food & Drink", "gold", 10,
+     "restaurant, dining, dinner, lunch, karahi, biryani, bbq, desi food"),
+    ("cafes", "Cafés", "☕", "Food & Drink", "emerald", 11,
+     "cafe, coffee, tea, chai, brunch, breakfast"),
+    ("bakeries", "Bakeries & Sweets", "🧁", "Food & Drink", "coral", 12,
+     "bakery, cake, sweets, mithai, dessert, ice cream, pastry"),
+    ("street-food", "Street Food & Dhabas", "🍢", "Food & Drink", "gold", 13,
+     "dhaba, chaat, samosa, paratha, gol gappay, food cart, street food"),
+    ("fast-food", "Fast Food & Takeaway", "🍔", "Food & Drink", "coral", 14,
+     "burger, pizza, shawarma, fries, takeaway, delivery"),
+    ("clothing", "Clothing & Boutiques", "👗", "Shopping", "plum", 20,
+     "clothes, boutique, fashion, dresses, shalwar kameez, shoes"),
+    ("tailors", "Tailors & Fabric", "🧵", "Shopping", "emerald", 21,
+     "tailor, darzi, stitching, alterations, fabric, cloth, unstitched"),
+    ("grocery", "Grocery & Marts", "🛒", "Shopping", "emerald", 22,
+     "grocery, kiryana, mart, supermarket, general store"),
+    ("electronics", "Electronics & Mobiles", "📱", "Shopping", "ink", 23,
+     "mobile, phone repair, laptop, computer, electronics, accessories"),
+    ("books", "Books & Stationery", "📚", "Shopping", "gold", 24,
+     "books, bookshop, stationery, printing, photocopy"),
+    ("home-furniture", "Home & Furniture", "🛋️", "Shopping", "gold", 25,
+     "furniture, home decor, kitchen, crockery, carpets"),
+    ("shopping", "Shopping & Retail", "🛍️", "Shopping", "plum", 26,
+     "shop, store, retail, gifts, handicrafts"),
+    ("beauty", "Beauty & Salons", "💅", "Health & Beauty", "coral", 30,
+     "salon, parlour, makeup, bridal, facial, nails, spa"),
+    ("barbers", "Barbers & Grooming", "💈", "Health & Beauty", "ink", 31,
+     "barber, haircut, hair salon, shave, beard, grooming"),
+    ("gym", "Fitness & Gyms", "💪", "Health & Beauty", "emerald", 32,
+     "gym, fitness, workout, yoga, martial arts, swimming"),
+    ("healthcare", "Clinics & Doctors", "🩺", "Health & Beauty", "emerald", 33,
+     "clinic, doctor, hospital, dentist, lab, physiotherapy, healthcare"),
+    ("pharmacy", "Pharmacies", "💊", "Health & Beauty", "emerald", 34,
+     "pharmacy, chemist, medical store, medicine"),
+    ("education", "Education & Tutoring", "🎓", "Services", "gold", 40,
+     "tuition, tutor, academy, school, courses, coaching"),
+    ("home-services", "Home Services", "🔧", "Services", "ink", 41,
+     "plumber, electrician, carpenter, ac repair, cleaning, painter"),
+    ("auto", "Auto Repair & Car Wash", "🚗", "Services", "ink", 42,
+     "mechanic, workshop, car wash, tyres, denting, bike repair"),
+    ("laundry", "Laundry & Dry Cleaning", "🧺", "Services", "emerald", 43,
+     "laundry, dry cleaning, dhobi, ironing"),
+    ("events", "Events & Photography", "📸", "Services", "plum", 44,
+     "wedding, catering, decor, photographer, marquee, event planner"),
+    ("pets", "Pets & Vets", "🐾", "Services", "coral", 45,
+     "pet shop, vet, veterinary, pet food, pet grooming"),
+    ("gaming", "Gaming & Entertainment", "🎮", "Leisure", "ink", 50,
+     "gaming, arcade, playstation, snooker, bowling, cinema"),
+    ("hotels", "Hotels & Stays", "🏨", "Leisure", "gold", 51,
+     "hotel, guest house, hostel, stay, rooms"),
+    ("other", "Other", "✨", "Other", "ink", 99, ""),
 ]
 
 # ── weekly opening-hour presets: {day_of_week: (opens, closes)}, missing day = closed ──
@@ -104,7 +149,7 @@ BUSINESSES: list[dict] = [
          address=f"Blue Area, {ISB}", lat=33.7095, lng=73.0561, rating=4.7, reviews=132,
          saves=61, age=160, verified=True, hours=_week(DAILY, "09:00", "22:00"),
          services=[("Filter coffee", 400), ("Study table (2 hrs)", 600), ("Cheesecake", 750)]),
-    dict(name="Scoops & Swirls", cat="cafes", tone="emerald",
+    dict(name="Scoops & Swirls", cat="bakeries", tone="emerald",
          tagline="Small-batch dessert bar", price="$", pmin=250, pmax=800,
          address=f"F-6 Super Market, {ISB}", lat=33.7273, lng=73.0768, rating=4.9, reviews=88,
          saves=40, age=6, verified=False, hours=_week(DAILY, "13:00", "00:00"),
@@ -124,7 +169,7 @@ BUSINESSES: list[dict] = [
          address=f"E-7, {ISB}", lat=33.7298, lng=73.0572, rating=4.6, reviews=143,
          saves=52, age=300, verified=True, hours=DINNER,
          services=[("Chef's tasting menu", 6500), ("Smoked short rib", 4200)]),
-    dict(name="The Dumpling Cart", cat="restaurants", tone="gold",
+    dict(name="The Dumpling Cart", cat="street-food", tone="gold",
          tagline="Hand-folded, steamed to order", price="$", pmin=300, pmax=900,
          address=f"G-9 Markaz, {ISB}", lat=33.6932, lng=73.0293, rating=4.9, reviews=190,
          saves=77, age=3, verified=False, hours=_week(DAILY, "12:00", "23:00"),
@@ -154,37 +199,104 @@ BUSINESSES: list[dict] = [
          address=f"Blue Area, {ISB}", lat=33.7088, lng=73.0579, rating=4.7, reviews=89,
          saves=21, age=200, verified=True, hours=CLINIC_HOURS,
          services=[("GP consultation", 2000), ("Blood test panel", 3500)]),
-    dict(name="CarePoint Pharmacy", cat="healthcare", tone="emerald",
+    dict(name="CarePoint Pharmacy", cat="pharmacy", tone="emerald",
          tagline="Open 24 hours, delivery on call", price="$", pmin=None, pmax=None,
          address=f"F-8 Markaz, {ISB}", lat=33.7093, lng=73.0379, rating=4.4, reviews=39,
          saves=12, age=15, verified=False, hours=ROUND_THE_CLOCK,
          services=[("Prescription refill", None), ("BP check", 200)]),
-    dict(name="Verse Bookshop", cat="education", tone="gold",
+    dict(name="Verse Bookshop", cat="books", tone="gold",
          tagline="Indie press & study loft", price="$", pmin=500, pmax=3000,
          address=f"F-6 Super Market, {ISB}", lat=33.7266, lng=73.0781, rating=4.8, reviews=54,
          saves=44, age=400, verified=True, hours=_week(DAILY, "10:00", "22:00", {4: ("15:00", "22:00")}),
          services=[("Study loft day pass", 500), ("Urdu poetry collection", 1200)]),
     # ── Abbottabad — the SDD "unstitched fabric" search mockup ──
-    dict(name="Zilli Tailors", cat="shopping", tone="emerald",
+    dict(name="Zilli Tailors", cat="tailors", tone="emerald",
          tagline="Unstitched fabric & made-to-measure suits", price="$", pmin=800, pmax=2500,
          address=f"Jinnah Road, {ABT}", lat=34.1519, lng=73.2157, rating=4.7, reviews=58,
          saves=31, age=9, verified=True, hours=SHOP_HOURS,
          services=[("Unstitched lawn (3 pc)", 1800), ("Suit stitching", 2500), ("Alterations", 800)]),
-    dict(name="Al-Rehman Cloth House", cat="shopping", tone="plum",
+    dict(name="Al-Rehman Cloth House", cat="tailors", tone="plum",
          tagline="Unstitched fabric by the metre", price="$", pmin=600, pmax=1800,
          address=f"Jinnah Road, {ABT}", lat=34.1568, lng=73.2160, rating=4.5, reviews=41,
          saves=18, age=150, verified=True, hours=SHOP_HOURS,
          services=[("Cotton fabric (per metre)", 600), ("Unstitched khaddar suit", 1800)]),
-    dict(name="Threadwork Studio", cat="shopping", tone="gold",
+    dict(name="Threadwork Studio", cat="tailors", tone="gold",
          tagline="Hand embroidery & bridal stitching", price="$$", pmin=1200, pmax=4000,
          address=f"Supply Bazaar, {ABT}", lat=34.1604, lng=73.2158, rating=4.6, reviews=27,
          saves=14, age=26, verified=False, hours=MORNING_ONLY,
          services=[("Embroidered unstitched suit", 4000), ("Custom stitching", 1200)]),
-    dict(name="Heritage Textiles", cat="shopping", tone="emerald",
+    dict(name="Heritage Textiles", cat="tailors", tone="emerald",
          tagline="Pure silk, lawn & unstitched fabric", price="$$", pmin=900, pmax=3000,
          address=f"Main Bazaar, {ABT}", lat=34.1649, lng=73.2163, rating=4.4, reviews=33,
          saves=11, age=500, verified=True, hours=SHOP_HOURS,
          services=[("Unstitched silk (3 pc)", 3000), ("Lawn fabric (per metre)", 900)]),
+    # ── one or two per newer category, so none of them is empty in a demo ──
+    dict(name="Smash & Stack", cat="fast-food", tone="coral",
+         tagline="Smashed burgers & loaded fries", price="$", pmin=450, pmax=1800,
+         address=f"F-10 Markaz, {ISB}", lat=33.6960, lng=73.0145, rating=4.6, reviews=97,
+         saves=38, age=10, verified=False, hours=LATE_NIGHT,
+         services=[("Double smash burger", 950), ("Loaded fries", 650), ("Chicken shawarma", 450)]),
+    dict(name="Resham Boutique", cat="clothing", tone="plum",
+         tagline="Hand-finished lawn & formal wear", price="$$", pmin=3500, pmax=18000,
+         address=f"Jinnah Super, F-7, {ISB}", lat=33.7190, lng=73.0560, rating=4.7, reviews=64,
+         saves=45, age=40, verified=True, hours=SHOP_HOURS,
+         services=[("Ready-to-wear lawn (3 pc)", 6500), ("Formal dress", 18000), ("Dupatta", 3500)]),
+    dict(name="Daily Basket Mart", cat="grocery", tone="emerald",
+         tagline="Fresh produce & everyday groceries", price="$", pmin=100, pmax=5000,
+         address=f"G-11 Markaz, {ISB}", lat=33.6682, lng=72.9990, rating=4.3, reviews=52,
+         saves=12, age=200, verified=True, hours=_week(DAILY, "08:00", "23:30"),
+         services=[("Home delivery", 150), ("Fresh fruit box", 1800)]),
+    dict(name="Fix-It Mobile Lab", cat="electronics", tone="ink",
+         tagline="Same-day phone & laptop repairs", price="$", pmin=500, pmax=8000,
+         address=f"Blue Area, {ISB}", lat=33.7102, lng=73.0590, rating=4.5, reviews=81,
+         saves=20, age=22, verified=False, hours=STANDARD,
+         services=[("Screen replacement", 6500), ("Battery replacement", 3500), ("Laptop service", 2500)]),
+    dict(name="The Gentleman's Chair", cat="barbers", tone="ink",
+         tagline="Classic cuts & hot-towel shaves", price="$$", pmin=800, pmax=3000,
+         address=f"F-6 Super Market, {ISB}", lat=33.7280, lng=73.0760, rating=4.8, reviews=143,
+         saves=57, age=60, verified=True, hours=_week(DAILY, "10:00", "22:00"),
+         services=[("Haircut", 1200), ("Hot-towel shave", 900), ("Beard styling", 800)]),
+    dict(name="HandyFix Home Services", cat="home-services", tone="ink",
+         tagline="Plumbers, electricians & AC repair on call", price="$", pmin=1000, pmax=6000,
+         address=f"I-8 Markaz, {ISB}", lat=33.6690, lng=73.0770, rating=4.4, reviews=58,
+         saves=16, age=18, verified=False, hours=_week(MON_SAT, "08:00", "20:00"),
+         services=[("AC service", 3500), ("Plumbing visit", 1500), ("Electrician visit", 1500)]),
+    dict(name="Shine Auto Care", cat="auto", tone="ink",
+         tagline="Car wash, detailing & quick repairs", price="$$", pmin=800, pmax=15000,
+         address=f"I-9 Industrial Area, {ISB}", lat=33.6560, lng=73.0550, rating=4.5, reviews=72,
+         saves=19, age=130, verified=True, hours=_week(DAILY, "09:00", "21:00"),
+         services=[("Full car wash", 1200), ("Interior detailing", 6000), ("Oil change", 4500)]),
+    dict(name="Fresh Fold Laundry", cat="laundry", tone="emerald",
+         tagline="Wash, dry-clean & press with free pickup", price="$", pmin=150, pmax=1500,
+         address=f"G-10 Markaz, {ISB}", lat=33.6845, lng=73.0135, rating=4.6, reviews=45,
+         saves=14, age=8, verified=False, hours=_week(MON_SAT, "09:00", "21:00"),
+         services=[("Shalwar kameez wash & press", 250), ("Suit dry-clean", 900), ("Duvet cleaning", 1500)]),
+    dict(name="Frame & Flower Studio", cat="events", tone="plum",
+         tagline="Wedding photography & floral décor", price="$$$", pmin=25000, pmax=250000,
+         address=f"E-7, {ISB}", lat=33.7285, lng=73.0590, rating=4.9, reviews=37,
+         saves=29, age=90, verified=True, hours=_week(MON_SAT, "11:00", "19:00"),
+         services=[("Mehndi photography", 45000), ("Stage décor", 120000)]),
+    dict(name="Paws & Whiskers", cat="pets", tone="coral",
+         tagline="Vet clinic, grooming & pet supplies", price="$$", pmin=1000, pmax=8000,
+         address=f"F-11 Markaz, {ISB}", lat=33.6850, lng=72.9875, rating=4.7, reviews=61,
+         saves=34, age=28, verified=True, hours=CLINIC_HOURS,
+         services=[("Vet consultation", 2000), ("Cat grooming", 3500), ("Vaccination", 2500)]),
+    dict(name="Margalla View Guest House", cat="hotels", tone="gold",
+         tagline="Quiet rooms with a view of the hills", price="$$", pmin=7000, pmax=15000,
+         address=f"E-7, {ISB}", lat=33.7310, lng=73.0555, rating=4.6, reviews=49,
+         saves=22, age=250, verified=True, hours=ROUND_THE_CLOCK,
+         services=[("Standard room (per night)", 7000), ("Deluxe room (per night)", 12000)]),
+    dict(name="Qalam Calligraphy Studio", cat="other", custom="Calligraphy studio", tone="gold",
+         tagline="Urdu & Arabic calligraphy: classes and commissions", price="$$",
+         pmin=1500, pmax=20000, address=f"F-6 Super Market, {ISB}", lat=33.7268, lng=73.0775,
+         rating=4.9, reviews=23, saves=18, age=14, verified=False,
+         hours=_week(MON_SAT, "12:00", "20:00"),
+         services=[("Beginner class (4 sessions)", 6000), ("Name in calligraphy (framed)", 4500)]),
+    dict(name="Mountain Chai Dhaba", cat="street-food", tone="gold",
+         tagline="Doodh patti, parathas & a view of the valley", price="$", pmin=150, pmax=700,
+         address=f"Mansehra Road, {ABT}", lat=34.1700, lng=73.2230, rating=4.7, reviews=88,
+         saves=41, age=5, verified=False, hours=_week(DAILY, "06:00", "02:00"),
+         services=[("Doodh patti", 150), ("Aloo paratha", 250), ("Chicken karahi (half)", 700)]),
 ]
 
 OFFERS = {
@@ -245,11 +357,14 @@ def reset(db: Session) -> None:
 
 def _ensure_categories(db: Session, report: SeedReport) -> dict[str, Category]:
     cats = {c.slug: c for c in db.scalars(select(Category))}
-    for slug, name, tone in CATEGORIES:
-        if slug not in cats:
-            cats[slug] = Category(slug=slug, name=name, tone=tone)
-            db.add(cats[slug])
+    for slug, name, emoji, group, tone, sort_order, keywords in CATEGORIES:
+        c = cats.get(slug)
+        if c is None:
+            c = cats[slug] = Category(slug=slug, tone=tone)
+            db.add(c)
             report.categories_added += 1
+        c.name, c.emoji, c.group_name = name, emoji, group
+        c.sort_order, c.keywords = sort_order, keywords
     db.flush()
     return cats
 
@@ -267,11 +382,19 @@ def _ensure_users(db: Session, report: SeedReport) -> dict[str, User]:
     return users
 
 
+def demo_phone(index: int) -> str:
+    """Islamabad-format numbers whose subscriber part starts with 0, which no real line
+    uses, so tapping Call in a demo can't ring a stranger."""
+    return f"051 000 {index + 1:04d}"
+
+
 def _apply_catalogue(
-    b: BusinessProfile, spec: dict, cats: dict[str, Category], now: datetime
+    b: BusinessProfile, spec: dict, cats: dict[str, Category], now: datetime, index: int
 ) -> None:
     """Copy a catalogue entry's descriptive fields, hours and services onto a business."""
     b.category_id = cats[spec["cat"]].id
+    b.custom_category = spec.get("custom")
+    b.phone = demo_phone(index)
     b.tone = spec["tone"]
     b.tagline = spec["tagline"]
     b.description = f"{spec['tagline']}. {spec['name']} is one of the newest finds on Khojlo."
@@ -307,7 +430,7 @@ def _sync_businesses(
         for b in db.scalars(select(BusinessProfile).where(BusinessProfile.owner_id == owner.id))
     }
     by_name: dict[str, BusinessProfile] = {}
-    for spec in BUSINESSES:
+    for index, spec in enumerate(BUSINESSES):
         b = existing.get(spec["name"])
         if b is None:
             b = BusinessProfile(
@@ -327,7 +450,7 @@ def _sync_businesses(
             b.services.clear()
             db.flush()
             report.businesses_refreshed += 1
-        _apply_catalogue(b, spec, cats, now)
+        _apply_catalogue(b, spec, cats, now, index)
         by_name[spec["name"]] = b
     db.flush()
     return by_name

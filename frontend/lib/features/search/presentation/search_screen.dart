@@ -271,8 +271,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final c in categories)
-                KhojloChip(label: c.name, onTap: () => _search.browseCategory(c.slug)),
+              for (final c in categories.where((c) => c.businessCount > 0))
+                KhojloChip(
+                    label: c.name,
+                    emoji: c.emoji,
+                    dense: true,
+                    onTap: () => _search.browseCategory(c.slug)),
             ],
           ),
           const SizedBox(height: 28),

@@ -46,3 +46,4 @@ frontend/.env
 *.log
 
 commands.md
+msg.txt

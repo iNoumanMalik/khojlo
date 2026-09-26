@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/analytics.dart';
 import '../../../core/models/business.dart';
+import '../../../core/models/photo.dart';
 import '../../../core/providers.dart';
 
 final businessRepositoryProvider = Provider<BusinessRepository>((ref) {
@@ -19,10 +20,14 @@ List<OpeningHours> defaultWeekHours() => [
 class BusinessDraft {
   String name = '';
   int? categoryId;
+
+  /// Required when the category is "Other", e.g. "Calligraphy studio".
+  String? customCategory;
   String tone = 'gold';
   String tagline = '';
   String description = '';
   String address = '';
+  String? phone;
   double? latitude;
   double? longitude;
   String priceLevel = '\$\$';
@@ -36,9 +41,15 @@ class BusinessDraft {
   List<OpeningHours> hours = defaultWeekHours();
   bool includeHours = true;
 
+  /// Uploaded photos in display order; the first is the cover.
+  List<Photo> photos = [];
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'category_id': categoryId,
+        'custom_category': customCategory,
+        'phone': phone,
+        'photos': [for (final p in photos) p.key],
         'tone': tone,
         'tagline': tagline,
         'description': description,
@@ -92,6 +103,14 @@ class BusinessRepository {
   /// Partial update — send only the fields that change (null clears a field).
   Future<BusinessDetail> update(int id, Map<String, dynamic> changes) async {
     final res = await _dio.patch('/businesses/$id', data: changes);
+    return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Replace the gallery: photo keys in display order, the first being the cover.
+  Future<BusinessDetail> replacePhotos(int id, List<Photo> photos) async {
+    final res = await _dio.put('/businesses/$id/photos', data: {
+      'photos': [for (final p in photos) p.key],
+    });
     return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
   }
 

@@ -1,3 +1,5 @@
+import 'photo.dart';
+
 enum UserRole { customer, businessOwner, admin }
 
 UserRole roleFromString(String s) => switch (s) {
@@ -22,6 +24,8 @@ class AppUser {
     required this.initials,
     required this.interests,
     required this.isVerified,
+    this.avatar,
+    this.phone,
   });
 
   final int id;
@@ -32,6 +36,10 @@ class AppUser {
   final String initials;
   final List<String> interests;
   final bool isVerified;
+
+  /// Profile photo; null → initials on [avatarTone].
+  final Photo? avatar;
+  final String? phone;
 
   bool get isOwner => role == UserRole.businessOwner || role == UserRole.admin;
 
@@ -44,5 +52,7 @@ class AppUser {
         initials: j['initials'] as String? ?? '?',
         interests: (j['interests'] as List?)?.cast<String>() ?? const [],
         isVerified: j['is_verified'] as bool? ?? false,
+        avatar: Photo.maybe(j['avatar']),
+        phone: j['phone'] as String?,
       );
 }

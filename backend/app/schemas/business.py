@@ -4,9 +4,12 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.business import OfferStatus
+from app.schemas.media import PhotoOut
 
 # Upper bound for any PKR amount we accept (a sanity limit, not a business rule).
 MAX_PRICE_PKR = 10_000_000
+# Cover + gallery.
+MAX_BUSINESS_PHOTOS = 10
 
 PriceLevel = Literal["$", "$$", "$$$"]
 
@@ -23,6 +26,37 @@ def _check_coordinates(latitude: float | None, longitude: float | None) -> None:
         raise ValueError("Provide both latitude and longitude, or neither")
 
 
+_PHONE_CHARS = re.compile(r"^\+?[\d\s\-()]+$")
+
+
+def normalize_phone(value: str | None) -> str | None:
+    """Trim a phone number and check it looks like one; an empty value clears it."""
+    if value is None:
+        return None
+    value = " ".join(value.split())
+    if not value:
+        return None
+    digits = sum(ch.isdigit() for ch in value)
+    if len(value) > 24 or not _PHONE_CHARS.match(value) or not 7 <= digits <= 15:
+        raise ValueError("Enter a valid phone number, e.g. 0300 1234567 or +92 300 1234567")
+    return value
+
+
+def normalize_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = " ".join(value.split())
+    return value or None
+
+
+def check_photo_keys(keys: list[str]) -> list[str]:
+    if len(keys) > MAX_BUSINESS_PHOTOS:
+        raise ValueError(f"A business can have up to {MAX_BUSINESS_PHOTOS} photos")
+    if len(keys) != len(set(keys)):
+        raise ValueError("Each photo can only appear once")
+    return keys
+
+
 def check_unique_days(hours: list["HoursIn"]) -> None:
     days = [h.day_of_week for h in hours]
     if len(days) != len(set(days)):
@@ -37,6 +71,13 @@ class CategoryOut(BaseModel):
     slug: str
     name: str
     tone: str
+    emoji: str = ""
+    group_name: str = ""
+    sort_order: int = 0
+    # The catch-all "Other" category: owners describe their business in `custom_category`.
+    is_other: bool = False
+    # Published businesses in this category (only filled by GET /categories).
+    business_count: int = 0
 
 
 # ─────────────── nested inputs ───────────────
@@ -74,13 +115,18 @@ class BusinessBase(BaseModel):
     description: str = ""
     tone: str = "gold"
     address: str = Field(default="", max_length=255)
+    phone: str | None = None
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     price_level: PriceLevel = "$$"
     price_min: int | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
     price_max: int | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
-    images: list[str] = Field(default_factory=list)
     category_id: int | None = None
+    # Required when the category is "Other" (checked against the category in the endpoint).
+    custom_category: str | None = Field(default=None, max_length=60)
+
+    _phone = field_validator("phone")(normalize_phone)
+    _custom = field_validator("custom_category")(normalize_optional_text)
 
     @model_validator(mode="after")
     def _consistent(self) -> "BusinessBase":
@@ -92,6 +138,10 @@ class BusinessBase(BaseModel):
 class BusinessCreate(BusinessBase):
     services: list[ServiceIn] = Field(default_factory=list)
     hours: list[HoursIn] = Field(default_factory=list)
+    # Keys from POST /media, in order; the first is the cover.
+    photos: list[str] = Field(default_factory=list)
+
+    _photos = field_validator("photos")(check_photo_keys)
 
     @model_validator(mode="after")
     def _unique_days(self) -> "BusinessCreate":
@@ -108,14 +158,26 @@ class BusinessUpdate(BaseModel):
     description: str | None = None
     tone: str | None = None
     address: str | None = Field(default=None, max_length=255)
+    phone: str | None = None
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     price_level: PriceLevel | None = None
     price_min: int | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
     price_max: int | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
-    images: list[str] | None = None
     category_id: int | None = None
+    custom_category: str | None = Field(default=None, max_length=60)
     is_published: bool | None = None
+
+    _phone = field_validator("phone")(normalize_phone)
+    _custom = field_validator("custom_category")(normalize_optional_text)
+
+
+class PhotosReplace(BaseModel):
+    """The full, ordered gallery (keys from POST /media); the first photo is the cover."""
+
+    photos: list[str] = Field(default_factory=list)
+
+    _photos = field_validator("photos")(check_photo_keys)
 
 
 class HoursReplace(BaseModel):
@@ -190,13 +252,22 @@ class BusinessCard(BaseModel):
     today_hours: str | None = None
     has_offer: bool = False
     is_new: bool = False
+    # ── photos & categories ──
+    # None: no photos yet, so clients draw the tone gradient.
+    cover: PhotoOut | None = None
+    # What to show as the business type: the owner's own words for "Other".
+    category_label: str | None = None
 
 
 class BusinessDetail(BusinessCard):
     description: str
     latitude: float | None
     longitude: float | None
-    images: list[str]
+    category_id: int | None = None
+    custom_category: str | None = None
+    phone: str | None = None
+    # Cover first, then the gallery.
+    photos: list[PhotoOut] = Field(default_factory=list)
     view_count: int
     services: list[ServiceOut] = Field(default_factory=list)
     hours: list[HoursOut] = Field(default_factory=list)

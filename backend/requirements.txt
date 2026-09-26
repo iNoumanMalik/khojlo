@@ -14,6 +14,8 @@ google-auth>=2.35
 requests>=2.32
 # IANA timezone data for zoneinfo (Windows ships none) — used for "open now".
 tzdata>=2024.1
+# Photo uploads: validate, fix orientation, strip metadata, resize, find the focal point.
+pillow>=11.0
 
 # dev / test
 pytest>=8.3

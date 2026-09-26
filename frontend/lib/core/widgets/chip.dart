@@ -11,6 +11,8 @@ class KhojloChip extends StatelessWidget {
     this.active = false,
     this.onTap,
     this.activeTone = AppColors.emerald,
+    this.emoji,
+    this.dense = false,
   });
 
   final String label;
@@ -18,13 +20,21 @@ class KhojloChip extends StatelessWidget {
   final VoidCallback? onTap;
   final Color activeTone;
 
+  /// Shown in place of the dot, e.g. a category's emoji.
+  final String? emoji;
+
+  /// Tighter padding for long wrapped lists such as category pickers.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: dense
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 7)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
           color: active ? activeTone : AppColors.whiteA(0.55),
           borderRadius: BorderRadius.circular(999),
@@ -49,15 +59,18 @@ class KhojloChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? AppColors.whiteA(0.8) : AppColors.gold,
+            if (emoji != null && emoji!.isNotEmpty)
+              Text(emoji!, style: const TextStyle(fontSize: 14))
+            else
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? AppColors.whiteA(0.8) : AppColors.gold,
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
+            SizedBox(width: emoji?.isNotEmpty ?? false ? 5 : 6),
             Text(
               label,
               style: AppType.sans(

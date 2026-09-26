@@ -13,8 +13,8 @@ import '../data/business_repository.dart';
 import 'widgets/business_form_fields.dart';
 import 'widgets/owner_screen_states.dart';
 
-/// Owner screen: edit profile basics, price range and map pin (dashboard →
-/// "Edit business profile").
+/// Owner screen: edit profile basics, category, contact, colour, price range
+/// and map pin (dashboard → "Edit business profile").
 class EditBusinessScreen extends ConsumerWidget {
   const EditBusinessScreen({super.key, required this.businessId});
   final int businessId;
@@ -54,6 +54,11 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
       TextEditingController(text: widget.business.priceMin?.toString() ?? '');
   late final _priceMax =
       TextEditingController(text: widget.business.priceMax?.toString() ?? '');
+  late final _phone = TextEditingController(text: widget.business.phone ?? '');
+  late final _custom = TextEditingController(text: widget.business.customCategory ?? '');
+  late int? _categoryId = widget.business.categoryId;
+  Category? _category;
+  late String _tone = widget.business.tone;
   late String _tier = widget.business.priceLevel;
   late double? _latitude = widget.business.latitude;
   late double? _longitude = widget.business.longitude;
@@ -65,19 +70,33 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
 
   @override
   void dispose() {
-    for (final c in [_name, _tagline, _description, _address, _priceMin, _priceMax]) {
+    for (final c in [
+      _name, _tagline, _description, _address, _priceMin, _priceMax, _phone, _custom,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  /// The picked category; resolved lazily because the list loads asynchronously.
+  Category? get _selectedCategory =>
+      _category ??
+      ref
+          .read(categoriesProvider)
+          .valueOrNull
+          ?.where((c) => c.id == _categoryId)
+          .firstOrNull;
+
+  String? get _formError {
+    if (_name.text.trim().isEmpty) return 'Your business needs a name.';
+    return CategoryPicker.customError(_selectedCategory, _custom.text) ??
+        PhoneField.validate(_phone.text) ??
+        _priceError;
+  }
+
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) {
-      setState(() => _error = 'Your business needs a name.');
-      return;
-    }
-    if (_priceError != null) {
-      setState(() => _error = _priceError);
+    if (_formError case final message?) {
+      setState(() => _error = message);
       return;
     }
     setState(() {
@@ -91,6 +110,11 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
         'tagline': _tagline.text.trim(),
         'description': _description.text.trim(),
         'address': _address.text.trim(),
+        'phone': PhoneField.value(_phone),
+        'category_id': _categoryId,
+        'custom_category':
+            (_selectedCategory?.isOther ?? false) ? _custom.text.trim() : null,
+        'tone': _tone,
         'price_level': _tier,
         'price_min': PriceRangeFields.parse(_priceMin),
         'price_max': PriceRangeFields.parse(_priceMax),
@@ -101,6 +125,7 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
       ref.invalidate(businessDetailProvider(id));
       ref.invalidate(myBusinessesProvider);
       ref.invalidate(feedProvider);
+      ref.invalidate(categoriesProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -138,6 +163,8 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
               AppField(label: 'Description', controller: _description, maxLines: 4),
               const SizedBox(height: 16),
               AppField(label: 'Address', controller: _address, hint: 'Street, area, city'),
+              const SizedBox(height: 16),
+              PhoneField(controller: _phone, onChanged: () => setState(() {})),
               const SizedBox(height: 12),
               LocationPinField(
                 latitude: _latitude,
@@ -147,6 +174,25 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
                   _longitude = lng;
                 }),
               ),
+              const SizedBox(height: 24),
+              Text('CATEGORY', style: AppType.label(color: AppColors.inkA(0.47))),
+              const SizedBox(height: 12),
+              CategoryPicker(
+                selectedId: _categoryId,
+                customController: _custom,
+                onCustomChanged: () => setState(() {}),
+                onSelected: (c) => setState(() {
+                  _category = c;
+                  _categoryId = c.id;
+                }),
+              ),
+              const SizedBox(height: 8),
+              Text('COLOR', style: AppType.label()),
+              const SizedBox(height: 4),
+              Text('Shown on your cards when there are no photos.',
+                  style: AppType.sans(size: 12.5, color: AppColors.inkA(0.5))),
+              const SizedBox(height: 12),
+              TonePicker(value: _tone, onChanged: (t) => setState(() => _tone = t)),
               const SizedBox(height: 24),
               Text('PRICE LEVEL', style: AppType.label()),
               const SizedBox(height: 10),
@@ -176,7 +222,7 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
               label: 'Save changes',
               tone: ButtonTone.emerald,
               loading: _saving,
-              onTap: _priceError == null ? _save : null,
+              onTap: _save,
             ),
           ),
         ),

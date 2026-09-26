@@ -91,6 +91,7 @@ class GhostButton extends StatelessWidget {
     this.small = false,
     this.tone = AppColors.ink,
     this.icon,
+    this.expand = true,
   });
 
   final String label;
@@ -99,12 +100,15 @@ class GhostButton extends StatelessWidget {
   final Color tone;
   final IconData? icon;
 
+  /// Fill the available width (default). Pass false to size to the label, e.g. in a Row.
+  final bool expand;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
+        width: expand ? double.infinity : null,
         padding: EdgeInsets.symmetric(
             horizontal: 20, vertical: small ? 9 : 14),
         decoration: BoxDecoration(

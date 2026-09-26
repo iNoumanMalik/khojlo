@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_owner, get_current_user, get_optional_user
 from app.core.database import get_db
-from app.models.business import BusinessProfile, Offer, OpeningHours, Service
+from app.models.business import BusinessProfile, Category, Offer, OpeningHours, Service
 from app.models.engagement import SavedBusiness, SavedList
 from app.models.user import User
 from app.schemas.business import (
@@ -16,15 +16,21 @@ from app.schemas.business import (
     HoursReplace,
     OfferIn,
     OfferOut,
+    PhotosReplace,
 )
 from app.schemas.saved import SaveToListRequest
 from app.services.business_service import (
     build_analytics,
     card_load_options,
     is_saved_by,
+    photo_out,
     record_view,
+    set_business_photos,
     to_card,
 )
+from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
+
+UNPROCESSABLE = 422
 
 router = APIRouter(prefix="/businesses", tags=["businesses"])
 
@@ -36,6 +42,34 @@ def _get_owned(db: Session, business_id: int, owner: User) -> BusinessProfile:
     if b.owner_id != owner.id and owner.role.value != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business")
     return b
+
+
+def _check_category(db: Session, b: BusinessProfile) -> None:
+    """The category must exist; "Other" needs the owner's own description, others drop it."""
+    if b.category_id is None:
+        b.custom_category = None
+        return
+    category = db.get(Category, b.category_id)
+    if category is None:
+        raise HTTPException(status_code=UNPROCESSABLE, detail="Pick a category from the list.")
+    if not category.is_other:
+        b.custom_category = None
+    elif not b.custom_category:
+        raise HTTPException(
+            status_code=UNPROCESSABLE,
+            detail="Tell people what kind of business it is, e.g. “Calligraphy studio”.",
+        )
+
+
+def _resolve_photos(db: Session, keys: list[str], user: User, b: BusinessProfile | None = None):
+    attached = {p.media_id for p in b.photos} if b is not None else set()
+    try:
+        return resolve_keys(db, keys, allowed_owner=user.id, already_attached=attached)
+    except UnknownPhotos:
+        raise HTTPException(
+            status_code=UNPROCESSABLE,
+            detail="Some photos couldn't be found. Please upload them again.",
+        ) from None
 
 
 # ─────────────── owner CRUD ───────────────
@@ -57,15 +91,19 @@ def create_business(
     owner: User = Depends(get_current_owner),
     db: Session = Depends(get_db),
 ) -> BusinessDetail:
+    photos = _resolve_photos(db, payload.photos, owner)
     b = BusinessProfile(
         owner_id=owner.id,
-        **payload.model_dump(exclude={"services", "hours"}),
+        **payload.model_dump(exclude={"services", "hours", "photos"}),
     )
+    _check_category(db, b)
     for s in payload.services:
         b.services.append(Service(**s.model_dump()))
     for h in payload.hours:
         b.hours.append(OpeningHours(**h.model_dump()))
     db.add(b)
+    db.flush()
+    set_business_photos(db, b, photos)
     db.commit()
     db.refresh(b)
     return _detail(db, b, owner)
@@ -90,6 +128,25 @@ def update_business(
         raise HTTPException(
             status_code=422, detail="Provide both latitude and longitude, or neither"
         )
+    _check_category(db, b)
+    db.commit()
+    db.refresh(b)
+    return _detail(db, b, owner)
+
+
+@router.put("/{business_id}/photos", response_model=BusinessDetail)
+def replace_photos(
+    business_id: int,
+    payload: PhotosReplace,
+    owner: User = Depends(get_current_owner),
+    db: Session = Depends(get_db),
+) -> BusinessDetail:
+    """Set the gallery: photos in display order, the first being the cover (empty removes all).
+
+    Each key must be one of your uploads (POST /media) or already in this gallery.
+    """
+    b = _get_owned(db, business_id, owner)
+    set_business_photos(db, b, _resolve_photos(db, payload.photos, owner, b))
     db.commit()
     db.refresh(b)
     return _detail(db, b, owner)
@@ -117,7 +174,10 @@ def delete_business(
     db: Session = Depends(get_db),
 ) -> None:
     b = _get_owned(db, business_id, owner)
+    photo_ids = {p.media_id for p in b.photos}
     db.delete(b)
+    db.flush()
+    delete_if_unused(db, photo_ids)
     db.commit()
 
 
@@ -166,7 +226,10 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
         description=b.description,
         latitude=b.latitude,
         longitude=b.longitude,
-        images=b.images or [],
+        category_id=b.category_id,
+        custom_category=b.custom_category,
+        phone=b.phone,
+        photos=[photo_out(p.media) for p in b.photos],
         view_count=b.view_count,
         services=b.services,
         hours=b.hours,
