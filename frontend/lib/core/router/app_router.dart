@@ -10,18 +10,20 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/interests_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/business/presentation/business_tab_screen.dart';
+import '../../features/business/presentation/edit_business_screen.dart';
+import '../../features/business/presentation/edit_hours_screen.dart';
 import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
 import '../../features/prototype/admin_screen.dart';
 import '../../features/prototype/chat_screens.dart';
-import '../../features/prototype/compare_screen.dart';
 import '../../features/prototype/map_screen.dart';
 import '../../features/prototype/notifications_screen.dart';
 import '../../features/prototype/reviews_screen.dart';
-import '../../features/prototype/search_screen.dart';
 import '../../features/prototype/surprise_screen.dart';
+import '../../features/search/presentation/compare_screen.dart';
+import '../../features/search/presentation/search_screen.dart';
 import '../theme/app_colors.dart';
 import 'shell_scaffold.dart';
 
@@ -103,6 +105,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/register-business',
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const RegistrationStepper(),
+      ),
+      GoRoute(
+        path: '/edit-business/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            EditBusinessScreen(businessId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/edit-hours/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            EditHoursScreen(businessId: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/offers/:id',

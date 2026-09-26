@@ -9,6 +9,12 @@ final businessRepositoryProvider = Provider<BusinessRepository>((ref) {
   return BusinessRepository(ref.watch(dioProvider));
 });
 
+/// Mon–Sat 09:00–21:00, closed Sunday — the starting point for the hours editor.
+List<OpeningHours> defaultWeekHours() => [
+      for (var day = 0; day < 7; day++)
+        OpeningHours(dayOfWeek: day, opens: '09:00', closes: '21:00', isClosed: day == 6),
+    ];
+
 /// Payload for the registration stepper.
 class BusinessDraft {
   String name = '';
@@ -20,8 +26,15 @@ class BusinessDraft {
   double? latitude;
   double? longitude;
   String priceLevel = '\$\$';
-  List<({String name, String price})> services = [];
-  List<({int day, String opens, String closes, bool closed})> hours = [];
+
+  /// Optional price range in PKR (Module 4 budget filter + comparison).
+  int? priceMin;
+  int? priceMax;
+  List<({String name, int? amount})> services = [];
+
+  /// Weekly hours; sent only when [includeHours] is on.
+  List<OpeningHours> hours = defaultWeekHours();
+  bool includeHours = true;
 
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -33,18 +46,17 @@ class BusinessDraft {
         'latitude': latitude,
         'longitude': longitude,
         'price_level': priceLevel,
+        'price_min': priceMin,
+        'price_max': priceMax,
         'services': [
-          for (final s in services) {'name': s.name, 'price': s.price}
-        ],
-        'hours': [
-          for (final h in hours)
+          for (final s in services)
             {
-              'day_of_week': h.day,
-              'opens': h.opens,
-              'closes': h.closes,
-              'is_closed': h.closed
+              'name': s.name,
+              'price': s.amount == null ? '' : formatRupees(s.amount!),
+              'price_amount': s.amount,
             }
         ],
+        'hours': includeHours ? [for (final h in hours) h.toJson()] : [],
       };
 }
 
@@ -68,6 +80,26 @@ class BusinessRepository {
 
   Future<BusinessDetail> create(BusinessDraft draft) async {
     final res = await _dio.post('/businesses', data: draft.toJson());
+    return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Full profile for the owner's edit screens (not counted as a profile view).
+  Future<BusinessDetail> detail(int id) async {
+    final res = await _dio.get('/businesses/$id', queryParameters: {'track': false});
+    return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Partial update — send only the fields that change (null clears a field).
+  Future<BusinessDetail> update(int id, Map<String, dynamic> changes) async {
+    final res = await _dio.patch('/businesses/$id', data: changes);
+    return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Replace the weekly opening hours (an empty list removes them).
+  Future<BusinessDetail> replaceHours(int id, List<OpeningHours> hours) async {
+    final res = await _dio.put('/businesses/$id/hours', data: {
+      'hours': [for (final h in hours) h.toJson()],
+    });
     return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
   }
 

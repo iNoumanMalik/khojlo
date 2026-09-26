@@ -4,8 +4,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+
+# The startup schema check would connect to the real DATABASE_URL; tests use SQLite below.
+settings.SCHEMA_CHECK_ON_STARTUP = False
 
 # Isolated in-memory SQLite for fast, dependency-free tests.
 engine = create_engine(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,6 +11,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../discovery/discovery_providers.dart';
 import '../business_providers.dart';
 import '../data/business_repository.dart';
+import 'widgets/business_form_fields.dart';
 
 class RegistrationStepper extends ConsumerStatefulWidget {
   const RegistrationStepper({super.key});
@@ -31,21 +33,33 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
   final _description = TextEditingController();
   final _address = TextEditingController();
   final _serviceName = TextEditingController();
+  final _serviceAmount = TextEditingController();
+  final _priceMin = TextEditingController();
+  final _priceMax = TextEditingController();
 
-  static const _steps = ['Name', 'Category', 'Location', 'About', 'Services', 'Review'];
+  static const _steps = [
+    'Name', 'Category', 'Location', 'About', 'Hours', 'Services', 'Review',
+  ];
   static const _tones = ['gold', 'emerald', 'plum', 'coral', 'ink'];
 
   @override
   void dispose() {
-    for (final c in [_name, _tagline, _description, _address, _serviceName]) {
+    for (final c in [
+      _name, _tagline, _description, _address, _serviceName, _serviceAmount,
+      _priceMin, _priceMax,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  String? get _priceError => PriceRangeFields.validate(
+      PriceRangeFields.parse(_priceMin), PriceRangeFields.parse(_priceMax));
+
   bool get _canAdvance => switch (_step) {
         0 => _name.text.trim().isNotEmpty,
         1 => _draft.categoryId != null,
+        3 => _priceError == null,
         _ => true,
       };
 
@@ -66,7 +80,9 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
       ..name = _name.text.trim()
       ..tagline = _tagline.text.trim()
       ..description = _description.text.trim()
-      ..address = _address.text.trim();
+      ..address = _address.text.trim()
+      ..priceMin = PriceRangeFields.parse(_priceMin)
+      ..priceMax = PriceRangeFields.parse(_priceMax);
     try {
       await ref.read(businessRepositoryProvider).create(_draft);
       ref.invalidate(myBusinessesProvider);
@@ -167,7 +183,8 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
       1 => _categoryStep(),
       2 => _locationStep(),
       3 => _aboutStep(),
-      4 => _servicesStep(),
+      4 => _hoursStep(),
+      5 => _servicesStep(),
       _ => _reviewStep(),
     };
   }
@@ -272,6 +289,15 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
               label: 'Address',
               controller: _address,
               hint: 'Street, area, city'),
+          const SizedBox(height: 16),
+          LocationPinField(
+            latitude: _draft.latitude,
+            longitude: _draft.longitude,
+            onChanged: (lat, lng) => setState(() {
+              _draft.latitude = lat;
+              _draft.longitude = lng;
+            }),
+          ),
         ],
       );
 
@@ -293,73 +319,116 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
           const SizedBox(height: 16),
           Text('PRICE LEVEL', style: AppType.label()),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              for (final p in const ['\$', '\$\$', '\$\$\$']) ...[
-                GestureDetector(
-                  onTap: () => setState(() => _draft.priceLevel = p),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    margin: const EdgeInsets.only(right: 10),
-                    decoration: BoxDecoration(
-                      color: _draft.priceLevel == p
-                          ? AppColors.emerald
-                          : AppColors.whiteA(0.6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.inkA(0.08)),
-                    ),
-                    child: Text(p,
-                        style: AppType.mono(
-                            size: 14,
-                            color: _draft.priceLevel == p
-                                ? Colors.white
-                                : AppColors.ink)),
-                  ),
-                ),
-              ],
-            ],
+          PriceTierSelector(
+            value: _draft.priceLevel,
+            onChanged: (p) => setState(() => _draft.priceLevel = p),
+          ),
+          const SizedBox(height: 20),
+          Text('TYPICAL PRICES · OPTIONAL', style: AppType.label()),
+          const SizedBox(height: 4),
+          Text('What does a visit usually cost? Shoppers can filter and compare by this.',
+              style: AppType.sans(size: 12.5, color: AppColors.inkA(0.5))),
+          const SizedBox(height: 12),
+          PriceRangeFields(
+            minController: _priceMin,
+            maxController: _priceMax,
+            onChanged: () => setState(() {}),
+            error: _priceError,
           ),
         ],
       );
+
+  Widget _hoursStep() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _heading('OPENING HOURS', 'When are\nyou open?',
+              'Shoppers can filter for places that are open right now.'),
+          Row(
+            children: [
+              Expanded(
+                child: Text('List my opening hours',
+                    style: AppType.sans(size: 14, weight: FontWeight.w600)),
+              ),
+              KhojloToggle(
+                value: _draft.includeHours,
+                onChanged: (v) => setState(() => _draft.includeHours = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_draft.includeHours)
+            HoursEditor(
+              hours: _draft.hours,
+              onChanged: (h) => setState(() => _draft.hours = h),
+            )
+          else
+            Text('No problem. You can add them later from your dashboard.',
+                style: AppType.sans(size: 13, color: AppColors.inkA(0.55))),
+        ],
+      );
+
+  void _addService() {
+    final name = _serviceName.text.trim();
+    if (name.isEmpty) return;
+    setState(() {
+      _draft.services.add((name: name, amount: int.tryParse(_serviceAmount.text.trim())));
+      _serviceName.clear();
+      _serviceAmount.clear();
+    });
+  }
 
   Widget _servicesStep() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _heading('SERVICES', 'What do you\noffer?',
-              'Optional — add a few signature services or items.'),
+              'Optional — add a few signature services or items with their price.'),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
+                flex: 3,
                 child: AppField(
                     label: 'Service', controller: _serviceName, hint: 'e.g. Pour over'),
               ),
               const SizedBox(width: 10),
-              GlassIconButton(
-                icon: Icons.add_rounded,
-                onTap: () {
-                  final n = _serviceName.text.trim();
-                  if (n.isNotEmpty) {
-                    setState(() {
-                      _draft.services.add((name: n, price: _draft.priceLevel));
-                      _serviceName.clear();
-                    });
-                  }
-                },
+              Expanded(
+                flex: 2,
+                child: AppField(
+                  label: 'Price',
+                  controller: _serviceAmount,
+                  hint: '650',
+                  prefixText: 'Rs ',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(7),
+                  ],
+                ),
               ),
+              const SizedBox(width: 10),
+              GlassIconButton(icon: Icons.add_rounded, onTap: _addService),
             ],
           ),
           const SizedBox(height: 16),
-          for (final s in _draft.services)
+          for (var i = 0; i < _draft.services.length; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle,
-                      size: 18, color: AppColors.emerald),
+                  const Icon(Icons.check_circle, size: 18, color: AppColors.emerald),
                   const SizedBox(width: 8),
-                  Text(s.name, style: AppType.sans(size: 14)),
+                  Expanded(
+                    child: Text(_draft.services[i].name, style: AppType.sans(size: 14)),
+                  ),
+                  if (_draft.services[i].amount != null)
+                    Text(formatRupees(_draft.services[i].amount!),
+                        style: AppType.mono(size: 12, color: AppColors.inkA(0.6))),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Remove',
+                    icon: Icon(Icons.close_rounded, size: 16, color: AppColors.inkA(0.45)),
+                    onPressed: () => setState(() => _draft.services.removeAt(i)),
+                  ),
                 ],
               ),
             ),
@@ -405,10 +474,30 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
           ],
           const SizedBox(height: 10),
           Text(
-            '${preview.priceLevel}'
-            '${_draft.services.isNotEmpty ? ' · ${_draft.services.length} services' : ''}'
-            '${preview.address.isNotEmpty ? ' · ${preview.address}' : ''}',
+            [
+              preview.priceLevel,
+              priceRangeLabel(PriceRangeFields.parse(_priceMin),
+                  PriceRangeFields.parse(_priceMax)),
+              if (_draft.services.isNotEmpty)
+                '${_draft.services.length} service${_draft.services.length == 1 ? '' : 's'}',
+              if (preview.address.isNotEmpty) preview.address,
+            ].where((part) => part.isNotEmpty).join(' · '),
             style: AppType.mono(size: 11, color: AppColors.inkA(0.53)),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              KhojloBadge(
+                label: _draft.includeHours ? 'Opening hours set' : 'No opening hours',
+                tone: _draft.includeHours ? BadgeTone.emerald : BadgeTone.ink,
+              ),
+              KhojloBadge(
+                label: _draft.latitude != null ? 'Location pinned' : 'No map pin',
+                tone: _draft.latitude != null ? BadgeTone.emerald : BadgeTone.ink,
+              ),
+            ],
           ),
         ],
       ),

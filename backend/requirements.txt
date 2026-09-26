@@ -12,6 +12,8 @@ python-multipart>=0.0.20
 email-validator>=2.2
 google-auth>=2.35
 requests>=2.32
+# IANA timezone data for zoneinfo (Windows ships none) — used for "open now".
+tzdata>=2024.1
 
 # dev / test
 pytest>=8.3

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -53,3 +55,9 @@ def get_optional_user(
     if user_id is None:
         return None
     return db.get(User, int(user_id))
+
+
+def get_now() -> datetime:
+    """The current UTC time. Tests override this dependency to freeze the clock
+    (e.g. to check "open now" at a known hour)."""
+    return datetime.now(timezone.utc)

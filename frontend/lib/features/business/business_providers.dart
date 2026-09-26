@@ -27,3 +27,9 @@ final offersProvider =
     FutureProvider.autoDispose.family<List<Offer>, int>((ref, id) async {
   return ref.watch(businessRepositoryProvider).offers(id);
 });
+
+/// An owned business's full profile for editing (fetched without counting a view).
+final ownerBusinessDetailProvider =
+    FutureProvider.autoDispose.family<BusinessDetail, int>((ref, id) async {
+  return ref.watch(businessRepositoryProvider).detail(id);
+});

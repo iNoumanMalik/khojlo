@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -16,6 +17,8 @@ class AppField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.maxLines = 1,
+    this.inputFormatters,
+    this.prefixText,
   });
 
   final String label;
@@ -26,6 +29,10 @@ class AppField extends StatelessWidget {
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
   final int maxLines;
+  final List<TextInputFormatter>? inputFormatters;
+
+  /// Fixed text before the input, e.g. "Rs ".
+  final String? prefixText;
 
   @override
   Widget build(BuildContext context) {
@@ -41,16 +48,25 @@ class AppField extends StatelessWidget {
           validator: validator,
           onChanged: onChanged,
           maxLines: maxLines,
+          inputFormatters: inputFormatters,
           style: AppType.sans(size: 14.5, weight: FontWeight.w500),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
+            // Always visible (unlike `prefixText`, which hides until the field is focused).
+            prefixIcon: prefixText == null
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.only(left: 16, right: 6),
+                    child: Text(prefixText!.trim(),
+                        style: AppType.mono(size: 13, color: AppColors.inkA(0.5))),
+                  ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             hintStyle: AppType.sans(
                 size: 14.5, weight: FontWeight.w500, color: AppColors.inkA(0.33)),
             filled: true,
             fillColor: AppColors.whiteA(0.7),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: EdgeInsets.fromLTRB(prefixText == null ? 16 : 0, 14, 16, 14),
             border: _border(AppColors.inkA(0.08)),
             enabledBorder: _border(AppColors.inkA(0.08)),
             focusedBorder: _border(AppColors.emerald.withValues(alpha: 0.6)),

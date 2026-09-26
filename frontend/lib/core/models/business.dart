@@ -21,6 +21,28 @@ class Category {
       );
 }
 
+/// Formats a rupee amount with thousands separators: 2500 → "Rs 2,500".
+String formatRupees(int amount) {
+  final digits = amount.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
+    buf.write(digits[i]);
+  }
+  return 'Rs $buf';
+}
+
+/// "Rs 800–2,500", "From Rs 800", "Up to Rs 2,500", or '' when unknown.
+String priceRangeLabel(int? min, int? max) {
+  if (min != null && max != null) {
+    if (min == max) return formatRupees(min);
+    return '${formatRupees(min)}–${formatRupees(max).substring(3)}';
+  }
+  if (min != null) return 'From ${formatRupees(min)}';
+  if (max != null) return 'Up to ${formatRupees(max)}';
+  return '';
+}
+
 class BusinessCard {
   const BusinessCard({
     required this.id,
@@ -35,6 +57,13 @@ class BusinessCard {
     required this.isVerified,
     this.categoryName,
     this.distanceKm,
+    this.categorySlug,
+    this.priceMin,
+    this.priceMax,
+    this.isOpenNow,
+    this.todayHours,
+    this.hasOffer = false,
+    this.isNew = false,
   });
 
   final int id;
@@ -50,8 +79,37 @@ class BusinessCard {
   final String? categoryName;
   final double? distanceKm;
 
+  // ── Module 4 ──
+  final String? categorySlug;
+
+  /// Optional price range in PKR.
+  final int? priceMin;
+  final int? priceMax;
+
+  /// null when the business hasn't published opening hours.
+  final bool? isOpenNow;
+
+  /// "09:00–22:00", "Open 24 hours", "Closed today", or null.
+  final String? todayHours;
+  final bool hasOffer;
+
+  /// Joined Khojlo recently (backend `NEW_BUSINESS_DAYS`).
+  final bool isNew;
+
   String get distanceLabel =>
       distanceKm == null ? '' : '${distanceKm!.toStringAsFixed(1)} km';
+
+  String get priceRange => priceRangeLabel(priceMin, priceMax);
+
+  /// Price shown on cards: the rupee range when known, otherwise the tier.
+  String get priceLabel => priceRange.isNotEmpty ? priceRange : priceLevel;
+
+  /// "open" / "closed" / '' (unknown).
+  String get openLabel => switch (isOpenNow) {
+        true => 'open',
+        false => 'closed',
+        null => '',
+      };
 
   factory BusinessCard.fromJson(Map<String, dynamic> j) => BusinessCard(
         id: j['id'] as int,
@@ -66,19 +124,78 @@ class BusinessCard {
         isVerified: j['is_verified'] as bool? ?? false,
         categoryName: j['category_name'] as String?,
         distanceKm: (j['distance_km'] as num?)?.toDouble(),
+        categorySlug: j['category_slug'] as String?,
+        priceMin: j['price_min'] as int?,
+        priceMax: j['price_max'] as int?,
+        isOpenNow: j['is_open_now'] as bool?,
+        todayHours: j['today_hours'] as String?,
+        hasOffer: j['has_offer'] as bool? ?? false,
+        isNew: j['is_new'] as bool? ?? false,
       );
 }
 
 class Service {
-  const Service({required this.id, required this.name, required this.price});
+  const Service({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.priceAmount,
+  });
   final int id;
   final String name;
+
+  /// Display text, e.g. "Rs 650".
   final String price;
+
+  /// The same price in PKR, when the owner entered one.
+  final int? priceAmount;
 
   factory Service.fromJson(Map<String, dynamic> j) => Service(
         id: j['id'] as int? ?? 0,
         name: j['name'] as String,
         price: j['price'] as String? ?? '',
+        priceAmount: j['price_amount'] as int?,
+      );
+}
+
+/// One weekday's opening hours. `dayOfWeek` 0 = Monday … 6 = Sunday.
+class OpeningHours {
+  const OpeningHours({
+    required this.dayOfWeek,
+    required this.opens,
+    required this.closes,
+    this.isClosed = false,
+  });
+
+  final int dayOfWeek;
+  final String opens;
+  final String closes;
+  final bool isClosed;
+
+  static const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  String get dayName => dayNames[dayOfWeek];
+
+  factory OpeningHours.fromJson(Map<String, dynamic> j) => OpeningHours(
+        dayOfWeek: j['day_of_week'] as int,
+        opens: j['opens'] as String? ?? '09:00',
+        closes: j['closes'] as String? ?? '17:00',
+        isClosed: j['is_closed'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'opens': opens,
+        'closes': closes,
+        'is_closed': isClosed,
+      };
+
+  OpeningHours copyWith({String? opens, String? closes, bool? isClosed}) =>
+      OpeningHours(
+        dayOfWeek: dayOfWeek,
+        opens: opens ?? this.opens,
+        closes: closes ?? this.closes,
+        isClosed: isClosed ?? this.isClosed,
       );
 }
 
@@ -132,6 +249,13 @@ class BusinessDetail extends BusinessCard {
     required super.isVerified,
     super.categoryName,
     super.distanceKm,
+    super.categorySlug,
+    super.priceMin,
+    super.priceMax,
+    super.isOpenNow,
+    super.todayHours,
+    super.hasOffer,
+    super.isNew,
     required this.description,
     required this.latitude,
     required this.longitude,
@@ -140,6 +264,7 @@ class BusinessDetail extends BusinessCard {
     required this.services,
     required this.offers,
     required this.isSaved,
+    this.hours = const [],
   });
 
   final String description;
@@ -150,33 +275,48 @@ class BusinessDetail extends BusinessCard {
   final List<Service> services;
   final List<Offer> offers;
   final bool isSaved;
+  final List<OpeningHours> hours;
 
-  factory BusinessDetail.fromJson(Map<String, dynamic> j) => BusinessDetail(
-        id: j['id'] as int,
-        name: j['name'] as String,
-        tagline: j['tagline'] as String? ?? '',
-        tone: j['tone'] as String? ?? 'gold',
-        address: j['address'] as String? ?? '',
-        priceLevel: j['price_level'] as String? ?? '\$\$',
-        rating: (j['rating'] as num?)?.toDouble() ?? 0,
-        reviewCount: j['review_count'] as int? ?? 0,
-        saveCount: j['save_count'] as int? ?? 0,
-        isVerified: j['is_verified'] as bool? ?? false,
-        categoryName: j['category_name'] as String?,
-        distanceKm: (j['distance_km'] as num?)?.toDouble(),
-        description: j['description'] as String? ?? '',
-        latitude: (j['latitude'] as num?)?.toDouble(),
-        longitude: (j['longitude'] as num?)?.toDouble(),
-        images: (j['images'] as List?)?.cast<String>() ?? const [],
-        viewCount: j['view_count'] as int? ?? 0,
-        services: (j['services'] as List?)
-                ?.map((e) => Service.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        offers: (j['offers'] as List?)
-                ?.map((e) => Offer.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        isSaved: j['is_saved'] as bool? ?? false,
-      );
+  factory BusinessDetail.fromJson(Map<String, dynamic> j) {
+    final card = BusinessCard.fromJson(j);
+    return BusinessDetail(
+      id: card.id,
+      name: card.name,
+      tagline: card.tagline,
+      tone: card.tone,
+      address: card.address,
+      priceLevel: card.priceLevel,
+      rating: card.rating,
+      reviewCount: card.reviewCount,
+      saveCount: card.saveCount,
+      isVerified: card.isVerified,
+      categoryName: card.categoryName,
+      distanceKm: card.distanceKm,
+      categorySlug: card.categorySlug,
+      priceMin: card.priceMin,
+      priceMax: card.priceMax,
+      isOpenNow: card.isOpenNow,
+      todayHours: card.todayHours,
+      hasOffer: card.hasOffer,
+      isNew: card.isNew,
+      description: j['description'] as String? ?? '',
+      latitude: (j['latitude'] as num?)?.toDouble(),
+      longitude: (j['longitude'] as num?)?.toDouble(),
+      images: (j['images'] as List?)?.cast<String>() ?? const [],
+      viewCount: j['view_count'] as int? ?? 0,
+      services: (j['services'] as List?)
+              ?.map((e) => Service.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      offers: (j['offers'] as List?)
+              ?.map((e) => Offer.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      isSaved: j['is_saved'] as bool? ?? false,
+      hours: (j['hours'] as List?)
+              ?.map((e) => OpeningHours.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
 }

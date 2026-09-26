@@ -44,7 +44,9 @@ class BusinessProfile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id"), nullable=True, index=True
+    )
 
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     tagline: Mapped[str] = mapped_column(String(200), default="")
@@ -55,10 +57,14 @@ class BusinessProfile(Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_level: Mapped[str] = mapped_column(String(8), default="$$")
+    # Optional price range in PKR (Module 4 budget filter + price comparison).
+    # Either end may be missing: "from Rs 800" or "up to Rs 2,500".
+    price_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     images: Mapped[list] = mapped_column(JSON, default=list)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     # denormalized engagement counters kept fresh for fast feed / dashboard reads
     view_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -66,7 +72,9 @@ class BusinessProfile(Base):
     rating: Mapped[float] = mapped_column(Float, default=0.0)
     review_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, index=True
+    )
 
     owner = relationship("User", back_populates="businesses")
     category = relationship("Category", back_populates="businesses")
@@ -83,7 +91,9 @@ class Service(Base):
         ForeignKey("businesses.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Display text, e.g. "Rs 650". `price_amount` is the same price as a number (PKR).
     price: Mapped[str] = mapped_column(String(40), default="")
+    price_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     business = relationship("BusinessProfile", back_populates="services")
 

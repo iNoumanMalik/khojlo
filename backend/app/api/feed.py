@@ -10,7 +10,7 @@ from app.models.business import BusinessProfile, Category
 from app.models.user import User
 from app.schemas.business import CategoryOut
 from app.schemas.feed import FeedResponse, FeedSection
-from app.services.business_service import to_card
+from app.services.business_service import card_load_options, to_card
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
@@ -34,7 +34,9 @@ def get_feed(
     origin = (lat, lng) if lat is not None and lng is not None else None
 
     published = (
-        select(BusinessProfile).where(BusinessProfile.is_published.is_(True))
+        select(BusinessProfile)
+        .options(*card_load_options())
+        .where(BusinessProfile.is_published.is_(True))
     )
     businesses = db.execute(published).scalars().all()
 
@@ -109,7 +111,9 @@ def surprise(db: Session = Depends(get_db)) -> list[dict]:
     import random
 
     businesses = db.execute(
-        select(BusinessProfile).where(BusinessProfile.is_published.is_(True))
+        select(BusinessProfile)
+        .options(*card_load_options())
+        .where(BusinessProfile.is_published.is_(True))
     ).scalars().all()
     random.shuffle(businesses)
     return [to_card(b).model_dump() for b in businesses[:12]]

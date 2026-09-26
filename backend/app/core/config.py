@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: str = "postgresql+psycopg2://khojlo:khojlo@localhost:5432/khojlo"
+    # Log a warning at startup when the database is missing migrations (`alembic upgrade head`).
+    SCHEMA_CHECK_ON_STARTUP: bool = True
 
     SECRET_KEY: str = "change-me-to-a-long-random-string"
     ALGORITHM: str = "HS256"
@@ -40,6 +42,14 @@ class Settings(BaseSettings):
     OTP_MAX_PER_DAY: int = 5
     OTP_MAX_ATTEMPTS: int = 5
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 10
+
+    # ── Search, filtering & comparison (Module 4) ──
+    # Businesses are local, so "open now" is evaluated in their timezone, not the server's (UTC).
+    BUSINESS_TIMEZONE: str = "Asia/Karachi"
+    # A business counts as "new" (badge + ranking tie-break) for this many days after it joins.
+    NEW_BUSINESS_DAYS: int = 30
+    # Upper bound for the distance filter.
+    SEARCH_MAX_RADIUS_KM: float = 50.0
 
     # ── Firebase / FCM push (future — optional) ──
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None

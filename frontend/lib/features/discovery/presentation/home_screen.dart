@@ -3,11 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/business.dart';
 import '../../../core/models/feed.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
+import '../../search/search_providers.dart';
 import '../discovery_providers.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -22,14 +24,32 @@ class HomeScreen extends ConsumerWidget {
       backgroundColor: AppColors.cream,
       body: feedAsync.when(
         loading: () => const FeedSkeleton(),
-        error: (e, _) => _FeedError(onRetry: () => ref.refresh(feedProvider)),
+        // Keep the header (and its profile avatar) so the account stays reachable.
+        error: (e, _) => ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _Header(
+              greeting: 'Welcome, explorer',
+              headline: 'Discover what’s\nnew nearby',
+              initials: user?.initials ?? '?',
+              tone: user?.avatarTone ?? 'gold',
+            ),
+            const SizedBox(height: 24),
+            _FeedError(onRetry: () => ref.refresh(feedProvider)),
+          ],
+        ),
         data: (feed) => RefreshIndicator(
           color: AppColors.emerald,
           onRefresh: () async => ref.refresh(feedProvider.future),
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              _Header(feed: feed, initials: user?.initials ?? '?', tone: user?.avatarTone ?? 'gold'),
+              _Header(
+                greeting: feed.greeting,
+                headline: feed.headline,
+                initials: user?.initials ?? '?',
+                tone: user?.avatarTone ?? 'gold',
+              ),
               _SearchRow(),
               const SizedBox(height: 18),
               _Categories(categories: feed.categories),
@@ -45,8 +65,14 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.feed, required this.initials, required this.tone});
-  final Feed feed;
+  const _Header({
+    required this.greeting,
+    required this.headline,
+    required this.initials,
+    required this.tone,
+  });
+  final String greeting;
+  final String headline;
   final String initials;
   final String tone;
 
@@ -67,20 +93,24 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(feed.greeting.toUpperCase(),
+                child: Text(greeting.toUpperCase(),
                     style: AppType.mono(
                         size: 10.5,
                         color: AppColors.coral.withValues(alpha: 0.8),
                         letterSpacing: 1.6)),
               ),
-              GestureDetector(
-                onTap: () => context.push('/profile'),
-                child: KhojloAvatar(initials: initials, tone: tone, size: 40),
+              Semantics(
+                button: true,
+                label: 'Profile',
+                child: GestureDetector(
+                  onTap: () => context.push('/profile'),
+                  child: KhojloAvatar(initials: initials, tone: tone, size: 40),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(feed.headline,
+          Text(headline,
               style: AppType.serif(size: 34, color: Colors.white, height: 1.1)),
         ],
       ),
@@ -88,9 +118,9 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SearchRow extends StatelessWidget {
+class _SearchRow extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Transform.translate(
       offset: const Offset(0, -30),
       child: Padding(
@@ -98,7 +128,11 @@ class _SearchRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: SearchPill(onTap: () => context.go('/explore')),
+              // One tap to the Explore tab with the keyboard up (SRS USE-1).
+              child: SearchPill(onTap: () {
+                context.go('/explore');
+                ref.read(searchFocusRequestProvider.notifier).state++;
+              }),
             ),
             const SizedBox(width: 10),
             GlassIconButton(
@@ -114,22 +148,36 @@ class _SearchRow extends StatelessWidget {
   }
 }
 
-class _Categories extends StatelessWidget {
+class _Categories extends ConsumerWidget {
   const _Categories({required this.categories});
-  final List categories;
+  final List<Category> categories;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final search = ref.read(searchControllerProvider.notifier);
     return SizedBox(
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 22),
         children: [
-          KhojloChip(label: 'All', active: true, onTap: () => context.go('/explore')),
+          KhojloChip(
+            label: 'All',
+            active: true,
+            onTap: () {
+              search.reset();
+              context.go('/explore');
+            },
+          ),
           for (final c in categories) ...[
             const SizedBox(width: 10),
-            KhojloChip(label: c.name, onTap: () => context.go('/explore')),
+            KhojloChip(
+              label: c.name,
+              onTap: () {
+                search.browseCategory(c.slug);
+                context.go('/explore');
+              },
+            ),
           ],
         ],
       ),

@@ -1,14 +1,36 @@
-"""Seed the database with demo data so the feed and dashboard look alive.
+"""Seed demo data so the feed, search and dashboard look alive.
 
-Run with:  python -m app.db.seed
-Idempotent: clears existing demo rows first.
+    python -m app.db.seed           # safe anywhere, including the shared team database
+    python -m app.db.seed --reset   # local databases only: wipes every user and business first
+
+The default mode only adds and refreshes demo data; it never deletes a user, a review, a
+save, or a business that isn't one of the demo owner's catalogue businesses. It:
+
+* adds missing categories and demo accounts (existing accounts, passwords included, are
+  left alone);
+* refreshes the demo owner's businesses whose names are in the catalogue below (address,
+  map pin, tagline, price range, verification, age, opening hours and services) and adds
+  catalogue businesses that don't exist yet. Views, saves and ratings are kept;
+* adds catalogue offers, reviews, saved lists and search history only where none exist.
+
+The catalogue is deliberately varied so Module 4 search, filters and comparison have
+something to work with: several Islamabad areas plus Abbottabad (the four tailors mirror
+the SDD "Search & compare" mockup), rupee price ranges, different opening hours
+(including overnight), some unverified and some newly opened businesses, and a little
+search history for "Popular searches".
 """
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
-from app.core.database import Base, SessionLocal, engine
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session
+
+from app.core.database import SessionLocal, engine
 from app.core.security import hash_password
+from app.db.schema_check import schema_problem
 from app.models.business import (
     BusinessProfile,
     Category,
@@ -17,8 +39,20 @@ from app.models.business import (
     OpeningHours,
     Service,
 )
-from app.models.engagement import Review, SavedBusiness, SavedList
+from app.models.engagement import BusinessView, Review, SavedBusiness, SavedList
+from app.models.search import SearchQuery
 from app.models.user import User, UserRole
+
+DEMO_PASSWORD = "password123"
+OWNER_EMAIL = "owner@khojlo.app"
+CUSTOMER_EMAIL = "customer@khojlo.app"
+DEMO_USERS = [
+    dict(email=OWNER_EMAIL, full_name="Sara Owner", role=UserRole.business_owner,
+         avatar_tone="plum"),
+    dict(email=CUSTOMER_EMAIL, full_name="Ali Customer", role=UserRole.customer,
+         avatar_tone="gold", interests=["cafes", "restaurants"]),
+    dict(email="admin@khojlo.app", full_name="Admin", role=UserRole.admin),
+]
 
 CATEGORIES = [
     ("cafes", "Cafés", "emerald"),
@@ -28,32 +62,139 @@ CATEGORIES = [
     ("healthcare", "Healthcare", "emerald"),
     ("gaming", "Gaming", "ink"),
     ("education", "Education", "gold"),
+    ("shopping", "Shopping", "plum"),
 ]
 
-# name, category slug, tone, tagline, price, lat, lng, rating, reviews, saves
-BUSINESSES = [
-    ("Brew & Bloom", "cafes", "emerald", "Specialty coffee & a wall of plants", "$$", 33.6844, 73.0479, 4.8, 214, 96),
-    ("The Reading Room", "cafes", "gold", "Quiet corners, slow mornings", "$$", 33.6870, 73.0510, 4.7, 132, 61),
-    ("Scoops & Swirls", "cafes", "emerald", "Small-batch dessert bar", "$", 33.6900, 73.0450, 4.9, 88, 40),
-    ("Forno Italiano", "restaurants", "gold", "Wood-fired Neapolitan pizza", "$$", 33.6810, 73.0530, 4.7, 301, 120),
-    ("Ramen no Michi", "restaurants", "gold", "18-hour tonkotsu broth", "$$", 33.6790, 73.0490, 4.8, 176, 84),
-    ("Ember & Oak", "restaurants", "coral", "Live-fire seasonal plates", "$$$", 33.6930, 73.0470, 4.6, 143, 52),
-    ("Iron & Ash Gym", "gym", "emerald", "Strength-first, no crowds", "$$", 33.6905, 73.0520, 4.6, 74, 33),
-    ("Glow Studio", "beauty", "coral", "Skin, nails & slow beauty", "$$", 33.6865, 73.0465, 4.8, 121, 58),
-    ("Pixel Arena", "gaming", "ink", "Next-gen consoles & LAN nights", "$", 33.6885, 73.0535, 4.5, 66, 29),
-    ("Northlight Clinic", "healthcare", "emerald", "Same-day family care", "$$", 33.6840, 73.0420, 4.7, 89, 21),
-    ("Verse Bookshop", "education", "gold", "Indie press & study loft", "$", 33.6912, 73.0498, 4.8, 54, 44),
-    ("Mornings Café", "cafes", "coral", "All-day brunch & filter coffee", "$$", 33.6798, 73.0468, 4.6, 108, 51),
-    ("The Dumpling Cart", "restaurants", "gold", "Hand-folded, steamed to order", "$", 33.6875, 73.0482, 4.9, 190, 77),
+# ── weekly opening-hour presets: {day_of_week: (opens, closes)}, missing day = closed ──
+DAILY = range(7)
+MON_SAT = range(6)
+MON_FRI = range(5)
+
+
+def _week(days, opens: str, closes: str, extra: dict | None = None) -> dict[int, tuple[str, str]]:
+    hours = {d: (opens, closes) for d in days}
+    hours.update(extra or {})
+    return hours
+
+
+CAFE_HOURS = _week(DAILY, "08:00", "23:00")
+LATE_NIGHT = _week(DAILY, "12:00", "01:00")  # closes after midnight
+DINNER = _week(DAILY, "18:00", "02:00")
+STANDARD = _week(MON_SAT, "10:00", "22:00")
+GYM_HOURS = _week(MON_SAT, "06:00", "23:00", {6: ("08:00", "14:00")})
+CLINIC_HOURS = _week(MON_SAT, "08:00", "20:00")
+ARENA_HOURS = _week(DAILY, "14:00", "02:00")
+SHOP_HOURS = _week(MON_SAT, "10:00", "21:00")
+MORNING_ONLY = _week(MON_FRI, "10:00", "14:00")
+ROUND_THE_CLOCK = _week(DAILY, "00:00", "00:00")  # equal times = open 24 hours
+
+ISB = "Islamabad"
+ABT = "Abbottabad"
+
+# Each business: category, tone, tagline, tier, PKR range, area, coordinates, rating,
+# reviews, saves, age in days (<= 30 counts as new), verified, hours, services (name, Rs).
+BUSINESSES: list[dict] = [
+    dict(name="Brew & Bloom", cat="cafes", tone="emerald",
+         tagline="Specialty coffee & a wall of plants", price="$$", pmin=450, pmax=1500,
+         address=f"F-7 Markaz, {ISB}", lat=33.7206, lng=73.0551, rating=4.8, reviews=214,
+         saves=96, age=12, verified=True, hours=CAFE_HOURS,
+         services=[("Pour over", 650), ("Flat white", 550), ("Plant of the month", 1200)]),
+    dict(name="The Reading Room", cat="cafes", tone="gold",
+         tagline="Quiet corners, slow mornings", price="$$", pmin=350, pmax=1100,
+         address=f"Blue Area, {ISB}", lat=33.7095, lng=73.0561, rating=4.7, reviews=132,
+         saves=61, age=160, verified=True, hours=_week(DAILY, "09:00", "22:00"),
+         services=[("Filter coffee", 400), ("Study table (2 hrs)", 600), ("Cheesecake", 750)]),
+    dict(name="Scoops & Swirls", cat="cafes", tone="emerald",
+         tagline="Small-batch dessert bar", price="$", pmin=250, pmax=800,
+         address=f"F-6 Super Market, {ISB}", lat=33.7273, lng=73.0768, rating=4.9, reviews=88,
+         saves=40, age=6, verified=False, hours=_week(DAILY, "13:00", "00:00"),
+         services=[("Single scoop", 250), ("Waffle sundae", 650), ("Kulfi falooda", 450)]),
+    dict(name="Forno Italiano", cat="restaurants", tone="gold",
+         tagline="Wood-fired Neapolitan pizza", price="$$", pmin=900, pmax=2800,
+         address=f"Kohsar Market, F-6/3, {ISB}", lat=33.7318, lng=73.0707, rating=4.7,
+         reviews=301, saves=120, age=240, verified=True, hours=STANDARD,
+         services=[("Margherita pizza", 1400), ("Truffle pasta", 2200), ("Tiramisu", 900)]),
+    dict(name="Ramen no Michi", cat="restaurants", tone="gold",
+         tagline="18-hour tonkotsu broth", price="$$", pmin=1200, pmax=2400,
+         address=f"F-7 Markaz, {ISB}", lat=33.7219, lng=73.0536, rating=4.8, reviews=176,
+         saves=84, age=45, verified=True, hours=LATE_NIGHT,
+         services=[("Tonkotsu ramen", 1800), ("Gyoza (6 pcs)", 1200), ("Matcha ice cream", 700)]),
+    dict(name="Ember & Oak", cat="restaurants", tone="coral",
+         tagline="Live-fire seasonal plates", price="$$$", pmin=2500, pmax=7000,
+         address=f"E-7, {ISB}", lat=33.7298, lng=73.0572, rating=4.6, reviews=143,
+         saves=52, age=300, verified=True, hours=DINNER,
+         services=[("Chef's tasting menu", 6500), ("Smoked short rib", 4200)]),
+    dict(name="The Dumpling Cart", cat="restaurants", tone="gold",
+         tagline="Hand-folded, steamed to order", price="$", pmin=300, pmax=900,
+         address=f"G-9 Markaz, {ISB}", lat=33.6932, lng=73.0293, rating=4.9, reviews=190,
+         saves=77, age=3, verified=False, hours=_week(DAILY, "12:00", "23:00"),
+         services=[("Chicken dumplings (8 pcs)", 550), ("Chilli oil wontons", 650)]),
+    dict(name="Mornings Café", cat="cafes", tone="coral",
+         tagline="All-day brunch & filter coffee", price="$$", pmin=500, pmax=1600,
+         address=f"F-10 Markaz, {ISB}", lat=33.6953, lng=73.0138, rating=4.6, reviews=108,
+         saves=51, age=90, verified=True, hours=_week(DAILY, "07:30", "16:00"),
+         services=[("Desi breakfast", 950), ("Eggs Benedict", 1400), ("Cold brew", 600)]),
+    dict(name="Iron & Ash Gym", cat="gym", tone="emerald",
+         tagline="Strength-first, no crowds", price="$$", pmin=4000, pmax=9000,
+         address=f"I-8 Markaz, {ISB}", lat=33.6678, lng=73.0756, rating=4.6, reviews=74,
+         saves=33, age=120, verified=True, hours=GYM_HOURS,
+         services=[("Monthly membership", 6000), ("Personal training session", 2500)]),
+    dict(name="Glow Studio", cat="beauty", tone="coral",
+         tagline="Skin, nails & slow beauty", price="$$", pmin=1500, pmax=6000,
+         address=f"F-7 Markaz, {ISB}", lat=33.7211, lng=73.0544, rating=4.8, reviews=121,
+         saves=58, age=20, verified=True, hours=STANDARD,
+         services=[("Hydrating facial", 4500), ("Gel manicure", 2000), ("Brow shaping", 1500)]),
+    dict(name="Pixel Arena", cat="gaming", tone="ink",
+         tagline="Next-gen consoles & LAN nights", price="$", pmin=300, pmax=1500,
+         address=f"G-9 Markaz, {ISB}", lat=33.6926, lng=73.0281, rating=4.5, reviews=66,
+         saves=29, age=75, verified=True, hours=ARENA_HOURS,
+         services=[("PS5 per hour", 400), ("LAN night pass", 1500)]),
+    dict(name="Northlight Clinic", cat="healthcare", tone="emerald",
+         tagline="Same-day family care", price="$$", pmin=1500, pmax=5000,
+         address=f"Blue Area, {ISB}", lat=33.7088, lng=73.0579, rating=4.7, reviews=89,
+         saves=21, age=200, verified=True, hours=CLINIC_HOURS,
+         services=[("GP consultation", 2000), ("Blood test panel", 3500)]),
+    dict(name="CarePoint Pharmacy", cat="healthcare", tone="emerald",
+         tagline="Open 24 hours, delivery on call", price="$", pmin=None, pmax=None,
+         address=f"F-8 Markaz, {ISB}", lat=33.7093, lng=73.0379, rating=4.4, reviews=39,
+         saves=12, age=15, verified=False, hours=ROUND_THE_CLOCK,
+         services=[("Prescription refill", None), ("BP check", 200)]),
+    dict(name="Verse Bookshop", cat="education", tone="gold",
+         tagline="Indie press & study loft", price="$", pmin=500, pmax=3000,
+         address=f"F-6 Super Market, {ISB}", lat=33.7266, lng=73.0781, rating=4.8, reviews=54,
+         saves=44, age=400, verified=True, hours=_week(DAILY, "10:00", "22:00", {4: ("15:00", "22:00")}),
+         services=[("Study loft day pass", 500), ("Urdu poetry collection", 1200)]),
+    # ── Abbottabad — the SDD "unstitched fabric" search mockup ──
+    dict(name="Zilli Tailors", cat="shopping", tone="emerald",
+         tagline="Unstitched fabric & made-to-measure suits", price="$", pmin=800, pmax=2500,
+         address=f"Jinnah Road, {ABT}", lat=34.1519, lng=73.2157, rating=4.7, reviews=58,
+         saves=31, age=9, verified=True, hours=SHOP_HOURS,
+         services=[("Unstitched lawn (3 pc)", 1800), ("Suit stitching", 2500), ("Alterations", 800)]),
+    dict(name="Al-Rehman Cloth House", cat="shopping", tone="plum",
+         tagline="Unstitched fabric by the metre", price="$", pmin=600, pmax=1800,
+         address=f"Jinnah Road, {ABT}", lat=34.1568, lng=73.2160, rating=4.5, reviews=41,
+         saves=18, age=150, verified=True, hours=SHOP_HOURS,
+         services=[("Cotton fabric (per metre)", 600), ("Unstitched khaddar suit", 1800)]),
+    dict(name="Threadwork Studio", cat="shopping", tone="gold",
+         tagline="Hand embroidery & bridal stitching", price="$$", pmin=1200, pmax=4000,
+         address=f"Supply Bazaar, {ABT}", lat=34.1604, lng=73.2158, rating=4.6, reviews=27,
+         saves=14, age=26, verified=False, hours=MORNING_ONLY,
+         services=[("Embroidered unstitched suit", 4000), ("Custom stitching", 1200)]),
+    dict(name="Heritage Textiles", cat="shopping", tone="emerald",
+         tagline="Pure silk, lawn & unstitched fabric", price="$$", pmin=900, pmax=3000,
+         address=f"Main Bazaar, {ABT}", lat=34.1649, lng=73.2163, rating=4.4, reviews=33,
+         saves=11, age=500, verified=True, hours=SHOP_HOURS,
+         services=[("Unstitched silk (3 pc)", 3000), ("Lawn fabric (per metre)", 900)]),
 ]
 
 OFFERS = {
-    "Brew & Bloom": [
-        ("Buy one, plant one — free seedling", "Jul 1", "Jul 20", OfferStatus.active, "emerald", 96, 40),
-    ],
-    "Forno Italiano": [
-        ("Family pizza night — 25% off", "Jul 5", "Aug 5", OfferStatus.active, "gold", 210, 33),
-    ],
+    "Brew & Bloom": [("Buy one, plant one — free seedling", "Jul 1", "Jul 20", OfferStatus.active, "emerald", 96, 40)],
+    "Forno Italiano": [("Family pizza night — 25% off", "Jul 5", "Aug 5", OfferStatus.active, "gold", 210, 33)],
+    "Scoops & Swirls": [("2-for-1 sundaes on weekdays", "Sep 1", "Oct 15", OfferStatus.active, "emerald", 64, 20)],
+    "Iron & Ash Gym": [("First week free", "Sep 10", "Oct 10", OfferStatus.active, "emerald", 48, 9)],
+    "Glow Studio": [("15% off your first facial", "Sep 1", "Sep 30", OfferStatus.active, "gold", 72, 14)],
+    "Zilli Tailors": [("Free alterations this month", "Sep 1", "Sep 30", OfferStatus.active, "emerald", 30, 6)],
+    "Ember & Oak": [("Summer tasting menu", "Jun 1", "Jul 1", OfferStatus.ended, "gold", 140, 22)],
 }
 
 REVIEWS = [
@@ -63,120 +204,216 @@ REVIEWS = [
     ("Hamza T.", "coral", 5, "Found this through Khojlo before it blew up. Hidden gem for real."),
 ]
 
+# Popular searches: (query, times searched in the last few days).
+SEARCH_HISTORY = [
+    ("coffee", 9), ("pizza", 6), ("unstitched fabric", 5), ("ramen", 4),
+    ("study spot", 3), ("gym", 3), ("dessert", 2), ("facial", 2),
+]
+# Recent searches for the demo customer, oldest first.
+CUSTOMER_SEARCHES = ["late-night ramen", "unstitched fabric", "quiet cafés"]
 
-def reset(db) -> None:
-    for model in (SavedBusiness, SavedList, Review, Offer, Service, OpeningHours, BusinessProfile, Category):
+
+@dataclass
+class SeedReport:
+    categories_added: int = 0
+    users_added: int = 0
+    businesses_added: int = 0
+    businesses_refreshed: int = 0
+    offers_added: int = 0
+    reviews_added: int = 0
+    searches_added: int = 0
+
+    def __str__(self) -> str:
+        return (
+            f"Businesses: {self.businesses_added} added, {self.businesses_refreshed} refreshed. "
+            f"Also added {self.categories_added} categories, {self.users_added} demo accounts, "
+            f"{self.offers_added} offers, {self.reviews_added} reviews, "
+            f"{self.searches_added} searches."
+        )
+
+
+def reset(db: Session) -> None:
+    """Delete every user, business and search. Never run this on a shared database."""
+    for model in (
+        SearchQuery, BusinessView, SavedBusiness, SavedList, Review, Offer, Service,
+        OpeningHours, BusinessProfile, Category,
+    ):
         db.execute(delete(model))
     db.execute(delete(User))
     db.commit()
 
 
-def run() -> None:
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        reset(db)
+def _ensure_categories(db: Session, report: SeedReport) -> dict[str, Category]:
+    cats = {c.slug: c for c in db.scalars(select(Category))}
+    for slug, name, tone in CATEGORIES:
+        if slug not in cats:
+            cats[slug] = Category(slug=slug, name=name, tone=tone)
+            db.add(cats[slug])
+            report.categories_added += 1
+    db.flush()
+    return cats
 
-        cats = {}
-        for slug, name, tone in CATEGORIES:
-            c = Category(slug=slug, name=name, tone=tone)
-            db.add(c)
-            cats[slug] = c
-        db.flush()
 
-        owner = User(
-            email="owner@khojlo.app",
-            full_name="Sara Owner",
-            hashed_password=hash_password("password123"),
-            role=UserRole.business_owner,
-            avatar_tone="plum",
-        )
-        customer = User(
-            email="customer@khojlo.app",
-            full_name="Ali Customer",
-            hashed_password=hash_password("password123"),
-            role=UserRole.customer,
-            avatar_tone="gold",
-            interests=["cafes", "restaurants"],
-        )
-        admin = User(
-            email="admin@khojlo.app",
-            full_name="Admin",
-            hashed_password=hash_password("password123"),
-            role=UserRole.admin,
-        )
-        db.add_all([owner, customer, admin])
-        db.flush()
+def _ensure_users(db: Session, report: SeedReport) -> dict[str, User]:
+    users = {}
+    for spec in DEMO_USERS:
+        user = db.scalar(select(User).where(User.email == spec["email"]))
+        if user is None:
+            user = User(hashed_password=hash_password(DEMO_PASSWORD), **spec)
+            db.add(user)
+            report.users_added += 1
+        users[spec["email"]] = user
+    db.flush()
+    return users
 
-        biz_by_name: dict[str, BusinessProfile] = {}
-        for name, slug, tone, tagline, price, lat, lng, rating, reviews, saves in BUSINESSES:
+
+def _apply_catalogue(
+    b: BusinessProfile, spec: dict, cats: dict[str, Category], now: datetime
+) -> None:
+    """Copy a catalogue entry's descriptive fields, hours and services onto a business."""
+    b.category_id = cats[spec["cat"]].id
+    b.tone = spec["tone"]
+    b.tagline = spec["tagline"]
+    b.description = f"{spec['tagline']}. {spec['name']} is one of the newest finds on Khojlo."
+    b.price_level = spec["price"]
+    b.price_min = spec["pmin"]
+    b.price_max = spec["pmax"]
+    b.address = spec["address"]
+    b.latitude = spec["lat"]
+    b.longitude = spec["lng"]
+    b.is_verified = spec["verified"]
+    b.created_at = now - timedelta(days=spec["age"])
+    for day in range(7):
+        if day in spec["hours"]:
+            opens, closes = spec["hours"][day]
+            b.hours.append(OpeningHours(day_of_week=day, opens=opens, closes=closes))
+        else:
+            b.hours.append(OpeningHours(day_of_week=day, is_closed=True))
+    for service_name, amount in spec["services"]:
+        b.services.append(
+            Service(
+                name=service_name,
+                price=f"Rs {amount:,}" if amount is not None else "",
+                price_amount=amount,
+            )
+        )
+
+
+def _sync_businesses(
+    db: Session, owner: User, cats: dict[str, Category], now: datetime, report: SeedReport
+) -> dict[str, BusinessProfile]:
+    existing = {
+        b.name: b
+        for b in db.scalars(select(BusinessProfile).where(BusinessProfile.owner_id == owner.id))
+    }
+    by_name: dict[str, BusinessProfile] = {}
+    for spec in BUSINESSES:
+        b = existing.get(spec["name"])
+        if b is None:
             b = BusinessProfile(
                 owner_id=owner.id,
-                category_id=cats[slug].id,
-                name=name,
-                tone=tone,
-                tagline=tagline,
-                description=f"{tagline}. {name} is one of the city's newest finds on Khojlo.",
-                price_level=price,
-                address="Blue Area, Islamabad",
-                latitude=lat,
-                longitude=lng,
-                rating=rating,
-                review_count=reviews,
-                save_count=saves,
-                view_count=reviews * 6,
-                is_verified=True,
+                name=spec["name"],
                 images=[],
+                rating=spec["rating"],
+                review_count=spec["reviews"],
+                save_count=spec["saves"],
+                view_count=spec["reviews"] * 6,
             )
-            for day in range(7):
-                b.hours.append(
-                    OpeningHours(day_of_week=day, opens="09:00", closes="22:00", is_closed=day == 6)
-                )
-            b.services.append(Service(name="Signature experience", price=price))
             db.add(b)
-            biz_by_name[name] = b
-        db.flush()
+            report.businesses_added += 1
+        else:
+            # Remove the old hours/services in their own flush, before the new rows go in.
+            b.hours.clear()
+            b.services.clear()
+            db.flush()
+            report.businesses_refreshed += 1
+        _apply_catalogue(b, spec, cats, now)
+        by_name[spec["name"]] = b
+    db.flush()
+    return by_name
 
-        for bname, offers in OFFERS.items():
-            for title, s, e, status_, tone, views, red in offers:
-                db.add(
-                    Offer(
-                        business_id=biz_by_name[bname].id,
-                        title=title,
-                        starts_on=s,
-                        ends_on=e,
-                        status=status_,
-                        tone=tone,
-                        views=views,
-                        redemptions=red,
-                    )
-                )
 
-        for i, (author, tone, rating, body) in enumerate(REVIEWS):
-            target = list(biz_by_name.values())[i]
-            db.add(
-                Review(
-                    business_id=target.id,
-                    author_name=author,
-                    author_tone=tone,
-                    rating=rating,
-                    body=body,
-                )
-            )
+def _add_offers(db: Session, biz: dict[str, BusinessProfile], report: SeedReport) -> None:
+    have = set(db.execute(select(Offer.business_id, Offer.title)).tuples())
+    for bname, offers in OFFERS.items():
+        for title, starts, ends, status_, tone, views, redemptions in offers:
+            if (biz[bname].id, title) in have:
+                continue
+            db.add(Offer(business_id=biz[bname].id, title=title, starts_on=starts,
+                         ends_on=ends, status=status_, tone=tone, views=views,
+                         redemptions=redemptions))
+            report.offers_added += 1
 
-        # a saved list for the demo customer
-        weekend = SavedList(user_id=customer.id, name="Weekend", tone="gold")
-        weekend.items.append(SavedBusiness(business_id=biz_by_name["Brew & Bloom"].id))
-        weekend.items.append(SavedBusiness(business_id=biz_by_name["Forno Italiano"].id))
-        coffee = SavedList(user_id=customer.id, name="Coffee tour", tone="emerald")
-        coffee.items.append(SavedBusiness(business_id=biz_by_name["The Reading Room"].id))
-        db.add_all([weekend, coffee])
 
-        db.commit()
-        print(f"Seeded {len(BUSINESSES)} businesses, {len(CATEGORIES)} categories, 3 users.")
+def _add_reviews(db: Session, biz: dict[str, BusinessProfile], report: SeedReport) -> None:
+    reviewed = set(db.scalars(select(Review.business_id)))
+    for (author, tone, rating, body), target in zip(REVIEWS, biz.values()):
+        if target.id in reviewed:
+            continue
+        db.add(Review(business_id=target.id, author_name=author, author_tone=tone,
+                      rating=rating, body=body))
+        report.reviews_added += 1
+
+
+def _add_saved_lists(db: Session, customer: User, biz: dict[str, BusinessProfile]) -> None:
+    owned = select(func.count()).select_from(SavedList).where(SavedList.user_id == customer.id)
+    if db.scalar(owned):
+        return
+    weekend = SavedList(user_id=customer.id, name="Weekend", tone="gold")
+    weekend.items.append(SavedBusiness(business_id=biz["Brew & Bloom"].id))
+    weekend.items.append(SavedBusiness(business_id=biz["Forno Italiano"].id))
+    coffee = SavedList(user_id=customer.id, name="Coffee tour", tone="emerald")
+    coffee.items.append(SavedBusiness(business_id=biz["The Reading Room"].id))
+    db.add_all([weekend, coffee])
+
+
+def _add_search_history(db: Session, customer: User, now: datetime, report: SeedReport) -> None:
+    """Popular searches, plus the demo customer's recent searches, where there are none yet."""
+    if not db.scalar(select(func.count()).select_from(SearchQuery)):
+        minutes = 0
+        for query, times in SEARCH_HISTORY:
+            for _ in range(times):
+                minutes += 37
+                db.add(SearchQuery(query=query, normalized=query, filters={}, result_count=3,
+                                   created_at=now - timedelta(minutes=minutes)))
+                report.searches_added += 1
+    mine = select(func.count()).select_from(SearchQuery).where(SearchQuery.user_id == customer.id)
+    if not db.scalar(mine):
+        for i, query in enumerate(CUSTOMER_SEARCHES):
+            db.add(SearchQuery(user_id=customer.id, query=query, normalized=query, filters={},
+                               result_count=2,
+                               created_at=now - timedelta(hours=len(CUSTOMER_SEARCHES) - i)))
+            report.searches_added += 1
+
+
+def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
+    """Add and refresh the demo data in one transaction (see the module docstring)."""
+    now = now or datetime.now(timezone.utc)
+    report = SeedReport()
+    cats = _ensure_categories(db, report)
+    users = _ensure_users(db, report)
+    biz = _sync_businesses(db, users[OWNER_EMAIL], cats, now, report)
+    _add_offers(db, biz, report)
+    _add_reviews(db, biz, report)
+    _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)
+    db.flush()
+    _add_search_history(db, users[CUSTOMER_EMAIL], now, report)
+    db.commit()
+    return report
+
+
+def run(*, wipe: bool = False) -> None:
+    problem = schema_problem(engine)
+    if problem:
+        sys.exit(problem)
+    db = SessionLocal()
+    try:
+        if wipe:
+            reset(db)
+        print(seed(db))
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    run()
+    run(wipe="--reset" in sys.argv[1:])

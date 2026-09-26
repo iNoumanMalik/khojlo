@@ -3,28 +3,60 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from app.models.business import BusinessProfile
+from app.core.config import settings
+from app.models.business import BusinessProfile, OfferStatus
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
 from app.schemas.business import BusinessAnalytics, BusinessCard, WeeklyPoint
+from app.services.hours import is_open_now, today_hours_label
 
 _DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"]
 
 
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in km, unrounded (used for filtering and sorting)."""
     r = 6371.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlmb = math.radians(lon2 - lon1)
     a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
-    return round(r * 2 * math.asin(math.sqrt(a)), 1)
+    return r * 2 * math.asin(math.sqrt(a))
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distance rounded to 0.1 km for display."""
+    return round(distance_km(lat1, lon1, lat2, lon2), 1)
+
+
+def card_load_options() -> tuple:
+    """Eager-load everything `to_card` touches, avoiding one query per business."""
+    return (
+        selectinload(BusinessProfile.category),
+        selectinload(BusinessProfile.hours),
+        selectinload(BusinessProfile.offers),
+    )
+
+
+def has_active_offer(b: BusinessProfile) -> bool:
+    return any(o.status == OfferStatus.active for o in b.offers)
+
+
+def is_new_business(b: BusinessProfile, now: datetime | None = None) -> bool:
+    created = b.created_at
+    if created is None:
+        return False
+    if created.tzinfo is None:  # SQLite returns naive datetimes
+        created = created.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return now - created <= timedelta(days=settings.NEW_BUSINESS_DAYS)
 
 
 def to_card(
     b: BusinessProfile,
     *,
     origin: tuple[float, float] | None = None,
+    now: datetime | None = None,
 ) -> BusinessCard:
     distance = None
     if origin and b.latitude is not None and b.longitude is not None:
@@ -42,6 +74,13 @@ def to_card(
         is_verified=b.is_verified,
         category_name=b.category.name if b.category else None,
         distance_km=distance,
+        category_slug=b.category.slug if b.category else None,
+        price_min=b.price_min,
+        price_max=b.price_max,
+        is_open_now=is_open_now(b.hours, now),
+        today_hours=today_hours_label(b.hours, now),
+        has_offer=has_active_offer(b),
+        is_new=is_new_business(b, now),
     )
 
 

@@ -10,16 +10,17 @@ This repository is the **30% evaluation build** of the Final Year Project.
 
 ## Scope (30% evaluation)
 
-Per `docs/development_roadmap/implementation_plan.md`, three modules are **production‑ready**
-(full frontend + backend + validation + state + DB), the rest are **high‑fidelity prototypes**
-(UI‑complete, navigable, mock data).
+Per `docs/development_roadmap/implementation_plan.md`, Modules 1–3 were built **production‑ready**
+(full frontend + backend + validation + state + DB) for the 30% evaluation, and Module 4 has since
+joined them (see `docs/development_roadmap/module4_search_filter_compare_plan.md`). The rest are
+**high‑fidelity prototypes** (UI‑complete, navigable, mock data).
 
 | Module | Status |
 | --- | --- |
 | 1. User Authentication & Profile | ✅ Production (Flutter + FastAPI + Postgres) |
 | 2. Business Registration & Management | ✅ Production |
 | 3. Business Discovery Feed (no push) | ✅ Production |
-| 4. Search / Filter / Compare | 🎨 Prototype |
+| 4. Search / Filter / Compare | ✅ Production |
 | 5. Reviews & Ratings | 🎨 Prototype |
 | 6. Maps & Location | 🎨 Prototype |
 | 7. AI Chatbot (Kai) | 🎨 Prototype |
@@ -51,13 +52,26 @@ docker compose up -d
 
 # Option B — local Postgres: create role/db "khojlo" (see .env)
 
-alembic upgrade head                 # create schema
-python -m app.db.seed                # demo categories + businesses + users
+alembic upgrade head                 # create / update schema (run after every pull)
+python -m app.db.seed                # add / refresh demo data (safe, deletes nothing)
 uvicorn app.main:app --reload        # http://localhost:8000  (Swagger at /docs)
 ```
 
 Seeded logins (password `password123`): `owner@khojlo.app`, `customer@khojlo.app`,
 `admin@khojlo.app`.
+
+> `python -m app.db.seed` is safe on the shared team database: it adds missing demo accounts
+> and businesses and refreshes the demo owner's catalogue businesses, but never deletes a
+> user or anyone else's business. `python -m app.db.seed --reset` wipes every user and
+> business first — use it only on a local or disposable database.
+>
+> If the app says "Couldn't load your feed" while the backend is running, the database is
+> probably missing a migration: the API logs a warning at startup, and `alembic upgrade head`
+> fixes it.
+
+Module 4 demo: sign in as the customer, open **Explore**, search `unstitched fabric` (the SDD
+mockup's Abbottabad tailors), filter, tick two results and tap **Compare**. Allow location to see
+distances. Owners can set a price range, opening hours and a map pin from the dashboard.
 
 Run the API tests (in‑memory SQLite, no Postgres needed):
 

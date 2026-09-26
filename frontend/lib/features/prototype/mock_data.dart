@@ -47,15 +47,6 @@ class Mock {
         distanceKm: 1.1),
   ];
 
-  static const recentSearches = ['Rooftop dining', 'Quiet cafés', 'Late-night ramen'];
-  static const popularSearches = [
-    'Hidden gems',
-    'New this week',
-    'Study spots',
-    'Brunch',
-    'Date night'
-  ];
-
   static const conversations = <({String name, String tone, String last, String time, bool unread})>[
     (name: 'Glow Studio', tone: 'coral', last: 'Your appointment is booked for Saturday.', time: '2m', unread: true),
     (name: 'Brew & Bloom', tone: 'emerald', last: 'We just dropped a new single-origin!', time: '1h', unread: true),

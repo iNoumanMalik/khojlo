@@ -7,6 +7,7 @@ from app.models.business import (
 )
 from app.models.engagement import BusinessView, Review, SavedBusiness, SavedList
 from app.models.otp import OtpCode, OtpPurpose
+from app.models.search import SearchQuery
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "Review",
     "OtpCode",
     "OtpPurpose",
+    "SearchQuery",
 ]

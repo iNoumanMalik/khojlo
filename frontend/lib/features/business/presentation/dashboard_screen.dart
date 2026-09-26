@@ -131,9 +131,13 @@ class DashboardScreen extends ConsumerWidget {
           ])
             _ManageRow(
               label: item.$1,
-              onTap: item.$1.startsWith('Offers')
-                  ? () => context.push('/offers/${business.id}')
-                  : null,
+              onTap: switch (item.$1) {
+                'Edit business profile' => () =>
+                    context.push('/edit-business/${business.id}'),
+                'Offers & promotions' => () => context.push('/offers/${business.id}'),
+                'Operating hours' => () => context.push('/edit-hours/${business.id}'),
+                _ => null,
+              },
             ),
           const SizedBox(height: 20),
           Container(

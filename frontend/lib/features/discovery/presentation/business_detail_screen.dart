@@ -6,6 +6,7 @@ import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../search/compare_controller.dart';
 import '../data/discovery_repository.dart';
 import '../discovery_providers.dart';
 
@@ -35,6 +36,35 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     }
   }
 
+  void _toggleCompare(BusinessDetail b) {
+    final notifier = ref.read(compareSelectionProvider.notifier);
+    final outcome = notifier.toggle(b);
+    final count = ref.read(compareSelectionProvider).length;
+    final message = switch (outcome) {
+      CompareToggle.added => 'Added to compare ($count/${CompareController.max})',
+      CompareToggle.removed => 'Removed from compare',
+      CompareToggle.full =>
+        'You can compare up to ${CompareController.max} places. Remove one first.',
+    };
+    final canView = count >= CompareController.min;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        backgroundColor: AppColors.ink,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Text(message, style: AppType.sans(size: 13, color: Colors.white)),
+        action: canView
+            ? SnackBarAction(
+                label: 'View',
+                textColor: AppColors.gold,
+                onPressed: () => context.push('/compare'),
+              )
+            : null,
+      ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(businessDetailProvider(widget.id));
@@ -54,6 +84,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
   Widget _content(BusinessDetail b) {
     final saved = _savedOverride ?? b.isSaved;
+    final comparing = ref.watch(compareSelectionProvider).any((c) => c.id == b.id);
     return Stack(
       children: [
         ListView(
@@ -110,6 +141,25 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               label: b.priceLevel),
                         ],
                       ),
+                      if (b.priceRange.isNotEmpty || b.isOpenNow != null) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            if (b.priceRange.isNotEmpty)
+                              _MetaChip(icon: Icons.payments_outlined, label: b.priceRange),
+                            if (b.isOpenNow != null)
+                              _MetaChip(
+                                icon: Icons.schedule_rounded,
+                                label: [
+                                  b.isOpenNow! ? 'Open now' : 'Closed now',
+                                  if (b.todayHours != null) b.todayHours!,
+                                ].join(' · '),
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -126,6 +176,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                       icon: Icons.chat_bubble_outline_rounded,
                       label: 'Chat',
                       onTap: () => context.push('/conversation')),
+                  _Action(
+                      icon: Icons.compare_arrows_rounded,
+                      label: comparing ? 'Comparing' : 'Compare',
+                      active: comparing,
+                      onTap: () => _toggleCompare(b)),
                   _Action(icon: Icons.ios_share_rounded, label: 'Share'),
                 ],
               ),
@@ -308,10 +363,16 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _Action extends StatelessWidget {
-  const _Action({required this.icon, required this.label, this.onTap});
+  const _Action({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.active = false,
+  });
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -320,15 +381,16 @@ class _Action extends StatelessWidget {
         onTap: onTap,
         child: Column(
           children: [
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: AppColors.whiteA(0.7),
+                color: active ? AppColors.emerald : AppColors.whiteA(0.7),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.inkA(0.06)),
               ),
-              child: Icon(icon, size: 20, color: AppColors.ink),
+              child: Icon(icon, size: 20, color: active ? Colors.white : AppColors.ink),
             ),
             const SizedBox(height: 6),
             Text(label,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,12 +13,14 @@ from app.schemas.business import (
     BusinessCreate,
     BusinessDetail,
     BusinessUpdate,
+    HoursReplace,
     OfferIn,
     OfferOut,
 )
 from app.schemas.saved import SaveToListRequest
 from app.services.business_service import (
     build_analytics,
+    card_load_options,
     is_saved_by,
     record_view,
     to_card,
@@ -42,7 +44,9 @@ def my_businesses(
     owner: User = Depends(get_current_owner), db: Session = Depends(get_db)
 ) -> list[BusinessCard]:
     rows = db.execute(
-        select(BusinessProfile).where(BusinessProfile.owner_id == owner.id)
+        select(BusinessProfile)
+        .options(*card_load_options())
+        .where(BusinessProfile.owner_id == owner.id)
     ).scalars().all()
     return [to_card(b) for b in rows]
 
@@ -77,6 +81,30 @@ def update_business(
     b = _get_owned(db, business_id, owner)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(b, field, value)
+    # Cross-field rules are checked on the merged record, since a patch may send one side.
+    if b.price_min is not None and b.price_max is not None and b.price_min > b.price_max:
+        raise HTTPException(
+            status_code=422, detail="Minimum price can't be higher than the maximum price"
+        )
+    if (b.latitude is None) != (b.longitude is None):
+        raise HTTPException(
+            status_code=422, detail="Provide both latitude and longitude, or neither"
+        )
+    db.commit()
+    db.refresh(b)
+    return _detail(db, b, owner)
+
+
+@router.put("/{business_id}/hours", response_model=BusinessDetail)
+def replace_hours(
+    business_id: int,
+    payload: HoursReplace,
+    owner: User = Depends(get_current_owner),
+    db: Session = Depends(get_db),
+) -> BusinessDetail:
+    """Replace the weekly opening hours (an empty list clears them)."""
+    b = _get_owned(db, business_id, owner)
+    b.hours = [OpeningHours(**h.model_dump()) for h in payload.hours]
     db.commit()
     db.refresh(b)
     return _detail(db, b, owner)
@@ -150,13 +178,18 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
 @router.get("/{business_id}", response_model=BusinessDetail)
 def business_detail(
     business_id: int,
+    track: bool = Query(
+        default=True,
+        description="Count this as a profile view. The owner's edit screens send false.",
+    ),
     db: Session = Depends(get_db),
     viewer: User | None = Depends(get_optional_user),
 ) -> BusinessDetail:
     b = db.get(BusinessProfile, business_id)
     if b is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found")
-    record_view(db, b, viewer.id if viewer else None)
+    if track:
+        record_view(db, b, viewer.id if viewer else None)
     return _detail(db, b, viewer)
 
 
