@@ -23,7 +23,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from app.models.business import BusinessProfile, Category, Offer, OfferStatus, Service
 from app.services.business_service import distance_km
 from app.services.hours import is_open_now
-from app.services.search.criteria import SearchCriteria
+from app.services.search.criteria import MapBounds, SearchCriteria
 from app.services.search.text import LIKE_ESCAPE, fold, like_pattern, tokenize
 
 _KM_PER_DEGREE_LAT = 111.32
@@ -207,6 +207,28 @@ class LocationSearch(SearchStrategy):
         return d <= self.radius_km
 
 
+class AreaSearch(SearchStrategy):
+    """Module 6: keeps businesses inside the visible map area (SRS FR-12).
+
+    Businesses without coordinates can't be drawn on a map (BR-7), so they're excluded.
+    """
+
+    def __init__(self, bounds: MapBounds):
+        self.bounds = bounds
+
+    def apply(self, stmt: Select) -> Select:
+        b = self.bounds
+        return stmt.where(
+            BusinessProfile.latitude.between(b.south, b.north),
+            BusinessProfile.longitude.between(b.west, b.east),
+        )
+
+    def matches(self, business: BusinessProfile, ctx: SearchContext) -> bool:
+        if business.latitude is None or business.longitude is None:
+            return False
+        return self.bounds.contains(business.latitude, business.longitude)
+
+
 # ─────────────── filter strategies ───────────────
 class PriceFilter(SearchStrategy):
     """Price tier ($/$$/$$$) and/or a PKR budget.
@@ -311,6 +333,8 @@ def strategies_for(criteria: SearchCriteria, *, match_all: bool = True) -> list[
         )
     if criteria.has_offer:
         strategies.append(OfferFilter())
+    if criteria.bounds is not None:
+        strategies.append(AreaSearch(criteria.bounds))
     if criteria.origin is not None and criteria.radius_km is not None:
         strategies.append(LocationSearch(criteria.lat, criteria.lng, criteria.radius_km))
     if criteria.tokens:

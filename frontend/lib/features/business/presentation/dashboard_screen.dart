@@ -7,6 +7,8 @@ import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../reviews/presentation/business_reviews_section.dart';
+import '../../reviews/reviews_providers.dart';
 import '../business_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -114,10 +116,9 @@ class DashboardScreen extends ConsumerWidget {
                     trend: 'new')),
             const SizedBox(width: 10),
             Expanded(
-                child: StatCard(
-                    label: 'Rating',
-                    value: '${a.rating.toStringAsFixed(1)} ★',
-                    trend: '${a.reviewCount} reviews')),
+                child: GestureDetector(
+                    onTap: () => context.push(reviewsRoute(business.id, business.name)),
+                    child: _RatingStat(businessId: business.id, fallback: a))),
           ]),
           const SizedBox(height: 26),
           Text('PROFILE VIEWS THIS WEEK', style: AppType.label()),
@@ -129,6 +130,7 @@ class DashboardScreen extends ConsumerWidget {
           const Hairline(),
           for (final item in const [
             ('Edit business profile', Icons.edit_outlined),
+            ('Reviews & replies', Icons.forum_outlined),
             ('Offers & promotions', Icons.local_offer_outlined),
             ('Photos', Icons.photo_library_outlined),
             ('Operating hours', Icons.schedule_outlined),
@@ -138,6 +140,8 @@ class DashboardScreen extends ConsumerWidget {
               onTap: switch (item.$1) {
                 'Edit business profile' => () =>
                     context.push('/edit-business/${business.id}'),
+                'Reviews & replies' => () =>
+                    context.push(reviewsRoute(business.id, business.name)),
                 'Offers & promotions' => () => context.push('/offers/${business.id}'),
                 'Photos' => () => context.push('/edit-photos/${business.id}'),
                 'Operating hours' => () => context.push('/edit-hours/${business.id}'),
@@ -268,6 +272,30 @@ class _ManageRow extends StatelessWidget {
         ),
         const Hairline(),
       ],
+    );
+  }
+}
+
+/// The dashboard's rating card, from real reviews (Module 5), with replies still owed.
+class _RatingStat extends ConsumerWidget {
+  const _RatingStat({required this.businessId, required this.fallback});
+  final int businessId;
+  final BusinessAnalytics fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(reviewPreviewProvider(businessId)).valueOrNull?.summary;
+    final count = summary?.count ?? fallback.reviewCount;
+    final average = summary?.average ?? fallback.rating;
+    final unreplied = summary?.unreplied ?? 0;
+    return StatCard(
+      label: 'Rating',
+      value: count == 0 ? '–' : '${average.toStringAsFixed(1)} ★',
+      trend: count == 0
+          ? 'No reviews yet'
+          : unreplied > 0
+              ? '$unreplied awaiting reply'
+              : '$count review${count == 1 ? '' : 's'}',
     );
   }
 }

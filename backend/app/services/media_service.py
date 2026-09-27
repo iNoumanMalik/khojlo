@@ -23,6 +23,7 @@ from sqlalchemy import delete, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.media import BusinessPhoto, Media
+from app.models.review import ReviewPhoto
 from app.models.user import User
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -130,9 +131,10 @@ def process_image(raw: bytes) -> ProcessedImage:
 
 
 def _referenced():
-    """SQL condition: the media row is used by a business or as someone's avatar."""
+    """SQL condition: the media row is used by a business, a review, or as someone's avatar."""
     return or_(
         exists().where(BusinessPhoto.media_id == Media.id),
+        exists().where(ReviewPhoto.media_id == Media.id),
         exists().where(User.avatar_media_id == Media.id),
     )
 

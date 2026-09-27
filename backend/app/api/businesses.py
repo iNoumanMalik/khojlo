@@ -128,6 +128,11 @@ def update_business(
         raise HTTPException(
             status_code=422, detail="Provide both latitude and longitude, or neither"
         )
+    if b.latitude == 0 and b.longitude == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="That location (0, 0) isn't valid. Set the pin on the map again.",
+        )
     _check_category(db, b)
     db.commit()
     db.refresh(b)
@@ -224,8 +229,6 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
     return BusinessDetail(
         **card.model_dump(),
         description=b.description,
-        latitude=b.latitude,
-        longitude=b.longitude,
         category_id=b.category_id,
         custom_category=b.custom_category,
         phone=b.phone,

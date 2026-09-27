@@ -1,4 +1,4 @@
-"""Module 4 — search & filtering API (SRS UC-4, UC-5, FR-3, FR-4; SDD FR06/FR07)."""
+"""Search & filtering API (SRS UC-4, UC-5, FR-3, FR-4), also used by the Module 6 map (FR-12)."""
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.search import SearchHistoryItem, SearchResponse, Suggestion
 from app.services.business_service import to_card
 from app.services.search import PRICE_TIERS, SearchCriteria, SearchEngine, SortOption
+from app.services.search.criteria import MapBounds
 from app.services.search.history import (
     clear_history,
     popular_searches,
@@ -46,8 +47,12 @@ def search_businesses(
     radius_km: float | None = Query(
         default=None, ge=0.5, le=settings.SEARCH_MAX_RADIUS_KM, description="Needs lat/lng"
     ),
+    north: float | None = Query(default=None, ge=-90, le=90, description="Map area: north edge"),
+    south: float | None = Query(default=None, ge=-90, le=90, description="Map area: south edge"),
+    east: float | None = Query(default=None, ge=-180, le=180, description="Map area: east edge"),
+    west: float | None = Query(default=None, ge=-180, le=180, description="Map area: west edge"),
     sort: SortOption = Query(default=SortOption.relevance),
-    limit: int = Query(default=20, ge=1, le=50),
+    limit: int = Query(default=20, ge=1, le=100, description="Up to 100, for map pins"),
     offset: int = Query(default=0, ge=0),
     record: bool = Query(
         default=False, description="Save to search history (send on submit, not per keystroke)"
@@ -74,6 +79,16 @@ def search_businesses(
     bad_tiers = [p for p in price if p not in PRICE_TIERS]
     if bad_tiers:
         raise _invalid(f"Unknown price tier {bad_tiers[0]!r}. Use $, $$ or $$$.")
+    edges = (north, south, east, west)
+    bounds = None
+    if any(e is not None for e in edges):
+        if any(e is None for e in edges):
+            raise _invalid("A map area needs all four edges: north, south, east and west.")
+        if south >= north:
+            raise _invalid("The map area's south edge must be below its north edge.")
+        if west >= east:
+            raise _invalid("Map areas that cross the 180° meridian aren't supported.")
+        bounds = MapBounds(south=south, west=west, north=north, east=east)
 
     criteria = SearchCriteria(
         query=(q or "").strip(),
@@ -88,6 +103,7 @@ def search_businesses(
         lat=lat,
         lng=lng,
         radius_km=radius_km,
+        bounds=bounds,
         sort=sort,
         limit=limit,
         offset=offset,

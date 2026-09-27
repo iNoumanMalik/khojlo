@@ -53,13 +53,6 @@ class Mock {
     (name: 'Forno Italiano', tone: 'gold', last: 'Thanks for stopping by — see you soon.', time: '3h', unread: false),
     (name: 'Pixel Arena', tone: 'ink', last: 'Tournament slots are open for Friday night.', time: '1d', unread: false),
   ];
-
-  static const reviews = <({String author, String tone, int rating, String body, String time})>[
-    (author: 'Ayesha K.', tone: 'plum', rating: 5, body: 'The coffee here is genuinely special — quickly became my go-to café, and the staff are lovely.', time: '2d'),
-    (author: 'Bilal R.', tone: 'emerald', rating: 5, body: 'Found this through Khojlo before it blew up. A real hidden gem.', time: '5d'),
-    (author: 'Sana M.', tone: 'gold', rating: 4, body: 'Cosy and quiet — perfect for getting work done in the afternoon.', time: '1w'),
-  ];
-
   static const notificationsToday = <({String icon, String title, String body, String tone})>[
     (icon: 'offer', title: 'New offer near you', body: 'Brew & Bloom: buy one, plant one — free seedling.', tone: 'gold'),
     (icon: 'trending', title: 'Trending tonight', body: 'Forno Italiano is trending in Restaurants.', tone: 'gold'),

@@ -20,6 +20,19 @@ class SortOption(str, enum.Enum):
     popular = "popular"
 
 
+@dataclass(frozen=True)
+class MapBounds:
+    """The visible map area (Module 6). Areas crossing the 180° meridian aren't supported."""
+
+    south: float
+    west: float
+    north: float
+    east: float
+
+    def contains(self, lat: float, lng: float) -> bool:
+        return self.south <= lat <= self.north and self.west <= lng <= self.east
+
+
 @dataclass
 class SearchCriteria:
     query: str = ""
@@ -34,6 +47,8 @@ class SearchCriteria:
     lat: float | None = None
     lng: float | None = None
     radius_km: float | None = None
+    # Module 6: only businesses inside the visible map area.
+    bounds: MapBounds | None = None
     sort: SortOption = SortOption.relevance
     limit: int = 20
     offset: int = 0

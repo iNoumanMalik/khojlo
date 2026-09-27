@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/maps/map_service.dart';
 import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/photo_viewer.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../maps/map_providers.dart';
+import '../../reviews/presentation/business_reviews_section.dart';
+import '../../reviews/reviews_providers.dart';
 import '../../search/compare_controller.dart';
 import '../data/discovery_repository.dart';
 import '../discovery_providers.dart';
@@ -90,6 +94,25 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     if (!opened && mounted) _snack('Couldn’t open the dialer. The number is $phone.');
   }
 
+  /// UC-9 alternative flow: navigation in Google Maps.
+  Future<void> _directions(BusinessDetail b) async {
+    final point = b.location;
+    if (point == null) {
+      _snack('${b.name} hasn’t pinned its location yet.');
+      return;
+    }
+    final opened = await ref.read(mapServiceProvider).openDirections(point);
+    if (!opened && mounted) _snack('Couldn’t open Google Maps on this device.');
+  }
+
+  /// Open the Map tab centred on this business.
+  void _viewOnMap(BusinessDetail b) {
+    final point = b.location;
+    if (point == null) return;
+    ref.read(mapFocusProvider.notifier).state = MapFocus(point, businessId: b.id);
+    context.go('/map');
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(businessDetailProvider(widget.id));
@@ -109,6 +132,10 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
   Widget _content(BusinessDetail b) {
     final saved = _savedOverride ?? b.isSaved;
+    // The review summary is fresher than the detail after you write a review.
+    final reviews = ref.watch(reviewPreviewProvider(b.id)).valueOrNull?.summary;
+    final average = reviews?.average ?? b.rating;
+    final reviewCount = reviews?.count ?? b.reviewCount;
     final comparing = ref.watch(compareSelectionProvider).any((c) => c.id == b.id);
     return Stack(
       children: [
@@ -156,13 +183,27 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          _MetaChip(
-                              icon: Icons.star_rounded,
-                              label: b.rating.toStringAsFixed(1)),
-                          const SizedBox(width: 8),
-                          _MetaChip(
-                              icon: Icons.reviews_outlined,
-                              label: '${b.reviewCount} reviews'),
+                          GestureDetector(
+                            onTap: () => context.push(reviewsRoute(b.id, b.name)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: reviewCount == 0
+                                  ? const [
+                                      _MetaChip(
+                                          icon: Icons.reviews_outlined, label: 'No reviews yet'),
+                                    ]
+                                  : [
+                                      _MetaChip(
+                                          icon: Icons.star_rounded,
+                                          label: average.toStringAsFixed(1)),
+                                      const SizedBox(width: 8),
+                                      _MetaChip(
+                                          icon: Icons.reviews_outlined,
+                                          label:
+                                              '$reviewCount review${reviewCount == 1 ? '' : 's'}'),
+                                    ],
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           _MetaChip(
                               icon: Icons.attach_money_rounded,
@@ -203,7 +244,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                       label: 'Call',
                       dimmed: b.phone == null,
                       onTap: () => _call(b)),
-                  _Action(icon: Icons.directions_rounded, label: 'Directions'),
+                  _Action(
+                      icon: Icons.directions_rounded,
+                      label: 'Directions',
+                      dimmed: b.location == null,
+                      onTap: () => _directions(b)),
                   _Action(
                       icon: Icons.chat_bubble_outline_rounded,
                       label: 'Chat',
@@ -257,32 +302,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 ),
               ),
             ],
+            BusinessReviewsSection(businessId: b.id, businessName: b.name),
             _sectionTitle('Where'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: SizedBox(
-                  height: 150,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Container(color: const Color(0xFFEFE9DC)),
-                      const Center(
-                        child: Icon(Icons.place_rounded,
-                            color: AppColors.emerald, size: 34),
-                      ),
-                      Positioned(
-                        left: 12,
-                        bottom: 12,
-                        child: Text(
-                            b.address.isEmpty ? 'Nearby' : b.address,
-                            style: AppType.mono(
-                                size: 11, color: AppColors.inkA(0.7))),
-                      ),
-                    ],
-                  ),
-                ),
+              child: _LocationCard(
+                business: b,
+                onViewOnMap: () => _viewOnMap(b),
+                onDirections: () => _directions(b),
               ),
             ),
             if (b.phone != null)
@@ -489,6 +516,98 @@ class _Action extends StatelessWidget {
                 style: AppType.sans(size: 11, color: AppColors.inkA(0.6))),
           ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// SDD Screen 3: the business's location on Google Maps (SDD Algorithm 12
+/// `displayLocation()`), or "Location unavailable" (UC-9 exception) without a pin.
+class _LocationCard extends ConsumerWidget {
+  const _LocationCard({
+    required this.business,
+    required this.onViewOnMap,
+    required this.onDirections,
+  });
+
+  final BusinessDetail business;
+  final VoidCallback onViewOnMap;
+  final VoidCallback onDirections;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final b = business;
+    final point = b.location;
+    final address = b.address.isEmpty ? null : b.address;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        color: AppColors.whiteA(0.7),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 160,
+              child: point == null
+                  ? Container(
+                      color: const Color(0xFFEFE9DC),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_off_outlined,
+                              size: 28, color: AppColors.inkA(0.35)),
+                          const SizedBox(height: 8),
+                          Text('Location unavailable',
+                              style: AppType.sans(size: 13.5, weight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('This place hasn’t pinned itself on the map yet.',
+                              style: AppType.sans(size: 12, color: AppColors.inkA(0.5))),
+                        ],
+                      ),
+                    )
+                  : Semantics(
+                      button: true,
+                      label: 'View ${b.name} on the map',
+                      child: ref
+                          .watch(mapServiceProvider)
+                          .displayLocation(point, onTap: onViewOnMap),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.place_outlined, size: 18, color: AppColors.emerald),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(address ?? 'No address added',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppType.sans(
+                            size: 13,
+                            color: address == null ? AppColors.inkA(0.45) : AppColors.ink)),
+                  ),
+                  if (point != null) ...[
+                    TextButton(
+                      onPressed: onViewOnMap,
+                      child: Text('Map',
+                          style: AppType.sans(
+                              size: 12.5, weight: FontWeight.w700, color: AppColors.emerald)),
+                    ),
+                    TextButton(
+                      onPressed: onDirections,
+                      child: Text('Directions',
+                          style: AppType.sans(
+                              size: 12.5, weight: FontWeight.w700, color: AppColors.emerald)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

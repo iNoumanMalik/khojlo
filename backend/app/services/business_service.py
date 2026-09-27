@@ -114,6 +114,8 @@ def to_card(
         is_new=is_new_business(b, now),
         cover=photo_out(b.cover),
         category_label=b.category_label,
+        latitude=b.latitude,
+        longitude=b.longitude,
     )
 
 

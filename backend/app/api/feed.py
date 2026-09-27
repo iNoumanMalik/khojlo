@@ -11,6 +11,7 @@ from app.models.business import BusinessProfile
 from app.models.user import User
 from app.schemas.feed import FeedResponse, FeedSection
 from app.services.business_service import card_load_options, to_card
+from app.services.review_service import ranking_score
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
@@ -40,7 +41,8 @@ def get_feed(
     )
     businesses = db.execute(published).scalars().all()
 
-    by_rating = sorted(businesses, key=lambda b: b.rating, reverse=True)
+    by_rating = sorted(businesses, key=lambda b: ranking_score(b.rating, b.review_count),
+                       reverse=True)
     by_new = sorted(businesses, key=lambda b: b.created_at, reverse=True)
     by_saves = sorted(businesses, key=lambda b: b.save_count, reverse=True)
 

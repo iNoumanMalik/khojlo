@@ -277,6 +277,7 @@ class _RegistrationStepperState extends ConsumerState<RegistrationStepper> {
           PhoneField(controller: _phone, onChanged: () => setState(() {})),
           const SizedBox(height: 16),
           LocationPinField(
+            address: _address,
             latitude: _draft.latitude,
             longitude: _draft.longitude,
             onChanged: (lat, lng) => setState(() {

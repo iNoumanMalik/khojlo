@@ -40,7 +40,7 @@ class BusinessMiniCard extends StatelessWidget {
                 style: AppType.serif(size: 14.5)),
             const SizedBox(height: 2),
             Text(
-              '★ ${business.rating.toStringAsFixed(1)}'
+              '${business.ratingLabel}'
               '${business.distanceLabel.isNotEmpty ? ' · ${business.distanceLabel}' : ''}',
               style: AppType.mono(size: 10.5, color: AppColors.inkA(0.47)),
             ),
@@ -169,7 +169,7 @@ class BusinessListRow extends StatelessWidget {
                   Text(business.name, style: AppType.serif(size: 18)),
                   const SizedBox(height: 3),
                   Text(
-                    '★ ${business.rating.toStringAsFixed(1)}'
+                    '${business.ratingLabel}'
                     '${business.distanceLabel.isNotEmpty ? ' · ${business.distanceLabel}' : ''}'
                     ' · ${business.priceLevel}',
                     style: AppType.mono(size: 11.5, color: AppColors.inkA(0.53)),

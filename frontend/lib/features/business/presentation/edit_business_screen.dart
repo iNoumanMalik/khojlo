@@ -167,6 +167,7 @@ class _EditBusinessFormState extends ConsumerState<_EditBusinessForm> {
               PhoneField(controller: _phone, onChanged: () => setState(() {})),
               const SizedBox(height: 12),
               LocationPinField(
+                address: _address,
                 latitude: _latitude,
                 longitude: _longitude,
                 onChanged: (lat, lng) => setState(() {

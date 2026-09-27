@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from app.models.business import BusinessProfile
 from app.services.business_service import is_new_business
+from app.services.review_service import ranking_score
 from app.services.search.criteria import SortOption
 from app.services.search.strategies import FoldedText, SearchContext
 from app.services.search.text import fold, word_starts_with
@@ -78,11 +79,16 @@ def rank(businesses: Sequence[BusinessProfile], ctx: SearchContext) -> list[Busi
             -scores[b.id],
             0 if is_new_business(b, ctx.now) else 1,
             distance(b),
-            -(b.rating or 0),
+            -ranking_score(b.rating, b.review_count),
             fold(b.name),
         ),
         SortOption.distance: lambda b: (distance(b), -scores[b.id], fold(b.name)),
-        SortOption.rating: lambda b: (-(b.rating or 0), -(b.review_count or 0), fold(b.name)),
+        # Count-weighted, so one 5★ review doesn't outrank 4.8★ from 200 (Module 5).
+        SortOption.rating: lambda b: (
+            -ranking_score(b.rating, b.review_count),
+            -(b.review_count or 0),
+            fold(b.name),
+        ),
         SortOption.price_low: lambda b: (
             tier(b),
             b.price_min if b.price_min is not None else _FAR,

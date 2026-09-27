@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/location/location_service.dart';
@@ -407,4 +408,48 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
         rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 10, elevation: 3),
         showValueIndicator: ShowValueIndicator.never,
       );
+}
+
+/// The glass filter button with a badge counting active filters (Explore and Map).
+class FilterButton extends StatelessWidget {
+  const FilterButton({super.key, required this.count, required this.onTap, this.size = 56});
+  final int count;
+  final VoidCallback onTap;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: count > 0 ? 'Filters, $count active' : 'Filters',
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GlassIconButton(icon: Icons.tune_rounded, size: size, onTap: onTap),
+            if (count > 0)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Text('$count',
+                      style: AppType.sans(
+                          size: 10.5, weight: FontWeight.w800, color: Colors.white)),
+                ).animate().scale(duration: 200.ms, curve: Curves.easeOutBack),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,6 +7,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     // Reads google-services.json and wires the Firebase/Google OAuth client config into the build.
     id("com.google.gms.google-services")
+}
+
+// Google Maps key for Android (Module 6), from the gitignored frontend/dart_defines.json
+// that `flutter run --dart-define-from-file=dart_defines.json` also reads. Empty → the
+// app shows its preview map instead of Google Maps.
+val mapsApiKey: String = rootProject.file("../dart_defines.json").let { file ->
+    if (!file.exists()) return@let ""
+    val keys = JsonSlurper().parse(file) as Map<*, *>
+    (keys["MAPS_API_KEY_ANDROID"] as? String).orEmpty()
 }
 
 android {
@@ -30,6 +41,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 
     buildTypes {

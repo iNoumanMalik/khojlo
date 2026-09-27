@@ -6,6 +6,13 @@
   "//google-signin": "Optional — overrides the Web client ID baked into lib/core/network/google_auth_config.dart.",
   "GOOGLE_WEB_CLIENT_ID": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
 
+  "//maps": "Module 6 — Google Maps keys (Google Cloud console → APIs & Services → Credentials).",
+  "//maps2": "Web: Maps JavaScript API, restricted to your site's HTTP referrers. Android: Maps SDK for",
+  "//maps3": "Android, restricted to com.khojlo.khojlo + your SHA-1 (the Android build reads it from here).",
+  "//maps4": "Leave empty to use the built-in preview map.",
+  "MAPS_API_KEY_WEB": "",
+  "MAPS_API_KEY_ANDROID": "",
+
   "//firebase": "Firebase client config (future — FCM push / social auth). Values come from the",
   "//firebase2": "Firebase console → Project settings → Your apps → SDK setup and configuration.",
   "FIREBASE_API_KEY": "your-web-api-key",

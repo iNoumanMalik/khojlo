@@ -1,5 +1,6 @@
 // Domain models mirroring the backend Pydantic schemas.
 
+import '../maps/map_types.dart';
 import 'photo.dart';
 
 class Category {
@@ -101,6 +102,8 @@ class BusinessCard {
     this.isNew = false,
     this.cover,
     this.categoryLabel,
+    this.latitude,
+    this.longitude,
   });
 
   final int id;
@@ -139,7 +142,23 @@ class BusinessCard {
   /// What kind of business it is: the category, or the owner's own words for "Other".
   final String? categoryLabel;
 
+  // ── Module 6 ──
+  final double? latitude;
+  final double? longitude;
+
+  /// Where to put the map pin; null without valid coordinates (SRS BR-7).
+  GeoPoint? get location {
+    if (latitude == null || longitude == null) return null;
+    final p = GeoPoint(latitude!, longitude!);
+    return p.isValid ? p : null;
+  }
+
   String? get typeLabel => categoryLabel ?? categoryName;
+
+  bool get hasReviews => reviewCount > 0;
+
+  /// "★ 4.6", or "No reviews" before anyone has reviewed it (Module 5: real ratings only).
+  String get ratingLabel => hasReviews ? '★ ${rating.toStringAsFixed(1)}' : 'No reviews';
 
   String get distanceLabel =>
       distanceKm == null ? '' : '${distanceKm!.toStringAsFixed(1)} km';
@@ -178,6 +197,8 @@ class BusinessCard {
         isNew: j['is_new'] as bool? ?? false,
         cover: Photo.maybe(j['cover']),
         categoryLabel: j['category_label'] as String?,
+        latitude: (j['latitude'] as num?)?.toDouble(),
+        longitude: (j['longitude'] as num?)?.toDouble(),
       );
 }
 
@@ -305,9 +326,9 @@ class BusinessDetail extends BusinessCard {
     super.isNew,
     super.cover,
     super.categoryLabel,
+    super.latitude,
+    super.longitude,
     required this.description,
-    required this.latitude,
-    required this.longitude,
     this.photos = const [],
     this.phone,
     this.categoryId,
@@ -320,8 +341,6 @@ class BusinessDetail extends BusinessCard {
   });
 
   final String description;
-  final double? latitude;
-  final double? longitude;
 
   /// Cover first, then the rest of the gallery.
   final List<Photo> photos;
@@ -360,9 +379,9 @@ class BusinessDetail extends BusinessCard {
       isNew: card.isNew,
       cover: card.cover,
       categoryLabel: card.categoryLabel,
+      latitude: card.latitude,
+      longitude: card.longitude,
       description: j['description'] as String? ?? '',
-      latitude: (j['latitude'] as num?)?.toDouble(),
-      longitude: (j['longitude'] as num?)?.toDouble(),
       photos: (j['photos'] as List?)
               ?.map((e) => Photo.fromJson(e as Map<String, dynamic>))
               .toList() ??

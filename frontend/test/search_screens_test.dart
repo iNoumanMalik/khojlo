@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:khojlo/core/location/location_service.dart';
+import 'package:khojlo/core/maps/map_types.dart';
 import 'package:khojlo/core/models/business.dart';
 import 'package:khojlo/core/models/search.dart';
 import 'package:khojlo/core/theme/app_theme.dart';
@@ -48,7 +49,12 @@ class FakeSearchRepository extends SearchRepository {
 
   @override
   Future<SearchPage> search(SearchFilters filters,
-      {double? lat, double? lng, int limit = 20, int offset = 0, bool record = false}) async {
+      {double? lat,
+      double? lng,
+      int limit = 20,
+      int offset = 0,
+      bool record = false,
+      GeoBounds? bounds}) async {
     searches.add(filters);
     return SearchPage(
       items: [brew, reading],

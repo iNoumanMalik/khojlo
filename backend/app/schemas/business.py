@@ -22,8 +22,11 @@ def _check_price_order(price_min: int | None, price_max: int | None) -> None:
 
 
 def _check_coordinates(latitude: float | None, longitude: float | None) -> None:
+    """SRS BR-7: valid GPS coordinates. (0, 0) is what a failed GPS fix reports, not a place."""
     if (latitude is None) != (longitude is None):
         raise ValueError("Provide both latitude and longitude, or neither")
+    if latitude == 0 and longitude == 0:
+        raise ValueError("That location (0, 0) isn't valid. Set the pin on the map again.")
 
 
 _PHONE_CHARS = re.compile(r"^\+?[\d\s\-()]+$")
@@ -257,12 +260,13 @@ class BusinessCard(BaseModel):
     cover: PhotoOut | None = None
     # What to show as the business type: the owner's own words for "Other".
     category_label: str | None = None
+    # ── Module 6: where to put the map pin (None: no location set) ──
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class BusinessDetail(BusinessCard):
     description: str
-    latitude: float | None
-    longitude: float | None
     category_id: int | None = None
     custom_category: str | None = None
     phone: str | None = None

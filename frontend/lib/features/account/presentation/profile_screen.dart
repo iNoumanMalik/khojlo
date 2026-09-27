@@ -9,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
 import '../../auth/presentation/email_verification_sheet.dart';
+import '../../reviews/reviews_providers.dart';
 import '../account_providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -18,6 +19,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
     final saved = ref.watch(savedListsProvider);
+    final reviewCount = ref.watch(myReviewsProvider).valueOrNull?.length;
     if (user == null) {
       return const Scaffold(
         backgroundColor: AppColors.cream,
@@ -114,8 +116,11 @@ class ProfileScreen extends ConsumerWidget {
                         label: 'Interests',
                         value: '${user.interests.length}')),
                 const SizedBox(width: 10),
-                const Expanded(
-                    child: StatCard(label: 'Visited', value: '0')),
+                Expanded(
+                    child: GestureDetector(
+                        onTap: () => context.push('/my-reviews'),
+                        child: StatCard(
+                            label: 'Reviews', value: '${reviewCount ?? '–'}'))),
               ],
             ),
           ),
@@ -132,7 +137,10 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.storefront_outlined,
                     label: 'My business',
                     onTap: () => context.go('/business')),
-                _Row(icon: Icons.reviews_outlined, label: 'My reviews'),
+                _Row(
+                    icon: Icons.reviews_outlined,
+                    label: 'My reviews',
+                    onTap: () => context.push('/my-reviews')),
                 _Row(
                     icon: Icons.emoji_events_outlined,
                     label: 'Achievements'),

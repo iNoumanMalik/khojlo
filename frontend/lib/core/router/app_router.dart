@@ -18,11 +18,12 @@ import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
+import '../../features/maps/presentation/map_screen.dart';
+import '../../features/reviews/presentation/my_reviews_screen.dart';
+import '../../features/reviews/presentation/reviews_screen.dart';
 import '../../features/prototype/admin_screen.dart';
 import '../../features/prototype/chat_screens.dart';
-import '../../features/prototype/map_screen.dart';
 import '../../features/prototype/notifications_screen.dart';
-import '../../features/prototype/reviews_screen.dart';
 import '../../features/prototype/surprise_screen.dart';
 import '../../features/search/presentation/compare_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
@@ -104,6 +105,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             BusinessDetailScreen(id: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
+        path: '/business/:id/reviews',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => ReviewsScreen(
+          businessId: int.parse(s.pathParameters['id']!),
+          businessName: s.uri.queryParameters['name'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: '/register-business',
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const RegistrationStepper(),
@@ -165,9 +174,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const CompareScreen()),
       GoRoute(
-          path: '/reviews',
+          path: '/my-reviews',
           parentNavigatorKey: _rootKey,
-          builder: (_, __) => const ReviewsScreen()),
+          builder: (_, __) => const MyReviewsScreen()),
       GoRoute(
           path: '/admin',
           parentNavigatorKey: _rootKey,

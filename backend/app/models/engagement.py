@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -57,19 +57,3 @@ class BusinessView(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, index=True
     )
-
-
-class Review(Base):
-    """Stub review model — seeded with mock data to feed the prototype Reviews screen."""
-
-    __tablename__ = "reviews"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    business_id: Mapped[int] = mapped_column(
-        ForeignKey("businesses.id", ondelete="CASCADE"), index=True
-    )
-    author_name: Mapped[str] = mapped_column(String(120), default="")
-    author_tone: Mapped[str] = mapped_column(String(16), default="gold")
-    rating: Mapped[int] = mapped_column(Integer, default=5)
-    body: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

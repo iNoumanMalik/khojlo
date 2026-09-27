@@ -3,6 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/location/location_service.dart';
+import '../../../core/maps/geo_repository.dart';
 import '../../../core/models/business.dart';
 import '../../../core/models/feed.dart';
 import '../../../core/models/photo.dart';
@@ -24,6 +26,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: feedAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const FeedSkeleton(),
         // Keep the header (and its profile avatar) so the account stays reachable.
         error: (e, _) => ListView(
@@ -117,9 +120,83 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 10),
           Text(headline,
               style: AppType.serif(size: 34, color: Colors.white, height: 1.1)),
+          const SizedBox(height: 14),
+          const _LocationIndicator(),
         ],
       ),
     ).animate().fadeIn(duration: 350.ms);
+  }
+}
+
+/// SDD Screen 1 "Location Indicator": the area the user is in, used for the Nearby
+/// row. Checks silently (no permission prompt) until the user taps it.
+class _LocationIndicator extends ConsumerStatefulWidget {
+  const _LocationIndicator();
+
+  @override
+  ConsumerState<_LocationIndicator> createState() => _LocationIndicatorState();
+}
+
+class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(locationControllerProvider.notifier).ensureChecked();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final location = ref.watch(locationControllerProvider);
+    final label = ref.watch(locationLabelProvider).valueOrNull;
+    final text = !location.hasFix
+        ? (location.isLocating ? 'Finding your location…' : 'Turn on location for places near you')
+        : (label == null || label.isEmpty)
+            ? 'Using your current location'
+            : 'Near $label';
+    return Semantics(
+      button: true,
+      label: location.hasFix ? '$text. Open the map' : text,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () {
+          if (location.hasFix) {
+            context.go('/map');
+          } else if (!location.isLocating) {
+            ref.read(locationControllerProvider.notifier).refresh(prompt: true);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                location.hasFix ? Icons.near_me_rounded : Icons.location_searching_rounded,
+                size: 14,
+                color: AppColors.coral,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.sans(
+                        size: 12.5,
+                        weight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.9))),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

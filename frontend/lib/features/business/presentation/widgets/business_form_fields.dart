@@ -4,10 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/location/location_service.dart';
+import '../../../../core/maps/map_service.dart';
+import '../../../../core/maps/map_types.dart';
 import '../../../../core/models/business.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../maps/presentation/location_picker_screen.dart';
 import '../../business_providers.dart';
 import '../../data/business_repository.dart';
 
@@ -116,19 +119,23 @@ class PriceRangeFields extends StatelessWidget {
 
 // ─────────────── location pin ───────────────
 
-/// "Use my current location" button, or the pinned coordinates with Update / Remove.
-/// A map picker replaces this in the Maps module.
+/// Where the business is: pin it on a map (Module 6) or use the device location, then
+/// see the pin on a small map with Move / Remove. SRS BR-7: coordinates must be valid.
 class LocationPinField extends ConsumerStatefulWidget {
   const LocationPinField({
     super.key,
     required this.latitude,
     required this.longitude,
     required this.onChanged,
+    this.address,
   });
 
   final double? latitude;
   final double? longitude;
   final void Function(double? latitude, double? longitude) onChanged;
+
+  /// The form's address field: filled from the pin when it's empty.
+  final TextEditingController? address;
 
   @override
   ConsumerState<LocationPinField> createState() => _LocationPinFieldState();
@@ -138,6 +145,33 @@ class _LocationPinFieldState extends ConsumerState<LocationPinField> {
   bool _locating = false;
   String? _error;
   bool _blocked = false;
+
+  /// An address found at the pin that differs from what the owner typed.
+  String? _suggestedAddress;
+
+  GeoPoint? get _pinned {
+    if (widget.latitude == null || widget.longitude == null) return null;
+    return GeoPoint(widget.latitude!, widget.longitude!);
+  }
+
+  Future<void> _pickOnMap() async {
+    final picked = await showLocationPicker(context, initial: _pinned);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _error = null;
+      _blocked = false;
+      _suggestedAddress = null;
+    });
+    widget.onChanged(picked.point.latitude, picked.point.longitude);
+    final found = picked.address;
+    final field = widget.address;
+    if (found == null || found.isEmpty || field == null) return;
+    if (field.text.trim().isEmpty) {
+      field.text = found;
+    } else if (field.text.trim() != found) {
+      setState(() => _suggestedAddress = found);
+    }
+  }
 
   Future<void> _useCurrent() async {
     setState(() {
@@ -154,13 +188,13 @@ class _LocationPinFieldState extends ConsumerState<LocationPinField> {
       _error = switch (result.status) {
         LocationStatus.available => null,
         LocationStatus.denied =>
-          'Location permission was denied. You can still continue with just the address.',
+          'Location permission was denied. Pin the business on the map instead.',
         LocationStatus.deniedForever =>
-          'Location is blocked for Khojlo. Allow it in Settings, or continue with the address.',
-        LocationStatus.serviceDisabled => 'Turn on location services and try again.',
+          'Location is blocked for Khojlo. Allow it in Settings, or pin it on the map.',
+        LocationStatus.serviceDisabled => 'Turn on location services, or pin it on the map.',
         LocationStatus.unsupported =>
-          'This device can’t share its location. Continue with just the address.',
-        _ => 'Couldn’t get your location. Try again, or continue with the address.',
+          'This device can’t share its location. Pin the business on the map instead.',
+        _ => 'Couldn’t get your location. Try again, or pin it on the map.',
       };
     });
     final fix = result.fix;
@@ -169,58 +203,101 @@ class _LocationPinFieldState extends ConsumerState<LocationPinField> {
 
   @override
   Widget build(BuildContext context) {
-    final pinned = widget.latitude != null && widget.longitude != null;
+    final pinned = _pinned;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (pinned)
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-            decoration: BoxDecoration(
-              color: AppColors.emerald.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.place_rounded, color: AppColors.emerald),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Location pinned',
-                          style: AppType.sans(size: 13.5, weight: FontWeight.w700)),
-                      Text(
-                        '${widget.latitude!.toStringAsFixed(5)}, '
-                        '${widget.longitude!.toStringAsFixed(5)}',
-                        style: AppType.mono(size: 11, color: AppColors.inkA(0.55)),
-                      ),
-                    ],
+        if (pinned != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.emerald.withValues(alpha: 0.08),
+                border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 130,
+                    child: ref
+                        .watch(mapServiceProvider)
+                        .displayLocation(pinned, zoom: 16, onTap: _pickOnMap),
                   ),
-                ),
-                TextButton(
-                  onPressed: _locating ? null : _useCurrent,
-                  child: Text(_locating ? '…' : 'Update',
-                      style: AppType.sans(
-                          size: 12.5, weight: FontWeight.w700, color: AppColors.emerald)),
-                ),
-                TextButton(
-                  onPressed: () => widget.onChanged(null, null),
-                  child: Text('Remove',
-                      style: AppType.sans(
-                          size: 12.5, weight: FontWeight.w700, color: AppColors.plum)),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.place_rounded, color: AppColors.emerald, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Location pinned',
+                                  style: AppType.sans(size: 13.5, weight: FontWeight.w700)),
+                              Text(pinned.toString(),
+                                  style: AppType.mono(size: 11, color: AppColors.inkA(0.55))),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _pickOnMap,
+                          child: Text('Move',
+                              style: AppType.sans(
+                                  size: 12.5, weight: FontWeight.w700, color: AppColors.emerald)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _suggestedAddress = null);
+                            widget.onChanged(null, null);
+                          },
+                          child: Text('Remove',
+                              style: AppType.sans(
+                                  size: 12.5, weight: FontWeight.w700, color: AppColors.plum)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
-        else
+        else ...[
+          GhostButton(
+            label: 'Pin on map',
+            icon: Icons.add_location_alt_outlined,
+            tone: AppColors.emerald,
+            onTap: _pickOnMap,
+          ),
+          const SizedBox(height: 8),
           GhostButton(
             label: _locating ? 'Finding you…' : 'Use my current location',
             icon: Icons.my_location_rounded,
-            tone: AppColors.emerald,
             onTap: _locating ? null : _useCurrent,
           ),
+        ],
+        if (_suggestedAddress != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Address at the pin: $_suggestedAddress',
+                    style: AppType.sans(size: 12, height: 1.4, color: AppColors.inkA(0.6))),
+              ),
+              TextButton(
+                onPressed: () {
+                  widget.address?.text = _suggestedAddress!;
+                  setState(() => _suggestedAddress = null);
+                },
+                child: Text('Use it',
+                    style: AppType.sans(
+                        size: 12.5, weight: FontWeight.w700, color: AppColors.emerald)),
+              ),
+            ],
+          ),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 8),
           Text(_error!, style: AppType.sans(size: 12, height: 1.4, color: AppColors.plum)),
@@ -234,7 +311,7 @@ class _LocationPinFieldState extends ConsumerState<LocationPinField> {
         ],
         const SizedBox(height: 8),
         Text(
-          'Tap this while you’re at the business, so customers see accurate distances.',
+          'Put the pin on your entrance, so customers see accurate distances and directions.',
           style: AppType.sans(size: 11.5, height: 1.4, color: AppColors.inkA(0.5)),
         ),
       ],

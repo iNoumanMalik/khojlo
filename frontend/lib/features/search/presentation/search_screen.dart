@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../business/business_providers.dart';
+import '../../maps/presentation/view_toggle.dart';
 import '../compare_controller.dart';
 import '../data/search_repository.dart';
 import '../search_providers.dart';
@@ -143,7 +144,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(22, 64, 22, 190),
             children: [
-              Text('Explore', style: AppType.serif(size: 30)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Explore',
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.fade,
+                        style: AppType.serif(size: 30)),
+                  ),
+                  const ViewToggle(showingMap: false),
+                ],
+              ),
               const SizedBox(height: 4),
               Text('Search, filter and compare local finds',
                   style: AppType.sans(size: 13, color: AppColors.inkA(0.5))),
@@ -160,7 +172,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _FilterButton(
+                  FilterButton(
                     count: state.filters.activeCount,
                     onTap: () => _openFilters(state.filters),
                   ),
@@ -417,47 +429,5 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       const SizedBox(height: 8),
       body,
     ];
-  }
-}
-
-class _FilterButton extends StatelessWidget {
-  const _FilterButton({required this.count, required this.onTap});
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: count > 0 ? 'Filters, $count active' : 'Filters',
-      child: SizedBox(
-        width: 56,
-        height: 56,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            GlassIconButton(icon: Icons.tune_rounded, size: 56, onTap: onTap),
-            if (count > 0)
-              Positioned(
-                top: -4,
-                right: -4,
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.emerald,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Text('$count',
-                      style: AppType.sans(
-                          size: 10.5, weight: FontWeight.w800, color: Colors.white)),
-                ).animate().scale(duration: 200.ms, curve: Curves.easeOutBack),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 }

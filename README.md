@@ -58,7 +58,7 @@ uvicorn app.main:app --reload        # http://localhost:8000  (Swagger at /docs)
 ```
 
 Seeded logins (password `password123`): `owner@khojlo.app`, `customer@khojlo.app`,
-`admin@khojlo.app`.
+`admin@khojlo.app`, plus demo reviewers such as `ayesha.khan@khojlo.app` (Module 5).
 
 > `python -m app.db.seed` is safe on the shared team database: it adds missing demo accounts
 > and businesses and refreshes the demo owner's catalogue businesses, but never deletes a
@@ -68,6 +68,11 @@ Seeded logins (password `password123`): `owner@khojlo.app`, `customer@khojlo.app
 > If the app says "Couldn't load your feed" while the backend is running, the database is
 > probably missing a migration: the API logs a warning at startup, and `alembic upgrade head`
 > fixes it.
+
+Module 5 demo: as the customer, open any business, scroll to **Reviews** and tap **Write a
+review** (confetti on submit). Open **See all** to sort, filter by stars and mark reviews helpful,
+then check **Profile → My reviews**. As the owner, use **Business → Reviews & replies** to answer
+reviews. Ratings everywhere come from real reviews.
 
 Module 4 demo: sign in as the customer, open **Explore**, search `unstitched fabric` (the SDD
 mockup's Abbottabad tailors), filter, tick two results and tap **Compare**. Allow location to see
@@ -101,6 +106,29 @@ flutter test
 The app resolves the API base URL per platform (`localhost:8000` on web/desktop,
 `10.0.2.2:8000` on the Android emulator). Override with
 `--dart-define=KHOJLO_API=http://<host>:8000/api/v1`.
+
+**On a physical Android phone** `10.0.2.2` doesn't exist, so point the app at the PC:
+
+- *Over adb (USB or wireless debugging), recommended.* Tunnel the phone's port 8000 to the PC.
+  No firewall change is needed, and the server stays private. Re-run `adb reverse` whenever the
+  phone reconnects.
+
+  ```bash
+  adb reverse tcp:8000 tcp:8000
+  flutter run --dart-define=KHOJLO_API=http://127.0.0.1:8000/api/v1
+  ```
+
+- *Over Wi-Fi without adb.* Run the backend with `uvicorn app.main:app --reload --host 0.0.0.0`,
+  allow inbound TCP 8000 in Windows Firewall on a **Private** network, and run with
+  `--dart-define=KHOJLO_API=http://<PC's Wi-Fi IP>:8000/api/v1`. The IP can change when the
+  router reassigns it.
+
+You can put `KHOJLO_API` in `dart_defines.json` instead of passing it on each run.
+
+**Maps (Module 6).** Google Maps keys are read from the gitignored `frontend/dart_defines.json`
+(copy `dart_defines.example.json`) via `flutter run --dart-define-from-file=dart_defines.json`.
+Address lookup uses `GOOGLE_MAPS_SERVER_KEY` in `backend/.env`. Without keys the app shows a
+built-in preview map. Setup steps are in `docs/development_roadmap/module6_maps_location_plan.md`.
 
 ## End‑to‑end demo path
 

@@ -3,7 +3,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, businesses, categories, compare, feed, media, search, users
+from app.api import (
+    auth,
+    businesses,
+    categories,
+    compare,
+    feed,
+    geo,
+    media,
+    reviews,
+    search,
+    users,
+)
 from app.core.config import settings
 from app.core.database import engine
 from app.db.schema_check import warn_if_outdated
@@ -32,7 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (auth, users, businesses, categories, feed, search, compare, media):
+for module in (auth, users, businesses, categories, feed, search, compare, media, geo, reviews):
     app.include_router(module.router, prefix=settings.API_V1_PREFIX)
 
 

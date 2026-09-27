@@ -10,8 +10,12 @@ save, or a business that isn't one of the demo owner's catalogue businesses. It:
   left alone);
 * refreshes the demo owner's businesses whose names are in the catalogue below (address,
   map pin, tagline, price range, verification, age, opening hours and services) and adds
-  catalogue businesses that don't exist yet. Views, saves and ratings are kept;
-* adds catalogue offers, reviews, saved lists and search history only where none exist.
+  catalogue businesses that don't exist yet. Views and saves are kept;
+* adds catalogue offers, saved lists and search history only where none exist;
+* adds demo reviewer accounts and their reviews (with owner replies and helpful votes) to
+  catalogue businesses that have none from them yet;
+* recalculates every business's rating and review count from its real reviews (SDD
+  Algorithm 7), so no made-up totals remain.
 
 The catalogue is deliberately varied so Module 4 search, filters and comparison have
 something to work with: several Islamabad areas plus Abbottabad (the four tailors mirror
@@ -21,6 +25,7 @@ search history for "Popular searches".
 """
 from __future__ import annotations
 
+import random
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -39,9 +44,11 @@ from app.models.business import (
     OpeningHours,
     Service,
 )
-from app.models.engagement import BusinessView, Review, SavedBusiness, SavedList
+from app.models.engagement import BusinessView, SavedBusiness, SavedList
+from app.models.review import Review, ReviewPhoto, ReviewReport, ReviewVote
 from app.models.search import SearchQuery
 from app.models.user import User, UserRole
+from app.services.review_service import refresh_rating
 
 DEMO_PASSWORD = "password123"
 OWNER_EMAIL = "owner@khojlo.app"
@@ -136,8 +143,9 @@ ROUND_THE_CLOCK = _week(DAILY, "00:00", "00:00")  # equal times = open 24 hours
 ISB = "Islamabad"
 ABT = "Abbottabad"
 
-# Each business: category, tone, tagline, tier, PKR range, area, coordinates, rating,
-# reviews, saves, age in days (<= 30 counts as new), verified, hours, services (name, Rs).
+# Each business: category, tone, tagline, tier, PKR range, area, coordinates, rating (the
+# average its seeded reviews aim for), reviews (sets the demo view count), saves, age in
+# days (<= 30 counts as new), verified, hours, services (name, Rs).
 BUSINESSES: list[dict] = [
     dict(name="Brew & Bloom", cat="cafes", tone="emerald",
          tagline="Specialty coffee & a wall of plants", price="$$", pmin=450, pmax=1500,
@@ -309,12 +317,58 @@ OFFERS = {
     "Ember & Oak": [("Summer tasting menu", "Jun 1", "Jul 1", OfferStatus.ended, "gold", 140, 22)],
 }
 
-REVIEWS = [
-    ("Ayesha K.", "plum", 5, "Cosy spot with genuinely great coffee — quickly became my go-to for slow mornings."),
-    ("Bilal R.", "emerald", 5, "Coffee is on another level and the staff remembered my order."),
-    ("Sana M.", "gold", 4, "Cosy and quiet — perfect for getting work done."),
-    ("Hamza T.", "coral", 5, "Found this through Khojlo before it blew up. Hidden gem for real."),
+# Module 5: demo reviewers. Each writes at most one review per business (BR-4). About two
+# thirds have a verified email, so the "Verified" badge and ordering show up in the demo.
+REVIEWERS = [
+    ("ayesha.khan@khojlo.app", "Ayesha Khan", "plum", True),
+    ("bilal.raza@khojlo.app", "Bilal Raza", "emerald", True),
+    ("sana.malik@khojlo.app", "Sana Malik", "gold", False),
+    ("hamza.tariq@khojlo.app", "Hamza Tariq", "coral", True),
+    ("zainab.ali@khojlo.app", "Zainab Ali", "emerald", True),
+    ("usman.shah@khojlo.app", "Usman Shah", "gold", False),
+    ("mahnoor.iqbal@khojlo.app", "Mahnoor Iqbal", "plum", True),
+    ("hassan.riaz@khojlo.app", "Hassan Riaz", "coral", True),
+    ("fatima.noor@khojlo.app", "Fatima Noor", "gold", True),
+    ("omer.farooq@khojlo.app", "Omer Farooq", "emerald", False),
+    ("hira.javed@khojlo.app", "Hira Javed", "coral", True),
+    ("ahmed.butt@khojlo.app", "Ahmed Butt", "plum", False),
 ]
+
+# Review text by star rating; {thing} is filled with a category-specific detail.
+REVIEW_OPENERS = {
+    5: ["Absolutely loved it — {thing}.", "Genuinely one of the best finds on Khojlo: {thing}.",
+        "Went on a friend's recommendation and wasn't disappointed. {thing}.",
+        "Can't fault it. {thing}, and the staff were lovely."],
+    4: ["Really good overall — {thing}.", "Solid experience. {thing}, will come back.",
+        "Pleasantly surprised: {thing}. Only small things to improve."],
+    3: ["Decent, but not memorable. {thing}.", "Mixed visit — {thing}, though service was slow.",
+        "Okay for the price. {thing}."],
+    2: ["Expected more. {thing}, but the wait was long.", "Not great this time — {thing}."],
+    1: ["Disappointing visit. {thing}, but I wouldn't go back."],
+}
+REVIEW_DETAILS = {
+    "food": ["the food came out hot and full of flavour", "portions were generous",
+             "the coffee is properly made", "it's spotless and cosy inside",
+             "prices are fair for the quality"],
+    "shopping": ["the fabric quality is excellent", "they had exactly what I was looking for",
+                 "prices were fair and they didn't haggle", "the shopkeeper was patient and honest",
+                 "alterations were done on time"],
+    "services": ["they were on time and professional", "the place is clean and well organised",
+                 "they explained everything clearly", "booking was easy over the phone",
+                 "worth every rupee"],
+}
+FOOD = {"cafes", "bakeries", "restaurants", "street-food", "fast-food"}
+SHOPPING = {"tailors", "clothing", "grocery", "electronics", "books"}
+OWNER_REPLIES = {
+    5: "Thank you so much! We're glad you enjoyed it — see you again soon.",
+    4: "Thanks for the kind words! Tell us what would make it five stars next time.",
+    3: "Thanks for the honest feedback. We're working on speeding things up.",
+    2: "Sorry we let you down. Please message us so we can make it right.",
+    1: "We're really sorry about your visit. Please get in touch so we can fix this.",
+}
+# The demo customer's own review, so "My reviews" has something to show.
+CUSTOMER_REVIEW = ("The Reading Room", 5,
+                   "My favourite place to read on a weekday afternoon. Quiet, warm and the chai is great.")
 
 # Popular searches: (query, times searched in the last few days).
 SEARCH_HISTORY = [
@@ -347,7 +401,8 @@ class SeedReport:
 def reset(db: Session) -> None:
     """Delete every user, business and search. Never run this on a shared database."""
     for model in (
-        SearchQuery, BusinessView, SavedBusiness, SavedList, Review, Offer, Service,
+        SearchQuery, BusinessView, SavedBusiness, SavedList, ReviewReport, ReviewVote,
+        ReviewPhoto, Review, Offer, Service,
         OpeningHours, BusinessProfile, Category,
     ):
         db.execute(delete(model))
@@ -437,8 +492,6 @@ def _sync_businesses(
                 owner_id=owner.id,
                 name=spec["name"],
                 images=[],
-                rating=spec["rating"],
-                review_count=spec["reviews"],
                 save_count=spec["saves"],
                 view_count=spec["reviews"] * 6,
             )
@@ -468,14 +521,92 @@ def _add_offers(db: Session, biz: dict[str, BusinessProfile], report: SeedReport
             report.offers_added += 1
 
 
-def _add_reviews(db: Session, biz: dict[str, BusinessProfile], report: SeedReport) -> None:
-    reviewed = set(db.scalars(select(Review.business_id)))
-    for (author, tone, rating, body), target in zip(REVIEWS, biz.values()):
-        if target.id in reviewed:
+def _ensure_reviewers(db: Session, report: SeedReport) -> list[User]:
+    hashed = None
+    reviewers = []
+    for email, name, tone, verified in REVIEWERS:
+        user = db.scalar(select(User).where(User.email == email))
+        if user is None:
+            hashed = hashed or hash_password(DEMO_PASSWORD)
+            user = User(email=email, full_name=name, avatar_tone=tone, is_verified=verified,
+                        role=UserRole.customer, hashed_password=hashed)
+            db.add(user)
+            report.users_added += 1
+        reviewers.append(user)
+    db.flush()
+    return reviewers
+
+
+def _stars(target: float, n: int, rng: random.Random) -> list[int]:
+    """`n` star ratings averaging close to `target`, in a stable random order."""
+    base = max(1, min(5, int(target)))
+    highs = round((target - base) * n)
+    stars = [min(base + 1, 5)] * highs + [base] * (n - highs)
+    if n >= 6 and base >= 4:
+        stars[-1] = base - 1  # one more critical voice keeps a long list believable
+    rng.shuffle(stars)
+    return stars
+
+
+def _sentence_case(text: str) -> str:
+    return ". ".join(part[:1].upper() + part[1:] for part in text.split(". "))
+
+
+def _review_text(rating: int, category: str, rng: random.Random) -> str:
+    if rng.random() < 0.12:
+        return ""  # a rating on its own is a valid review
+    group = "food" if category in FOOD else "shopping" if category in SHOPPING else "services"
+    thing = rng.choice(REVIEW_DETAILS[group])
+    return _sentence_case(rng.choice(REVIEW_OPENERS[rating]).format(thing=thing))
+
+
+def _add_reviews(
+    db: Session,
+    biz: dict[str, BusinessProfile],
+    reviewers: list[User],
+    customer: User,
+    now: datetime,
+    report: SeedReport,
+) -> None:
+    """3–8 reviews per catalogue business from the demo reviewers, where they have none yet."""
+    demo_ids = [u.id for u in reviewers]
+    reviewed = set(db.scalars(select(Review.business_id).where(Review.user_id.in_(demo_ids))))
+    for spec in BUSINESSES:
+        b = biz[spec["name"]]
+        if b.id in reviewed:
             continue
-        db.add(Review(business_id=target.id, author_name=author, author_tone=tone,
-                      rating=rating, body=body))
+        rng = random.Random(f"reviews:{spec['name']}")
+        n = 3 + rng.randrange(6)
+        authors = rng.sample(reviewers, n)
+        span_days = max(1, min(spec["age"], 150))
+        for author, rating in zip(authors, _stars(spec["rating"], n, rng)):
+            created = now - timedelta(days=rng.uniform(0, span_days))
+            review = Review(business_id=b.id, user_id=author.id, rating=rating,
+                            comment=_review_text(rating, spec["cat"], rng), created_at=created)
+            if rating <= 3 or rng.random() < 0.3:
+                review.owner_reply = OWNER_REPLIES[rating]
+                review.owner_reply_at = min(now, created + timedelta(hours=rng.uniform(2, 48)))
+            db.add(review)
+            db.flush()
+            voters = rng.sample([u for u in reviewers if u.id != author.id], rng.randrange(5))
+            for voter in voters:
+                db.add(ReviewVote(review_id=review.id, user_id=voter.id))
+            review.helpful_count = len(voters)
+            report.reviews_added += 1
+
+    name, rating, comment = CUSTOMER_REVIEW
+    has_own = select(Review.id).where(Review.user_id == customer.id, Review.deleted_at.is_(None))
+    if name in biz and db.scalar(has_own) is None:
+        db.add(Review(business_id=biz[name].id, user_id=customer.id, rating=rating,
+                      comment=comment, created_at=now - timedelta(days=3)))
         report.reviews_added += 1
+    db.flush()
+
+
+def _refresh_ratings(db: Session) -> None:
+    """Every business's rating and count come from its real reviews (SDD Algorithm 7)."""
+    for b in db.scalars(select(BusinessProfile)):
+        refresh_rating(db, b)
 
 
 def _add_saved_lists(db: Session, customer: User, biz: dict[str, BusinessProfile]) -> None:
@@ -515,9 +646,11 @@ def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     report = SeedReport()
     cats = _ensure_categories(db, report)
     users = _ensure_users(db, report)
+    reviewers = _ensure_reviewers(db, report)
     biz = _sync_businesses(db, users[OWNER_EMAIL], cats, now, report)
     _add_offers(db, biz, report)
-    _add_reviews(db, biz, report)
+    _add_reviews(db, biz, reviewers, users[CUSTOMER_EMAIL], now, report)
+    _refresh_ratings(db)
     _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)
     db.flush()
     _add_search_history(db, users[CUSTOMER_EMAIL], now, report)

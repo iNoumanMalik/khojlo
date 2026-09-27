@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     # Upper bound for the distance filter.
     SEARCH_MAX_RADIUS_KM: float = 50.0
 
+    # ── Maps & location (Module 6) ──
+    # Server-only Google key with just the Geocoding API enabled. Without it, address
+    # lookup is switched off and the app falls back to typed addresses.
+    GOOGLE_MAPS_SERVER_KEY: str | None = None
+    # Bias results towards this country (ccTLD) and return text in this language.
+    GEOCODING_REGION: str = "pk"
+    GEOCODING_LANGUAGE: str = "en"
+
     # ── Firebase / FCM push (future — optional) ──
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None
     FIREBASE_PROJECT_ID: str | None = None
@@ -60,6 +68,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.BACKEND_CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def geocoding_enabled(self) -> bool:
+        return bool(self.GOOGLE_MAPS_SERVER_KEY)
 
     @property
     def email_enabled(self) -> bool:

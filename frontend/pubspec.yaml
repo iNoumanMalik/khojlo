@@ -43,6 +43,11 @@ dependencies:
   # "Call" on a business page (tel: links)
   url_launcher: ^6.3.2
 
+  # web: lets buttons and cards drawn over a Google map receive taps
+  pointer_interceptor: ^0.10.1+3
+  # web-only: loads the Google Maps JavaScript API with the key from --dart-define
+  web: ^1.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
