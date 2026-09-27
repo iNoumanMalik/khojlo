@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Khojlo Premium Mobile Mockup</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+      :root {
+        --cream: #fbf6ee;
+        --gold: #e3a73d;
+        --emerald: #1d6d5a;
+        --plum: #7a3350;
+        --ink: #2b2620;
+        --coral: #f2c9c1;
+        --white: rgba(255, 255, 255, 0.78);
+        --white-strong: rgba(255, 255, 255, 0.92);
+        --glass-border: rgba(255, 255, 255, 0.55);
+        --glass-shadow: 0 28px 80px rgba(87, 59, 35, 0.12);
+        --soft-shadow: 0 14px 34px rgba(50, 39, 31, 0.12);
+        --radius-xl: 28px;
+        --radius-2xl: 34px;
+        --radius-3xl: 42px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 18%, rgba(242, 201, 193, 0.65), transparent 18%),
+          radial-gradient(circle at 80% 14%, rgba(227, 167, 61, 0.22), transparent 16%),
+          radial-gradient(circle at 72% 70%, rgba(29, 109, 90, 0.16), transparent 19%),
+          radial-gradient(circle at 22% 82%, rgba(122, 51, 80, 0.16), transparent 16%),
+          linear-gradient(180deg, #fffdf8 0%, #fbf6ee 44%, #f7f0e7 100%);
+        overflow-x: hidden;
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: fixed;
+        inset: auto;
+        width: 38rem;
+        height: 38rem;
+        border-radius: 50%;
+        filter: blur(70px);
+        opacity: 0.48;
+        pointer-events: none;
+        z-index: 0;
+        animation: blobFloat 18s ease-in-out infinite alternate;
+      }
+
+      body::before {
+        top: -9rem;
+        left: -8rem;
+        background: radial-gradient(circle, rgba(242, 201, 193, 0.9), rgba(242, 201, 193, 0));
+      }
+
+      body::after {
+        right: -10rem;
+        bottom: -12rem;
+        background: radial-gradient(circle, rgba(227, 167, 61, 0.55), rgba(227, 167, 61, 0));
+        animation-duration: 22s;
+      }
+
+      .mesh {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+      }
+
+      .mesh::before,
+      .mesh::after {
+        content: "";
+        position: absolute;
+        inset: auto;
+        width: 34rem;
+        height: 34rem;
+        border-radius: 50%;
+        filter: blur(56px);
+        opacity: 0.35;
+        animation: drift 26s ease-in-out infinite alternate;
+      }
+
+      .mesh::before {
+        top: 14%;
+        right: 10%;
+        background: rgba(29, 109, 90, 0.12);
+      }
+
+      .mesh::after {
+        left: 6%;
+        bottom: 12%;
+        background: rgba(122, 51, 80, 0.12);
+        animation-duration: 30s;
+      }
+
+      .particles {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          radial-gradient(circle at 15% 26%, rgba(255, 255, 255, 0.92) 0 1px, transparent 1px),
+          radial-gradient(circle at 64% 32%, rgba(255, 255, 255, 0.72) 0 1.3px, transparent 1.3px),
+          radial-gradient(circle at 78% 66%, rgba(255, 255, 255, 0.8) 0 1px, transparent 1px),
+          radial-gradient(circle at 30% 72%, rgba(255, 255, 255, 0.6) 0 1.2px, transparent 1.2px);
+        opacity: 0.6;
+        animation: shimmerSky 10s linear infinite;
+      }
+
+      .page {
+        position: relative;
+        z-index: 1;
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 56px 28px 96px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(300px, 460px) 1fr;
+        gap: 34px;
+        align-items: start;
+      }
+
+      .hero-panel,
+      .system-panel {
+        backdrop-filter: blur(28px);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+      }
+
+      .hero-panel {
+        border-radius: 36px;
+        padding: 32px;
+        position: sticky;
+        top: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.75rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(43, 38, 32, 0.58);
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.68);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--gold), var(--coral));
+        box-shadow: 0 0 0 8px rgba(227, 167, 61, 0.12);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        margin: 0;
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      h1 {
+        font-size: clamp(2.5rem, 4vw, 4.5rem);
+        line-height: 0.94;
+        margin-top: 20px;
+      }
+
+      .hero-panel p {
+        margin: 18px 0 0;
+        font-size: 1rem;
+        line-height: 1.72;
+        color: rgba(43, 38, 32, 0.72);
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .metric {
+        padding: 16px 18px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.64);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 24px rgba(43, 38, 32, 0.06);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.15rem;
+        margin-bottom: 8px;
+      }
+
+      .metric span {
+        font-size: 0.84rem;
+        line-height: 1.5;
+        color: rgba(43, 38, 32, 0.7);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+      }
+
+      .chip {
+        padding: 12px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        font-size: 0.85rem;
+        color: rgba(43, 38, 32, 0.78);
+      }
+
+      .artboard {
+        display: grid;
+        gap: 24px;
+      }
+
+      .system-panel {
+        border-radius: 36px;
+        padding: 22px 22px 24px;
+      }
+
+      .system-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .system-panel-header p {
+        margin: 6px 0 0;
+        color: rgba(43, 38, 32, 0.68);
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .swatch {
+        border-radius: 20px;
+        padding: 12px;
+        min-height: 94px;
+        color: white;
+        box-shadow: var(--soft-shadow);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .swatch small {
+        opacity: 0.86;
+        font-size: 0.74rem;
+      }
+
+      .swatch code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.8rem;
+      }
+
+      .swatch.cream {
+        background: var(--cream);
+        color: var(--ink);
+      }
+
+      .swatch.gold {
+        background: linear-gradient(135deg, #f2ca6e, var(--gold));
+      }
+
+      .swatch.emerald {
+        background: linear-gradient(135deg, #2f8b74, var(--emerald));
+      }
+
+      .swatch.plum {
+        background: linear-gradient(135deg, #9c4969, var(--plum));
+      }
+
+      .swatch.coral {
+        background: linear-gradient(135deg, #f8ded9, var(--coral));
+        color: var(--ink);
+      }
+
+      .phone-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(240px, 1fr));
+        gap: 24px;
+      }
+
+      .phone {
+        position: relative;
+        min-height: 760px;
+        border-radius: 44px;
+        padding: 14px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.44)),
+          linear-gradient(135deg, rgba(227, 167, 61, 0.22), rgba(255, 255, 255, 0.24));
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow:
+          0 32px 60px rgba(61, 46, 36, 0.16),
+          inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        overflow: hidden;
+        transition: transform 0.45s ease, box-shadow 0.45s ease;
+      }
+
+      .phone:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow:
+          0 40px 72px rgba(61, 46, 36, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      }
+
+      .screen {
+        position: relative;
+        height: 100%;
+        min-height: 732px;
+        border-radius: 32px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.86), transparent 16%),
+          radial-gradient(circle at 80% 18%, rgba(227, 167, 61, 0.14), transparent 18%),
+          radial-gradient(circle at 72% 74%, rgba(122, 51, 80, 0.11), transparent 18%),
+          linear-gradient(180deg, rgba(255, 250, 245, 0.95), rgba(250, 243, 235, 0.96));
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        padding: 18px 18px 112px;
+      }
+
+      .screen::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 85% 20%, rgba(29, 109, 90, 0.09), transparent 20%),
+          radial-gradient(circle at 14% 78%, rgba(242, 201, 193, 0.24), transparent 16%);
+        pointer-events: none;
+      }
+
+      .statusbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
+        color: rgba(43, 38, 32, 0.72);
+        position: relative;
+        z-index: 1;
+      }
+
+      .statusbar .dots {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .statusbar .dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(43, 38, 32, 0.6);
+      }
+
+      .notch {
+        width: 108px;
+        height: 28px;
+        margin: 10px auto 16px;
+        border-radius: 999px;
+        background: rgba(43, 38, 32, 0.9);
+      }
+
+      .screen-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-top: 20px;
+        margin-bottom: 14px;
+      }
+
+      .section-title h3 {
+        font-size: 1.06rem;
+      }
+
+      .section-title span {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(43, 38, 32, 0.48);
+      }
+
+      .glass-card,
+      .floating-card,
+      .mini-card,
+      .offer-card,
+      .message,
+      .detail-sheet,
+      .story-pill,
+      .category-chip {
+        position: relative;
+        backdrop-filter: blur(24px);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.58));
+        border: 1px solid rgba(255, 255, 255, 0.88);
+        box-shadow: 0 18px 32px rgba(43, 38, 32, 0.1);
+      }
+
+      .home-greeting {
+        padding: 8px 4px 2px;
+      }
+
+      .home-greeting small {
+        display: block;
+        color: rgba(43, 38, 32, 0.56);
+        margin-bottom: 8px;
+      }
+
+      .home-greeting h2 {
+        font-size: 1.8rem;
+        line-height: 1.06;
+      }
+
+      .search-shell {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 28px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.62));
+        border: 1px solid rgba(255, 255, 255, 0.95);
+        box-shadow:
+          0 18px 42px rgba(43, 38, 32, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      }
+
+      .search-icon,
+      .circle-button,
+      .nav-icon,
+      .pin,
+      .map-badge,
+      .reaction,
+      .send-button {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 999px;
+      }
+
+      .search-icon {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, rgba(227, 167, 61, 0.18), rgba(242, 201, 193, 0.3));
+        color: var(--ink);
+        font-size: 1.1rem;
+      }
+
+      .search-copy {
+        flex: 1;
+      }
+
+      .search-copy small {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(43, 38, 32, 0.42);
+      }
+
+      .search-rotator {
+        display: inline-block;
+        min-height: 1.6em;
+        margin-top: 4px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: rgba(43, 38, 32, 0.9);
+        transition: opacity 0.35s ease, transform 0.35s ease;
+      }
+
+      .search-rotator.fade {
+        opacity: 0;
+        transform: translateY(7px);
+      }
+
+      .filter-pills {
+        display: flex;
+        gap: 10px;
+        overflow: hidden;
+        margin-top: 14px;
+      }
+
+      .story-pill,
+      .category-chip {
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        color: rgba(43, 38, 32, 0.78);
+      }
+
+      .story-pill.active,
+      .category-chip.active {
+        background: linear-gradient(135deg, rgba(227, 167, 61, 0.28), rgba(242, 201, 193, 0.46));
+      }
+
+      .mosaic {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 14px;
+      }
+
+      .hero-card {
+        min-height: 192px;
+        padding: 16px;
+        border-radius: var(--radius-3xl);
+        overflow: hidden;
+        position: relative;
+        color: white;
+        background:
+          linear-gradient(180deg, rgba(13, 13, 13, 0.06), rgba(13, 13, 13, 0.56)),
+          radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.2), transparent 22%),
+          linear-gradient(135deg, #2b6a63 0%, #367d68 32%, #c88d49 100%);
+        box-shadow: 0 22px 40px rgba(29, 109, 90, 0.22);
+        animation: softLift 7s ease-in-out infinite;
+      }
+
+      .hero-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(130deg, transparent 0%, rgba(255, 255, 255, 0.18) 45%, transparent 65%);
+        transform: translateX(-100%);
+        animation: shine 8s linear infinite;
+      }
+
+      .hero-card small,
+      .mini-card small,
+      .offer-card small,
+      .detail-rating small {
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 0.66rem;
+        opacity: 0.88;
+      }
+
+      .hero-card h4 {
+        margin-top: 12px;
+        font-size: 1.2rem;
+        line-height: 1.08;
+      }
+
+      .hero-card p {
+        margin: 10px 0 0;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        max-width: 180px;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .save-dot {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        backdrop-filter: blur(14px);
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        display: grid;
+        place-items: center;
+        font-size: 1rem;
+      }
+
+      .mini-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .mini-card {
+        min-height: 89px;
+        border-radius: 28px;
+        padding: 14px;
+        overflow: hidden;
+      }
+
+      .mini-card strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 0.96rem;
+      }
+
+      .mini-card p {
+        margin: 6px 0 0;
+        font-size: 0.76rem;
+        line-height: 1.5;
+        color: rgba(43, 38, 32, 0.65);
+      }
+
+      .vertical-feed {
+        display: grid;
+        gap: 14px;
+      }
+
+      .floating-card {
+        border-radius: 30px;
+        padding: 16px;
+        transition: transform 0.28s ease, box-shadow 0.28s ease;
+      }
+
+      .floating-card:hover {
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 24px 36px rgba(43, 38, 32, 0.14);
+      }
+
+      .card-cover {
+        position: relative;
+        height: 136px;
+        border-radius: 24px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(24, 18, 15, 0.04), rgba(24, 18, 15, 0.52)),
+          radial-gradient(circle at 20% 24%, rgba(255, 255, 255, 0.28), transparent 16%),
+          linear-gradient(135deg, rgba(122, 51, 80, 0.94), rgba(227, 167, 61, 0.86));
+      }
+
+      .card-cover.alt {
+        background:
+          linear-gradient(180deg, rgba(24, 18, 15, 0.05), rgba(24, 18, 15, 0.45)),
+          radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.22), transparent 18%),
+          linear-gradient(135deg, rgba(29, 109, 90, 0.94), rgba(242, 201, 193, 0.88));
+      }
+
+      .badge-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 11px;
+        border-radius: 999px;
+        font-size: 0.67rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        color: white;
+      }
+
+      .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .card-footer .meta {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.73rem;
+        color: rgba(43, 38, 32, 0.54);
+      }
+
+      .circle-button {
+        width: 42px;
+        height: 42px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.94);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+      }
+
+      .circle-button:active,
+      .nav-icon:active,
+      .send-button:active {
+        transform: scale(0.96);
+      }
+
+      .map-panel {
+        position: relative;
+        height: 258px;
+        border-radius: 32px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.6), transparent 10%),
+          linear-gradient(135deg, rgba(29, 109, 90, 0.16), rgba(255, 255, 255, 0.55)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.68));
+      }
+
+      .map-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.46) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.46) 1px, transparent 1px);
+        background-size: 48px 48px;
+        opacity: 0.5;
+      }
+
+      .map-river,
+      .map-road {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(0.2px);
+      }
+
+      .map-river {
+        left: 18px;
+        right: -16px;
+        top: 100px;
+        height: 78px;
+        background: linear-gradient(90deg, rgba(242, 201, 193, 0.24), rgba(255, 255, 255, 0.7));
+        transform: rotate(-14deg);
+      }
+
+      .map-road {
+        background: rgba(227, 167, 61, 0.2);
+      }
+
+      .map-road.one {
+        width: 180px;
+        height: 14px;
+        left: 52px;
+        top: 58px;
+        transform: rotate(36deg);
+      }
+
+      .map-road.two {
+        width: 194px;
+        height: 15px;
+        right: 24px;
+        top: 138px;
+        transform: rotate(-24deg);
+      }
+
+      .pin {
+        position: absolute;
+        width: 52px;
+        height: 52px;
+        color: white;
+        box-shadow: 0 16px 24px rgba(122, 51, 80, 0.24);
+        animation: bob 5s ease-in-out infinite;
+      }
+
+      .pin::before {
+        content: "";
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--plum), #a34d70);
+        transform: rotate(45deg);
+        display: block;
+      }
+
+      .pin span {
+        position: absolute;
+        font-size: 1rem;
+      }
+
+      .pin.one {
+        top: 48px;
+        left: 54px;
+      }
+
+      .pin.two {
+        top: 122px;
+        right: 44px;
+        animation-delay: 1.2s;
+      }
+
+      .pin.three {
+        top: 150px;
+        left: 132px;
+        animation-delay: 2.4s;
+      }
+
+      .map-badge {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        padding: 11px 14px;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.74);
+        border: 1px solid rgba(255, 255, 255, 0.86);
+        box-shadow: var(--soft-shadow);
+        font-size: 0.77rem;
+      }
+
+      .map-preview {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 18px;
+        border-radius: 28px;
+        padding: 14px;
+      }
+
+      .offer-card {
+        border-radius: 28px;
+        padding: 14px;
+        overflow: hidden;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.58)),
+          linear-gradient(135deg, rgba(227, 167, 61, 0.12), rgba(122, 51, 80, 0.05));
+      }
+
+      .offer-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, transparent 12%, rgba(255, 255, 255, 0.4) 36%, transparent 52%);
+        transform: translateX(-120%);
+        animation: shine 9s linear infinite;
+      }
+
+      .detail-hero {
+        height: 238px;
+        border-radius: 30px;
+        overflow: hidden;
+        position: relative;
+        background:
+          linear-gradient(180deg, rgba(20, 16, 14, 0.08), rgba(20, 16, 14, 0.54)),
+          radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.28), transparent 18%),
+          linear-gradient(135deg, rgba(122, 51, 80, 0.92), rgba(29, 109, 90, 0.82), rgba(227, 167, 61, 0.8));
+      }
+
+      .detail-sheet {
+        margin-top: -56px;
+        border-radius: 30px;
+        padding: 18px;
+      }
+
+      .detail-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .action-pill {
+        padding: 12px 8px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        text-align: center;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      .detail-rating {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .score-ring {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle closest-side, rgba(255, 255, 255, 0.9) 74%, transparent 75% 100%),
+          conic-gradient(var(--emerald) 0 80%, rgba(29, 109, 90, 0.12) 80% 100%);
+        display: grid;
+        place-items: center;
+        color: var(--emerald);
+        font-weight: 800;
+      }
+
+      .review-highlight {
+        margin-top: 16px;
+        border-radius: 24px;
+        padding: 15px;
+      }
+
+      .review-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+        margin-top: 10px;
+      }
+
+      .reaction-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .reaction {
+        padding: 10px 12px;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.88);
+        font-size: 0.74rem;
+      }
+
+      .orb-stage {
+        position: relative;
+        min-height: 212px;
+        border-radius: 34px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.6), transparent 24%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.32));
+      }
+
+      .orb-stage::before,
+      .orb-stage::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(122, 51, 80, 0.14);
+        animation: pulseRing 4s ease-out infinite;
+      }
+
+      .orb-stage::before {
+        width: 110px;
+        height: 110px;
+      }
+
+      .orb-stage::after {
+        width: 150px;
+        height: 150px;
+        animation-delay: 1s;
+      }
+
+      .orb {
+        position: relative;
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.22) 28%, rgba(122, 51, 80, 0.1) 29%, transparent 68%),
+          linear-gradient(135deg, rgba(227, 167, 61, 0.96), rgba(122, 51, 80, 0.94));
+        box-shadow:
+          0 0 0 12px rgba(227, 167, 61, 0.06),
+          0 0 48px rgba(227, 167, 61, 0.24),
+          0 16px 34px rgba(122, 51, 80, 0.28);
+        animation: breathe 3.6s ease-in-out infinite;
+      }
+
+      .message-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .message {
+        border-radius: 24px;
+        padding: 14px;
+      }
+
+      .message.ai {
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.58)),
+          linear-gradient(135deg, rgba(227, 167, 61, 0.08), rgba(122, 51, 80, 0.08));
+      }
+
+      .message.user {
+        background: linear-gradient(135deg, rgba(29, 109, 90, 0.9), rgba(39, 124, 103, 0.88));
+        color: white;
+      }
+
+      .typing {
+        display: inline-flex;
+        gap: 5px;
+        margin-top: 8px;
+      }
+
+      .typing span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(122, 51, 80, 0.46);
+        animation: blink 1.2s infinite;
+      }
+
+      .typing span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      .quick-replies {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .compose {
+        margin-top: 14px;
+        padding: 10px;
+        border-radius: 24px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.92);
+      }
+
+      .compose-input {
+        flex: 1;
+        font-size: 0.82rem;
+        color: rgba(43, 38, 32, 0.5);
+        padding-left: 6px;
+      }
+
+      .send-button {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, var(--gold), #f0bd61);
+        color: white;
+        font-size: 1.05rem;
+        box-shadow: 0 14px 20px rgba(227, 167, 61, 0.28);
+      }
+
+      .dock {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 18px;
+        padding: 12px 16px;
+        border-radius: 999px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.68);
+        border: 1px solid rgba(255, 255, 255, 0.86);
+        box-shadow: 0 18px 36px rgba(43, 38, 32, 0.12);
+        backdrop-filter: blur(28px);
+      }
+
+      .dock-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 18px;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        border: 8px solid rgba(249, 243, 235, 1);
+        background:
+          radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.18) 26%, transparent 27%),
+          linear-gradient(135deg, var(--gold), var(--plum));
+        box-shadow:
+          0 18px 28px rgba(122, 51, 80, 0.2),
+          0 0 30px rgba(227, 167, 61, 0.26);
+        animation: breathe 3.6s ease-in-out infinite;
+      }
+
+      .nav-icon {
+        width: 42px;
+        height: 42px;
+        background: rgba(255, 255, 255, 0.34);
+        color: rgba(43, 38, 32, 0.68);
+        font-size: 0.94rem;
+        transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+      }
+
+      .nav-icon.active,
+      .nav-icon:hover {
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--plum);
+        transform: translateY(-2px);
+      }
+
+      .screen-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .screen-label span {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: rgba(43, 38, 32, 0.46);
+      }
+
+      .screen-label strong {
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+
+      .footnote {
+        margin-top: 28px;
+        padding: 18px 20px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.56);
+        border: 1px solid rgba(255, 255, 255, 0.76);
+        color: rgba(43, 38, 32, 0.66);
+        line-height: 1.65;
+      }
+
+      @keyframes blobFloat {
+        from {
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+        to {
+          transform: translate3d(30px, 18px, 0) scale(1.08);
+        }
+      }
+
+      @keyframes drift {
+        from {
+          transform: translate3d(0, 0, 0);
+        }
+        to {
+          transform: translate3d(-22px, 28px, 0);
+        }
+      }
+
+      @keyframes shimmerSky {
+        0% {
+          transform: translateY(0);
+          opacity: 0.46;
+        }
+        50% {
+          transform: translateY(-6px);
+          opacity: 0.62;
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 0.46;
+        }
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.06);
+        }
+      }
+
+      @keyframes shine {
+        to {
+          transform: translateX(130%);
+        }
+      }
+
+      @keyframes softLift {
+        0%,
+        100% {
+          transform: translateY(0) scale(1);
+        }
+        50% {
+          transform: translateY(-4px) scale(1.01);
+        }
+      }
+
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+
+      @keyframes pulseRing {
+        0% {
+          opacity: 0.6;
+          transform: scale(0.88);
+        }
+        70%,
+        100% {
+          opacity: 0;
+          transform: scale(1.26);
+        }
+      }
+
+      @keyframes blink {
+        0%,
+        80%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.4;
+        }
+        40% {
+          transform: translateY(-2px);
+          opacity: 1;
+        }
+      }
+
+      @media (max-width: 1320px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-panel {
+          position: relative;
+          top: 0;
+        }
+
+        .phone-grid {
+          grid-template-columns: repeat(2, minmax(260px, 1fr));
+        }
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          padding-inline: 16px;
+        }
+
+        .swatches {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .phone-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          min-height: 720px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mesh"></div>
+    <div class="particles"></div>
+
+    <main class="page">
+      <section class="hero">
+        <aside class="hero-panel">
+          <div class="eyebrow">Khojlo mobile concept</div>
+          <h1>Hidden-gem discovery, designed like a funded product.</h1>
+          <p>
+            This mockup translates your proposal and premium design direction into a portfolio-style mobile concept.
+            It keeps the core system scope grounded in discovery, comparison, maps, reviews, AI assistance, messaging,
+            and personalized recommendations while pushing the presentation toward a refined startup aesthetic.
+          </p>
+
+          <div class="hero-grid">
+            <div class="metric">
+              <strong>4 key screens</strong>
+              <span>Home, map discovery, business detail, and AI concierge.</span>
+            </div>
+            <div class="metric">
+              <strong>Luxury light mode</strong>
+              <span>Soft glass, layered surfaces, glowing highlights, and mesh depth.</span>
+            </div>
+            <div class="metric">
+              <strong>Motion-led UI</strong>
+              <span>Breathing orb, animated search, floating pins, shimmer offers.</span>
+            </div>
+            <div class="metric">
+              <strong>Ready to extend</strong>
+              <span>Useful as a design reference for Flutter, React, or a Behance case study.</span>
+            </div>
+          </div>
+
+          <div class="chips">
+            <div class="chip">Fraunces headlines</div>
+            <div class="chip">Plus Jakarta Sans UI</div>
+            <div class="chip">IBM Plex Mono meta</div>
+            <div class="chip">Floating glass dock</div>
+            <div class="chip">AI orb interaction</div>
+            <div class="chip">Non-generic map flow</div>
+          </div>
+
+          <div class="footnote">
+            The concept intentionally avoids Google Maps and Yelp patterns. Discovery feels editorial, recommendations
+            feel personal, and the visual rhythm changes from section to section so the app never looks like a repeated
+            list of plain cards.
+          </div>
+        </aside>
+
+        <div class="artboard">
+          <section class="system-panel">
+            <div class="system-panel-header">
+              <div>
+                <div class="eyebrow">Design system</div>
+                <p>Core palette and typography direction for the Khojlo luxury light theme.</p>
+              </div>
+            </div>
+            <div class="swatches">
+              <div class="swatch cream">
+                <small>Cream</small>
+                <code>#FBF6EE</code>
+              </div>
+              <div class="swatch gold">
+                <small>Gold</small>
+                <code>#E3A73D</code>
+              </div>
+              <div class="swatch emerald">
+                <small>Emerald</small>
+                <code>#1D6D5A</code>
+              </div>
+              <div class="swatch plum">
+                <small>Plum</small>
+                <code>#7A3350</code>
+              </div>
+              <div class="swatch coral">
+                <small>Coral</small>
+                <code>#F2C9C1</code>
+              </div>
+            </div>
+          </section>
+
+          <section class="phone-grid">
+            <article class="phone">
+              <div class="screen">
+                <div class="statusbar">
+                  <span>9:41</span>
+                  <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+                <div class="notch"></div>
+                <div class="screen-content">
+                  <div class="screen-label">
+                    <span>Screen 01</span>
+                    <strong>Home Discovery</strong>
+                  </div>
+
+                  <div class="home-greeting">
+                    <small>Good evening, Nouman</small>
+                    <h2>Find something worth leaving home for.</h2>
+                  </div>
+
+                  <div class="search-shell">
+                    <div class="search-icon">⌕</div>
+                    <div class="search-copy">
+                      <small>Khojlo AI Search</small>
+                      <span class="search-rotator" data-terms='["Search cafés…","Search gyms…","Search dentists…","Search hidden gems…","Search new businesses…"]'>Search cafés…</span>
+                    </div>
+                    <div class="circle-button">✦</div>
+                  </div>
+
+                  <div class="filter-pills">
+                    <div class="story-pill active">Trending tonight</div>
+                    <div class="story-pill">Picked for you</div>
+                    <div class="story-pill">Perfect for students</div>
+                  </div>
+
+                  <div class="section-title">
+                    <h3>Worth exploring</h3>
+                    <span>live now</span>
+                  </div>
+
+                  <div class="mosaic">
+                    <div class="hero-card">
+                      <div class="save-dot">♡</div>
+                      <small>Hidden gem</small>
+                      <h4>Moonwake Café</h4>
+                      <p>Quiet garden seating, slow coffee, and a new student tasting menu.</p>
+                    </div>
+                    <div class="mini-stack">
+                      <div class="mini-card">
+                        <small>New business</small>
+                        <strong>Atelier Bloom</strong>
+                        <p>Floral workshops 0.9 km away.</p>
+                      </div>
+                      <div class="mini-card">
+                        <small>Special offer</small>
+                        <strong>20% off first visit</strong>
+                        <p>Valid until 10:00 pm tonight.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="section-title">
+                    <h3>Hidden Gems Near You</h3>
+                    <span>dynamic feed</span>
+                  </div>
+
+                  <div class="vertical-feed">
+                    <div class="floating-card">
+                      <div class="card-cover">
+                        <div class="badge-row">
+                          <div class="badge">Trending</div>
+                          <div class="badge">4.9 rating</div>
+                        </div>
+                      </div>
+                      <h4>Velvet Roast</h4>
+                      <p style="margin: 8px 0 0; font-size: 0.8rem; color: rgba(43, 38, 32, 0.68)">
+                        Artisan coffee bar with calm music, quick seating, and late-night study tables.
+                      </p>
+                      <div class="card-footer">
+                        <div class="meta">PKR 650 avg · 1.2 km · Open</div>
+                        <div class="circle-button">↗</div>
+                      </div>
+                    </div>
+
+                    <div class="offer-card">
+                      <small>Inspired by your interests</small>
+                      <h4 style="margin-top: 8px; font-size: 1rem">Because you like cafés and calm spaces</h4>
+                      <p style="margin: 8px 0 0; font-size: 0.78rem; line-height: 1.55; color: rgba(43, 38, 32, 0.66)">
+                        A recommendation lane blending ambiance, price comfort, and distance instead of generic star sorting.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dock">
+                  <div class="nav-icon active">⌂</div>
+                  <div class="nav-icon">⌕</div>
+                  <div class="nav-icon">⌖</div>
+                  <div class="nav-icon">☰</div>
+                </div>
+                <div class="dock-center" aria-hidden="true"></div>
+              </div>
+            </article>
+
+            <article class="phone">
+              <div class="screen">
+                <div class="statusbar">
+                  <span>9:41</span>
+                  <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+                <div class="notch"></div>
+                <div class="screen-content">
+                  <div class="screen-label">
+                    <span>Screen 02</span>
+                    <strong>Map Discovery</strong>
+                  </div>
+
+                  <div class="section-title" style="margin-top: 6px">
+                    <h3>Trending around Abbottabad</h3>
+                    <span>list + map</span>
+                  </div>
+
+                  <div class="map-panel glass-card">
+                    <div class="map-badge">Nearby pulse · 12 live spots</div>
+                    <div class="map-river"></div>
+                    <div class="map-road one"></div>
+                    <div class="map-road two"></div>
+                    <div class="pin one"><span>☕</span></div>
+                    <div class="pin two"><span>✦</span></div>
+                    <div class="pin three"><span>♨</span></div>
+                    <div class="map-preview glass-card">
+                      <small style="display: block; color: rgba(43, 38, 32, 0.5)">Business preview</small>
+                      <h4 style="margin-top: 8px; font-size: 1.02rem">Saffron Yard</h4>
+                      <p style="margin: 6px 0 0; font-size: 0.76rem; color: rgba(43, 38, 32, 0.68)">
+                        Hidden-gem restaurant with rooftop seating, glowing reviews, and student dinner bundles.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="filter-pills" style="margin-top: 18px">
+                    <div class="category-chip active">Worth exploring</div>
+                    <div class="category-chip">Open now</div>
+                    <div class="category-chip">Under PKR 1000</div>
+                  </div>
+
+                  <div class="section-title">
+                    <h3>Picked For You</h3>
+                    <span>swipe cards</span>
+                  </div>
+
+                  <div class="floating-card">
+                    <div class="card-cover alt">
+                      <div class="badge-row">
+                        <div class="badge">New</div>
+                        <div class="badge">Offer live</div>
+                      </div>
+                    </div>
+                    <h4>Studio Ember</h4>
+                    <p style="margin: 8px 0 0; font-size: 0.8rem; color: rgba(43, 38, 32, 0.66)">
+                      Modern salon with premium lighting, easy chat booking, and a polished student package.
+                    </p>
+                    <div class="card-footer">
+                      <div class="meta">1.8 km · 4.8 vibe · Saves time</div>
+                      <div class="circle-button">♡</div>
+                    </div>
+                  </div>
+
+                  <div class="offer-card" style="margin-top: 14px">
+                    <small>Trending tonight</small>
+                    <h4 style="margin-top: 8px; font-size: 1rem">A smoother map experience</h4>
+                    <p style="margin: 8px 0 0; font-size: 0.78rem; line-height: 1.55; color: rgba(43, 38, 32, 0.66)">
+                      Pins reveal floating previews directly in context, so users stay in discovery mode instead of being dropped into a utilitarian map.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="dock">
+                  <div class="nav-icon">⌂</div>
+                  <div class="nav-icon">⌕</div>
+                  <div class="nav-icon active">⌖</div>
+                  <div class="nav-icon">☰</div>
+                </div>
+                <div class="dock-center" aria-hidden="true"></div>
+              </div>
+            </article>
+
+            <article class="phone">
+              <div class="screen">
+                <div class="statusbar">
+                  <span>9:41</span>
+                  <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+                <div class="notch"></div>
+                <div class="screen-content">
+                  <div class="screen-label">
+                    <span>Screen 03</span>
+                    <strong>Business Detail</strong>
+                  </div>
+
+                  <div class="detail-hero"></div>
+
+                  <div class="detail-sheet">
+                    <small style="display: block; color: rgba(43, 38, 32, 0.5)">Cafe · Story-rich profile</small>
+                    <h2 style="font-size: 1.5rem; margin-top: 8px">Moonwake Café</h2>
+                    <p style="margin: 8px 0 0; font-size: 0.8rem; line-height: 1.58; color: rgba(43, 38, 32, 0.68)">
+                      A calm, design-forward café blending slow coffee, evening desserts, and a friendly study atmosphere.
+                    </p>
+
+                    <div class="detail-actions">
+                      <div class="action-pill">Call</div>
+                      <div class="action-pill">Directions</div>
+                      <div class="action-pill">Chat</div>
+                      <div class="action-pill">Share</div>
+                    </div>
+
+                    <div class="detail-rating">
+                      <div class="score-ring">4.9</div>
+                      <div>
+                        <small>Review snapshot</small>
+                        <h4 style="font-size: 1rem; margin-top: 6px">Loved for ambiance and value</h4>
+                        <p style="margin: 6px 0 0; font-size: 0.78rem; color: rgba(43, 38, 32, 0.66)">
+                          “Quiet corners, elegant interiors, and one of the best student-friendly menus nearby.”
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="review-highlight glass-card">
+                      <small>Special offers</small>
+                      <div class="review-row">
+                        <div>
+                          <strong style="display: block; margin-bottom: 6px">Buy 1 dessert, get 1 iced latte</strong>
+                          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; color: rgba(43, 38, 32, 0.58)">
+                            Ends in 03:21:14
+                          </span>
+                        </div>
+                        <div class="circle-button">⚑</div>
+                      </div>
+                    </div>
+
+                    <div class="review-highlight glass-card">
+                      <small>Business story</small>
+                      <p style="margin: 10px 0 0; font-size: 0.8rem; line-height: 1.6; color: rgba(43, 38, 32, 0.68)">
+                        Built by two siblings who wanted a warmer late-night café for students, local artists, and quiet meetups.
+                      </p>
+                      <div class="reaction-row">
+                        <div class="reaction">❤ 126</div>
+                        <div class="reaction">Helpful 48</div>
+                        <div class="reaction">Photos 22</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dock">
+                  <div class="nav-icon">⌂</div>
+                  <div class="nav-icon active">♡</div>
+                  <div class="nav-icon">⌖</div>
+                  <div class="nav-icon">☰</div>
+                </div>
+                <div class="dock-center" aria-hidden="true"></div>
+              </div>
+            </article>
+
+            <article class="phone">
+              <div class="screen">
+                <div class="statusbar">
+                  <span>9:41</span>
+                  <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+                <div class="notch"></div>
+                <div class="screen-content">
+                  <div class="screen-label">
+                    <span>Screen 04</span>
+                    <strong>AI Concierge</strong>
+                  </div>
+
+                  <div class="orb-stage glass-card">
+                    <div class="orb" aria-hidden="true"></div>
+                  </div>
+
+                  <div class="message-list">
+                    <div class="message ai">
+                      <small style="display: block; color: rgba(43, 38, 32, 0.5)">Khojlo AI</small>
+                      <p style="margin: 8px 0 0; font-size: 0.82rem; line-height: 1.6">
+                        I found three quiet cafés near you with late-night seating, strong reviews, and offers under your preferred budget.
+                      </p>
+                    </div>
+
+                    <div class="message user">
+                      <small style="display: block; opacity: 0.8">You</small>
+                      <p style="margin: 8px 0 0; font-size: 0.82rem; line-height: 1.6">
+                        Show me the one with the best atmosphere for studying and easy parking.
+                      </p>
+                    </div>
+
+                    <div class="message ai">
+                      <small style="display: block; color: rgba(43, 38, 32, 0.5)">Khojlo AI</small>
+                      <p style="margin: 8px 0 0; font-size: 0.82rem; line-height: 1.6">
+                        Moonwake Café fits best. It has a calmer crowd after 7 pm, quiet corners, and parking right behind the building.
+                      </p>
+                      <div class="typing" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="quick-replies">
+                    <div class="category-chip active">Compare with another café</div>
+                    <div class="category-chip">Ask about offers</div>
+                    <div class="category-chip">Open map preview</div>
+                  </div>
+
+                  <div class="compose">
+                    <div class="circle-button">＋</div>
+                    <div class="compose-input">Ask Khojlo anything about local spots…</div>
+                    <div class="send-button">➜</div>
+                  </div>
+                </div>
+
+                <div class="dock">
+                  <div class="nav-icon">⌂</div>
+                  <div class="nav-icon">⌕</div>
+                  <div class="nav-icon">⌖</div>
+                  <div class="nav-icon active">✦</div>
+                </div>
+                <div class="dock-center" aria-hidden="true"></div>
+              </div>
+            </article>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      document.querySelectorAll("[data-terms]").forEach((node) => {
+        const terms = JSON.parse(node.dataset.terms);
+        let index = 0;
+
+        setInterval(() => {
+          node.classList.add("fade");
+          setTimeout(() => {
+            index = (index + 1) % terms.length;
+            node.textContent = terms[index];
+            node.classList.remove("fade");
+          }, 220);
+        }, 2400);
+      });
+    </script>
+  </body>
+</html>
