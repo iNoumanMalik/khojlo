@@ -2,31 +2,32 @@
 
 An AI‑powered platform to discover, promote, and connect local businesses and customers.
 Khojlo surfaces the new, the unusual and the underrated — before everyone else finds them.
-This repository is the **30% evaluation build** of the Final Year Project.
+This repository is working towards the **60% evaluation** of the Final Year Project.
 
 - **Frontend:** Flutter + Riverpod (`frontend/`)
 - **Backend:** FastAPI + PostgreSQL (`backend/`)
-- **Design source of truth:** `docs/Khojlo App.dc.html` (Claude Design bundle → 19 iOS screens)
+- **Design source of truth:** `docs/design/Khojlo App.dc.html` (Claude Design bundle → 19 iOS screens)
+- **Documentation:** `docs/README.md` (requirements, design, roadmap and module records)
 
-## Scope (30% evaluation)
+## Scope
 
-Per `docs/development_roadmap/implementation_plan.md`, Modules 1–3 were built **production‑ready**
-(full frontend + backend + validation + state + DB) for the 30% evaluation, and Module 4 has since
-joined them (see `docs/development_roadmap/module4_search_filter_compare_plan.md`). The rest are
-**high‑fidelity prototypes** (UI‑complete, navigable, mock data).
+Per `docs/development_roadmap/implementation_plan.md`, Modules 1–4 were built **production‑ready**
+(full frontend + backend + validation + state + DB) for the 30% evaluation, and Modules 5 and 6
+followed for the 60% evaluation. The rest are **high‑fidelity prototypes** (UI‑complete, navigable,
+mock data) until their phase.
 
 | Module | Status |
 | --- | --- |
 | 1. User Authentication & Profile | ✅ Production (Flutter + FastAPI + Postgres) |
 | 2. Business Registration & Management | ✅ Production |
-| 3. Business Discovery Feed (no push) | ✅ Production |
+| 3. Business Discovery Feed | ✅ Production · 🔨 push notifications (60%) |
 | 4. Search / Filter / Compare | ✅ Production |
-| 5. Reviews & Ratings | 🎨 Prototype |
-| 6. Maps & Location | 🎨 Prototype |
-| 7. AI Chatbot (Kai) | 🎨 Prototype |
-| 8. Admin & Moderation | 🎨 Prototype |
-| 9. Chat & Messaging | 🎨 Prototype |
-| 10. AI Personalization | 🎨 Folded into Home + prototypes |
+| 5. Reviews & Ratings | ✅ Production |
+| 6. Maps & Location | ✅ Production |
+| 7. AI Chatbot (Kai) | 🎨 Prototype (100%) |
+| 8. Admin & Moderation | 🎨 Prototype · planned for 60% |
+| 9. Chat & Messaging | 🎨 Prototype · 🔨 in progress (60%) |
+| 10. AI Personalization | 🎨 Folded into Home + prototypes (100%) |
 
 ## Design system
 
