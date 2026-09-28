@@ -1,7 +1,6 @@
 import '../../core/models/business.dart';
 
-/// Static mock content for the high-fidelity prototype screens (Modules 4–10).
-/// These screens are UI-complete but not wired to the backend at the 30% stage.
+/// Static mock content for the remaining prototype screens (Modules 7, 8, 10).
 class Mock {
   Mock._();
 
@@ -45,20 +44,5 @@ class Mock {
         isVerified: true,
         categoryName: 'Restaurants',
         distanceKm: 1.1),
-  ];
-
-  static const conversations = <({String name, String tone, String last, String time, bool unread})>[
-    (name: 'Glow Studio', tone: 'coral', last: 'Your appointment is booked for Saturday.', time: '2m', unread: true),
-    (name: 'Brew & Bloom', tone: 'emerald', last: 'We just dropped a new single-origin!', time: '1h', unread: true),
-    (name: 'Forno Italiano', tone: 'gold', last: 'Thanks for stopping by — see you soon.', time: '3h', unread: false),
-    (name: 'Pixel Arena', tone: 'ink', last: 'Tournament slots are open for Friday night.', time: '1d', unread: false),
-  ];
-  static const notificationsToday = <({String icon, String title, String body, String tone})>[
-    (icon: 'offer', title: 'New offer near you', body: 'Brew & Bloom: buy one, plant one — free seedling.', tone: 'gold'),
-    (icon: 'trending', title: 'Trending tonight', body: 'Forno Italiano is trending in Restaurants.', tone: 'gold'),
-  ];
-  static const notificationsEarlier = <({String icon, String title, String body, String tone})>[
-    (icon: 'message', title: 'Forno Italiano replied', body: '“Thanks for stopping by — see you soon.”', tone: 'emerald'),
-    (icon: 'ai', title: 'Kai found 3 new spots', body: 'Because you like quiet cafés.', tone: 'emerald'),
   ];
 }

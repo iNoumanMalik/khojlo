@@ -13,6 +13,7 @@ class BusinessAnalytics {
     required this.profileViews,
     required this.saves,
     required this.messages,
+    this.unreadMessages = 0,
     required this.rating,
     required this.reviewCount,
     required this.weeklyViews,
@@ -21,7 +22,9 @@ class BusinessAnalytics {
   final int businessId;
   final int profileViews;
   final int saves;
+  /// Customer messages received in the last 7 days, and how many are unread.
   final int messages;
+  final int unreadMessages;
   final double rating;
   final int reviewCount;
   final List<WeeklyPoint> weeklyViews;
@@ -31,6 +34,7 @@ class BusinessAnalytics {
         profileViews: j['profile_views'] as int,
         saves: j['saves'] as int,
         messages: j['messages'] as int,
+        unreadMessages: j['unread_messages'] as int? ?? 0,
         rating: (j['rating'] as num).toDouble(),
         reviewCount: j['review_count'] as int,
         weeklyViews: (j['weekly_views'] as List)

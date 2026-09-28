@@ -7,6 +7,7 @@ import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../notifications/notifications_providers.dart';
 import '../../reviews/presentation/business_reviews_section.dart';
 import '../../reviews/reviews_providers.dart';
 import '../business_providers.dart';
@@ -60,6 +61,7 @@ class DashboardScreen extends ConsumerWidget {
                 GlassIconButton(
                     icon: Icons.notifications_none_rounded,
                     size: 38,
+                    showDot: ref.watch(unreadNotificationsProvider) > 0,
                     onTap: () => context.push('/notifications')),
               ],
             ),
@@ -110,10 +112,15 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           Row(children: [
             Expanded(
-                child: StatCard(
-                    label: 'Messages',
-                    value: '${a.messages}',
-                    trend: 'new')),
+                child: GestureDetector(
+                    // Customers' messages to all your businesses are in the Chat tab.
+                    onTap: () => context.go('/chat'),
+                    child: StatCard(
+                        label: 'Messages',
+                        value: '${a.messages}',
+                        trend: a.unreadMessages > 0
+                            ? '${a.unreadMessages} unread'
+                            : 'this week'))),
             const SizedBox(width: 10),
             Expanded(
                 child: GestureDetector(

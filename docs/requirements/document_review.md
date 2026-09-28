@@ -10,7 +10,7 @@ The documents describe the intended system, not necessarily what's built. Where 
 - ✅ Fixed in the repository.
 - 📝 Change it in the Word file before exporting the next PDF.
 - ❓ Needs a decision from the team or the module's owner.
-- 🔜 Will be fixed by the Module 9 and push notification plan.
+- 🔜 Will be fixed by the Module 9 and push notification plan (now done: see D3 and D4).
 
 ---
 
@@ -68,8 +68,8 @@ The Module 5 record reported that the UC-7 table in `SRS.pdf` is misaligned. It 
 |---|---|---|
 | D1 | 📝 Cover says "KOJLO"; revision history is empty. | "Khojlo"; fill in the history. |
 | D2 | 📝 Table of contents omits 5.1 (Database / Data Storage) and 8.2 (Screen objects and actions); "3.1Architectural" is missing a space. | Update the field in Word. |
-| D3 | 🔜 Architecture (3.1, Figure 3.1) and data design (5) mention only REST and have no push notification service. | Add Firebase Cloud Messaging as an external service and a real-time channel for chat. |
-| D4 | 🔜 Chat design is incomplete. There is no Conversation, Notification or device token entity. The data dictionary's Message has only content, sentAt and isRead, while the ER diagram's MESSAGE has sender, receiver and business. The class diagram's `BusinessOwner.sendMessageToUser()` doesn't match the dictionary's `replyMessage()`. | Replaced by the Module 9 design. |
+| D3 | 📝 Architecture (3.1, Figure 3.1) and data design (5) mention only REST and have no push notification service. | Ready-to-paste text and diagram changes are in `development_roadmap/module9_chat_and_push_plan.md` → "SDD additions". |
+| D4 | 📝 Chat design is incomplete. There is no Conversation, Notification or device token entity. The data dictionary's Message has only content, sentAt and isRead, while the ER diagram's MESSAGE has sender, receiver and business. The class diagram's `BusinessOwner.sendMessageToUser()` doesn't match the dictionary's `replyMessage()`. | Data dictionary tables, class diagram changes and Algorithms 8, 14 and 15 are in the Module 9 record → "SDD additions". |
 | D5 | 📝 IDs are UUIDs in the dictionary and ER diagram; the implementation uses integer IDs throughout. | Change the types to Integer, or add a note that the implementation uses auto-increment integers. |
 | D6 | 📝 The ER diagram (Figure 5.1) has separate ADMIN, CUSTOMER and BUSINESS_OWNER tables. The section 5 text and the implementation use one USER table with a role. | Remove the three subtype tables from the figure. |
 | D7 | 📝 The data dictionary misses implemented entities: Category, Service, OpeningHours, SavedList (named favourite lists), BusinessView (analytics), Media and BusinessPhoto, ReviewPhoto, ReviewVote, ReviewReport, SearchQuery and OtpCode. | Add them, or list them in an appendix. |
@@ -106,11 +106,11 @@ Uses the SRS v1.1 IDs. "Not yet designed" marks requirements whose design the SD
 | FR-18 | Compare Businesses | Customer | `compareBusinesses()`, Algorithm 3 |
 | FR-19 | Report Content | Not yet designed (input to Algorithm 10) | — |
 | FR-20 | Business Analytics | Not yet designed | — |
-| FR-21 | Push Notifications | Not yet designed (🔜) | — |
+| FR-21 | Push Notifications | NotificationService, PushSender (FcmSender) | `notify()`, `send()`, Algorithms 14 and 15 |
 | FR-22 | Personalized Recommendations | UserPreference | `getRecommendations()` |
-| FR-23 | Send Message to Business | Customer, Message | `sendMessage()`, Algorithm 8 |
+| FR-23 | Send Message to Business | Customer, Conversation, Message | `openConversation()`, `sendMessage()`, Algorithm 8 |
 | FR-24 | Respond to Customer Messages | BusinessOwner, Message | `replyMessage()` |
-| FR-25 | Manage Conversations | Not yet designed (🔜) | — |
+| FR-25 | Manage Conversations | Conversation | `markRead()` |
 
 ---
 

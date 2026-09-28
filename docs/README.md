@@ -5,6 +5,7 @@
 | [requirements/](requirements/) | The formal documents: Feasibility Report, SRS and SDD (PDFs as submitted), the editable SRS v1.1 and the documentation review. |
 | [design/](design/) | The visual design: the Claude Design bundle, the HTML mockup, and the design notes. |
 | [development_roadmap/](development_roadmap/) | The implementation plan for the 30%, 60% and 100% evaluations, and one plan / implementation record per module. |
+| [team_setup.md](team_setup.md) | What to share privately with a teammate after they clone the project (`.env` values, key files). |
 
 ## Which document wins
 
@@ -31,6 +32,7 @@ When two sources disagree:
 | 4. Search, Filtering and Comparison | [module4_search_filter_compare_plan.md](development_roadmap/module4_search_filter_compare_plan.md) |
 | 5. Reviews and Ratings | [module5_reviews_ratings_plan.md](development_roadmap/module5_reviews_ratings_plan.md) |
 | 6. Maps and Location | [module6_maps_location_plan.md](development_roadmap/module6_maps_location_plan.md) |
+| 9. Chat and Messaging, with push notifications (Module 3) | [module9_chat_and_push_plan.md](development_roadmap/module9_chat_and_push_plan.md) (includes the Firebase setup steps) |
 | Photos, categories, contact and profile (between Modules 4 and 5) | [polish_photos_categories_profile.md](development_roadmap/polish_photos_categories_profile.md) |
 
 Modules 1–3 were built for the 30% evaluation before module records were kept; the [implementation plan](development_roadmap/implementation_plan.md) lists what they contain.

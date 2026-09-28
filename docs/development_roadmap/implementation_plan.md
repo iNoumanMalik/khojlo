@@ -12,13 +12,13 @@ This plan reflects the implementation as of September 2026 and is aligned with t
 |---|---|---|---|---|
 | 1 | User Authentication and Profile Management | FR-1, FR-2, FR-7, FR-16, FR-17, UC-1, UC-2 | ✅ Implemented | 30% |
 | 2 | Business Registration and Management | FR-8, FR-9, FR-10, FR-20, UC-10, UC-11 | ✅ Implemented (offers need rework, see Phase 2) | 30% |
-| 3 | Business Discovery Feed (New & Trending) | FR-5, FR-11, FR-21, UC-3, UC-6, UC-15 | ✅ Implemented · 🔨 push notifications in progress | 30% (push: 60%) |
+| 3 | Business Discovery Feed (New & Trending) | FR-5, FR-11, FR-21, UC-3, UC-6, UC-15 | ✅ Implemented, including push notifications (see `module9_chat_and_push_plan.md`) | 30% (push: 60%) |
 | 4 | Search, Filtering, and Comparison System | FR-3, FR-4, FR-18, UC-4, UC-5 | ✅ Implemented (see `module4_search_filter_compare_plan.md`) | 30% |
 | 5 | Reviews and Ratings System | FR-6, FR-19, UC-7, REL-4 | ✅ Implemented (see `module5_reviews_ratings_plan.md`) | 60% |
 | 6 | Maps and Location Integration | FR-12, UC-9 | ✅ Implemented (see `module6_maps_location_plan.md`) | 60% |
 | 7 | AI Chatbot Assistance (RAG) | FR-13, UC-8, USE-5, PER-4 | 🎨 Prototype | 100% |
 | 8 | Admin and Moderation System | FR-14, FR-15, UC-12, SEC-2, SEC-3 | 🎨 Prototype | 60% |
-| 9 | Chat and Messaging System | FR-23, FR-24, FR-25, UC-13, UC-14 | 🎨 Prototype · 🔨 in progress | 60% |
+| 9 | Chat and Messaging System | FR-23, FR-24, FR-25, UC-13, UC-14 | ✅ Implemented (see `module9_chat_and_push_plan.md`) | 60% |
 | 10 | AI Personalization and Recommendation | FR-22 | 🟡 Basic version in the feed | 100% |
 
 ---
@@ -115,8 +115,8 @@ The 60% scope is the second-iteration slide shown to the committee:
 | Admin moderation panel | 8 | 🎨 Prototype, to build |
 | Google Maps and location services | 6 | ✅ Implemented |
 | Offers and promotional campaigns | 2 | 🟡 Basic offers exist; owner and scope to decide |
-| Push notification system | 3 | 🔨 In progress |
-| Chat and messaging system | 9 | 🔨 In progress |
+| Push notification system | 3 | ✅ Implemented (Firebase keys: manual setup) |
+| Chat and messaging system | 9 | ✅ Implemented |
 
 **Module 6: Maps and Location Integration** (FR-12, UC-9) ✅ Implemented
 
@@ -148,18 +148,19 @@ The 60% scope is the second-iteration slide shown to the committee:
 * Missing compared with the SDD: offer description, discount, and real dates with validation (UC-11 "invalid dates", Algorithm 6)
 * "Campaigns" still needs defining. Telling users about new offers is covered by push notifications (FR-21)
 
-**Push Notification System** (Module 3: FR-21, UC-15)
+**Push Notification System** (Module 3: FR-21, UC-15) ✅ Implemented (see `module9_chat_and_push_plan.md`)
 
-* Firebase Cloud Messaging on Android and web
-* Notifications for newly added businesses, trending listings, promotional offers and new chat messages
-* An in-app notification list, replacing the prototype screen
-* Detailed plan: to follow, with Module 9
+* Firebase Cloud Messaging on Android and web, sent from the backend through the FCM HTTP v1 API. Push switches off cleanly without the Firebase keys, which are a manual setup step
+* Notifications for new chat messages (when the recipient isn't in the app), new reviews (to the owner), replies to reviews, new offers (to people who saved the business), new businesses (to users interested in the category), and a trending digest (`python -m app.jobs.trending_digest`)
+* The real Notifications screen (grouped timeline, mark read, tap to open) and per-type notification settings
+* Tapping a notification opens its screen; a push arriving while the app is open shows a banner
 
-**Module 9: Chat and Messaging System** (FR-23, FR-24, FR-25, UC-13, UC-14)
+**Module 9: Chat and Messaging System** (FR-23, FR-24, FR-25, UC-13, UC-14) ✅ Implemented (see `module9_chat_and_push_plan.md`)
 
-* Real-time messaging between customers and business owners
-* Conversation list, unread counts, and "Message" from the business page
-* Message counts added to business analytics
+* Customers message a business from its page; the owner replies. One conversation per customer and business, visible only to the two of them
+* Live delivery over a WebSocket (about 20 ms on a local server), with polling when the connection drops
+* Conversation list with unread counts and a Chat tab badge, "Seen" receipts, a typing indicator, photos, suggested replies, the business's offers, and reporting a conversation for Module 8
+* Customer message counts (this week and unread) in the owner's dashboard
 
 **General**
 

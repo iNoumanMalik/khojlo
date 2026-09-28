@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/chat/chat_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/widgets.dart';
 
 /// Hosts the five primary tabs with the floating glass dock overlaid, plus a
 /// "Surprise Me" shuffle FAB on the Home tab.
-class ShellScaffold extends StatelessWidget {
+class ShellScaffold extends ConsumerWidget {
   const ShellScaffold({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
+  /// The Chat tab's position in the dock.
+  static const chatTab = 3;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final index = navigationShell.currentIndex;
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -47,6 +52,7 @@ class ShellScaffold extends StatelessWidget {
           : null,
       bottomNavigationBar: FloatingTabBar(
         currentIndex: index,
+        badges: {chatTab: ref.watch(unreadMessagesProvider)},
         onTap: (i) => navigationShell.goBranch(
           i,
           initialLocation: i == navigationShell.currentIndex,

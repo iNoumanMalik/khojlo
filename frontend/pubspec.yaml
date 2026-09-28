@@ -48,6 +48,12 @@ dependencies:
   # web-only: loads the Google Maps JavaScript API with the key from --dart-define
   web: ^1.1.1
 
+  # Module 9: live chat over a WebSocket
+  web_socket_channel: ^3.0.3
+  # push notifications (Firebase Cloud Messaging; Android + web)
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

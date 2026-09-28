@@ -14,3 +14,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 /// Convenience accessor for the raw Dio instance.
 final dioProvider = Provider<Dio>((ref) => ref.watch(apiClientProvider).dio);
+
+/// Bumped each time the app comes back to the foreground, so screens can catch
+/// up on anything that happened meanwhile (unread counts, new messages).
+final appResumedProvider = StateProvider<int>((ref) => 0);

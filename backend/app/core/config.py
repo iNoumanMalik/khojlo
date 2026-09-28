@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     GEOCODING_REGION: str = "pk"
     GEOCODING_LANGUAGE: str = "en"
 
-    # ── Firebase / FCM push (future — optional) ──
+    # ── Push notifications: Firebase Cloud Messaging (optional; off when unset) ──
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None
     FIREBASE_PROJECT_ID: str | None = None
     FIREBASE_CLIENT_EMAIL: str | None = None

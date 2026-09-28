@@ -309,7 +309,7 @@ Use cases describe the interactions between the actors and the Khojlo system to 
 | Normal Flow | 1. Open business profile<br>2. Select Message<br>3. Type message<br>4. Send<br>5. Store message<br>6. Deliver to the owner |
 | Alternative Flows | Continue an existing conversation from the Chat tab |
 | Exceptions | Empty or too-long message; message not sent (retry) |
-| Business Rules | Only the conversation's participants can read it (BR-15) |
+| Business Rules | Only the conversation's participants can read it (BR-15); a business owner can't message their own business |
 | Assumptions | Internet available |
 
 **Table 3.1.14 (v1.1)**
