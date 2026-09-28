@@ -32,7 +32,7 @@ When two sources disagree:
 | 4. Search, Filtering and Comparison | [module4_search_filter_compare_plan.md](development_roadmap/module4_search_filter_compare_plan.md) |
 | 5. Reviews and Ratings | [module5_reviews_ratings_plan.md](development_roadmap/module5_reviews_ratings_plan.md) |
 | 6. Maps and Location | [module6_maps_location_plan.md](development_roadmap/module6_maps_location_plan.md) |
-| 9. Chat and Messaging, with push notifications (Module 3) | [module9_chat_and_push_plan.md](development_roadmap/module9_chat_and_push_plan.md) (includes the Firebase setup steps) |
+| 9. Chat and Messaging, with push notifications (Module 3) | [module9_chat_and_push_plan.md](development_roadmap/module9_chat_and_push_plan.md) (includes the Firebase setup steps) · how it works: [module9_how_it_works.md](development_roadmap/module9_how_it_works.md) |
 | Photos, categories, contact and profile (between Modules 4 and 5) | [polish_photos_categories_profile.md](development_roadmap/polish_photos_categories_profile.md) |
 
 Modules 1–3 were built for the 30% evaluation before module records were kept; the [implementation plan](development_roadmap/implementation_plan.md) lists what they contain.
