@@ -17,10 +17,14 @@ class FloatingTabBar extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.badges = const {},
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// Unread counts shown on tabs, by index (e.g. messages on Chat).
+  final Map<int, int> badges;
 
   static const items = <TabItem>[
     TabItem('Home', Icons.circle_outlined),
@@ -58,11 +62,35 @@ class FloatingTabBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedScale(
-            scale: selected ? 1.15 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutBack,
-            child: Icon(items[i].icon, size: 20, color: color),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AnimatedScale(
+                scale: selected ? 1.15 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutBack,
+                child: Icon(items[i].icon, size: 20, color: color),
+              ),
+              if ((badges[i] ?? 0) > 0)
+                Positioned(
+                  top: -6,
+                  right: -10,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 16),
+                    height: 16,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.plum,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Text(badges[i]! > 99 ? '99+' : '${badges[i]}',
+                        style: AppType.sans(
+                            size: 9, weight: FontWeight.w700, color: Colors.white)),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(

@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/models/user.dart';
 import '../../core/network/api_client.dart';
+import '../notifications/push_controller.dart';
 import 'data/auth_repository.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
@@ -44,13 +45,20 @@ class AuthState {
 
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref.watch(authRepositoryProvider))..bootstrap();
+  return AuthController(
+    ref.watch(authRepositoryProvider),
+    // While still signed in: stop push notifications to this device.
+    beforeLogout: () => ref.read(pushControllerProvider.notifier).unregister(),
+  )..bootstrap();
 });
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController(this._repo) : super(const AuthState());
+  AuthController(this._repo, {Future<void> Function()? beforeLogout})
+      : _beforeLogout = beforeLogout,
+        super(const AuthState());
 
   final AuthRepository _repo;
+  final Future<void> Function()? _beforeLogout;
 
   /// Restore a session from a stored token on launch.
   Future<void> bootstrap() async {
@@ -182,6 +190,9 @@ class AuthController extends StateNotifier<AuthState> {
       a.length == b.length && a.toSet().containsAll(b);
 
   Future<void> logout() async {
+    try {
+      await _beforeLogout?.call();
+    } catch (_) {/* never block signing out */}
     await _repo.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

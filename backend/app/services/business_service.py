@@ -153,11 +153,15 @@ def build_analytics(db: Session, business: BusinessProfile) -> BusinessAnalytics
         pattern = [4, 5, 5, 7, 6, 9, 8]
         weekly = [WeeklyPoint(label=_DAY_LABELS[d], value=base * pattern[d]) for d in range(7)]
 
+    from app.services.chat_service import business_message_counts  # avoids an import cycle
+
+    messages, unread_messages = business_message_counts(db, business.id)
     return BusinessAnalytics(
         business_id=business.id,
         profile_views=business.view_count,
         saves=business.save_count,
-        messages=0,
+        messages=messages,
+        unread_messages=unread_messages,
         rating=business.rating,
         review_count=business.review_count,
         weekly_views=weekly,

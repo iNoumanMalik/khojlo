@@ -15,7 +15,9 @@ save, or a business that isn't one of the demo owner's catalogue businesses. It:
 * adds demo reviewer accounts and their reviews (with owner replies and helpful votes) to
   catalogue businesses that have none from them yet;
 * recalculates every business's rating and review count from its real reviews (SDD
-  Algorithm 7), so no made-up totals remain.
+  Algorithm 7), so no made-up totals remain;
+* adds demo chat conversations between the demo customer and three catalogue businesses
+  (Module 9), and a few Notifications-list entries for the demo customer, where none exist.
 
 The catalogue is deliberately varied so Module 4 search, filters and comparison have
 something to work with: several Islamabad areas plus Abbottabad (the four tailors mirror
@@ -44,7 +46,9 @@ from app.models.business import (
     OpeningHours,
     Service,
 )
+from app.models.chat import Conversation, ConversationReport, Message
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
+from app.models.notification import DeviceToken, Notification, NotificationKind
 from app.models.review import Review, ReviewPhoto, ReviewReport, ReviewVote
 from app.models.search import SearchQuery
 from app.models.user import User, UserRole
@@ -378,6 +382,36 @@ SEARCH_HISTORY = [
 # Recent searches for the demo customer, oldest first.
 CUSTOMER_SEARCHES = ["late-night ramen", "unstitched fabric", "quiet cafés"]
 
+# Module 9 demo chats with the demo customer: business → [(sent by the business?, text,
+# minutes ago)]. The owner hasn't read Forno Italiano's last message and the customer
+# hasn't read Glow Studio's reply, so both sides see an unread badge.
+CONVERSATIONS = {
+    "Brew & Bloom": [
+        (False, "Hi! Do you have oat milk?", 185),
+        (True, "Yes, oat and almond, at no extra charge 🌿", 180),
+        (False, "Perfect, see you on Saturday.", 176),
+    ],
+    "Forno Italiano": [
+        (False, "Do you take table bookings for 6 on Friday night?", 64),
+        (True, "We do! Would you like the terrace or indoors?", 58),
+        (False, "Terrace, please. Around 8 PM.", 12),
+    ],
+    "Glow Studio": [
+        (False, "How long does the signature facial take?", 1500),
+        (True, "About 60 minutes. Weekday mornings are quietest if you'd like a slot.", 1440),
+    ],
+}
+CONVERSATIONS_UNREAD_BY_OWNER = {"Forno Italiano"}
+CONVERSATIONS_UNREAD_BY_CUSTOMER = {"Glow Studio"}
+
+# The demo customer's Notifications list: (kind, business, title, body, hours ago, read).
+CUSTOMER_NOTIFICATIONS = [
+    (NotificationKind.offer, "Forno Italiano", "New offer at Forno Italiano",
+     "Family pizza night — 25% off", 2, False),
+    (NotificationKind.trending, "Brew & Bloom", "Trending in Cafés",
+     "Brew & Bloom is popular this week", 26, True),
+]
+
 
 @dataclass
 class SeedReport:
@@ -388,19 +422,23 @@ class SeedReport:
     offers_added: int = 0
     reviews_added: int = 0
     searches_added: int = 0
+    conversations_added: int = 0
+    notifications_added: int = 0
 
     def __str__(self) -> str:
         return (
             f"Businesses: {self.businesses_added} added, {self.businesses_refreshed} refreshed. "
             f"Also added {self.categories_added} categories, {self.users_added} demo accounts, "
             f"{self.offers_added} offers, {self.reviews_added} reviews, "
-            f"{self.searches_added} searches."
+            f"{self.searches_added} searches, {self.conversations_added} conversations, "
+            f"{self.notifications_added} notifications."
         )
 
 
 def reset(db: Session) -> None:
     """Delete every user, business and search. Never run this on a shared database."""
     for model in (
+        Notification, DeviceToken, ConversationReport, Message, Conversation,
         SearchQuery, BusinessView, SavedBusiness, SavedList, ReviewReport, ReviewVote,
         ReviewPhoto, Review, Offer, Service,
         OpeningHours, BusinessProfile, Category,
@@ -640,6 +678,57 @@ def _add_search_history(db: Session, customer: User, now: datetime, report: Seed
             report.searches_added += 1
 
 
+def _add_conversations(db: Session, customer: User, biz: dict[str, BusinessProfile],
+                       now: datetime, report: SeedReport) -> None:
+    """Demo chats (Module 9), only with businesses the customer hasn't talked to yet."""
+    for name, lines in CONVERSATIONS.items():
+        b = biz[name]
+        exists = select(Conversation.id).where(Conversation.customer_id == customer.id,
+                                               Conversation.business_id == b.id)
+        if db.scalar(exists) is not None:
+            continue
+        conversation = Conversation(customer_id=customer.id, business_id=b.id,
+                                    created_at=now - timedelta(minutes=lines[0][2]))
+        db.add(conversation)
+        db.flush()
+        sent = []
+        for from_business, text, minutes_ago in lines:
+            message = Message(conversation_id=conversation.id,
+                              sender_id=b.owner_id if from_business else customer.id,
+                              from_business=from_business, body=text,
+                              created_at=now - timedelta(minutes=minutes_ago))
+            db.add(message)
+            db.flush()
+            sent.append(message)
+        conversation.last_message_at = sent[-1].created_at
+
+        def last_read(read_all: bool, by_business: bool) -> int | None:
+            if read_all:
+                return sent[-1].id
+            own = [m.id for m in sent if m.from_business == by_business]
+            return own[-1] if own else None  # read up to their own last message
+
+        conversation.business_last_read_id = last_read(
+            name not in CONVERSATIONS_UNREAD_BY_OWNER, by_business=True)
+        conversation.customer_last_read_id = last_read(
+            name not in CONVERSATIONS_UNREAD_BY_CUSTOMER, by_business=False)
+        report.conversations_added += 1
+
+
+def _add_notifications(db: Session, customer: User, biz: dict[str, BusinessProfile],
+                       now: datetime, report: SeedReport) -> None:
+    has_any = select(func.count()).select_from(Notification).where(
+        Notification.user_id == customer.id)
+    if db.scalar(has_any):
+        return
+    for kind, name, title, body, hours_ago, read in CUSTOMER_NOTIFICATIONS:
+        created = now - timedelta(hours=hours_ago)
+        db.add(Notification(user_id=customer.id, kind=kind, title=title, body=body,
+                            route=f"/business/{biz[name].id}", created_at=created,
+                            read_at=created + timedelta(minutes=5) if read else None))
+        report.notifications_added += 1
+
+
 def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     """Add and refresh the demo data in one transaction (see the module docstring)."""
     now = now or datetime.now(timezone.utc)
@@ -654,6 +743,8 @@ def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)
     db.flush()
     _add_search_history(db, users[CUSTOMER_EMAIL], now, report)
+    _add_conversations(db, users[CUSTOMER_EMAIL], biz, now, report)
+    _add_notifications(db, users[CUSTOMER_EMAIL], biz, now, report)
     db.commit()
     return report
 

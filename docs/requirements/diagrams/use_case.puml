@@ -1,0 +1,86 @@
+' Figure 3.1 — Use case diagram of Khojlo (SRS v1.1).
+' Render at https://www.plantuml.com/plantuml or in draw.io (Arrange → Insert → Advanced → PlantUML).
+' Changes from v1.0 are listed under Figure 3.1 in ../SRS.md.
+@startuml Khojlo_Use_Case_Diagram
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor Customer
+actor "Business Owner" as Owner
+actor Admin
+
+actor "Google Sign-In" as GoogleSignIn <<external>>
+actor "Google Maps API" as Maps <<external>>
+actor "Claude API" as Claude <<external>>
+actor "Firebase Cloud Messaging" as FCM <<external>>
+
+rectangle Khojlo {
+  usecase "Login" as UC1
+  usecase "Manage Profile" as UC2
+  usecase "Manage Preferences" as Pref
+  usecase "Manage Favorites" as Fav
+  usecase "Browse Business Feed" as UC3
+  usecase "Search Businesses" as UC4
+  usecase "Filter & Compare" as UC5
+  usecase "View Business Details" as UC6
+  usecase "Review & Rate" as UC7
+  usecase "Use AI Chatbot" as UC8
+  usecase "View Maps" as UC9
+  usecase "Message Business" as UC13
+  usecase "Receive Notifications" as UC15
+  usecase "Register Business" as UC10
+  usecase "Manage Offers" as UC11
+  usecase "View Analytics" as Analytics
+  usecase "Respond to Messages" as UC14
+  usecase "Verify Business" as UC12
+  usecase "Manage Content" as Content
+  usecase "Manage Users" as Users
+  usecase "Monitor System" as Monitor
+}
+
+' ── Customer ──
+Customer --> UC1
+Customer --> UC2
+Customer --> Pref
+Customer --> Fav
+Customer --> UC3
+Customer --> UC4
+Customer --> UC6
+Customer --> UC7
+Customer --> UC8
+Customer --> UC13
+Customer --> UC15
+
+' ── Business Owner ──
+Owner --> UC1
+Owner --> UC2
+Owner --> UC10
+Owner --> UC11
+Owner --> Analytics
+Owner --> UC14
+Owner --> UC15
+
+' ── Admin ──
+Admin --> UC1
+Admin --> UC12
+Admin --> Content
+Admin --> Users
+Admin --> Monitor
+
+' ── include / extend ──
+UC2 ..> UC1 : <<include>>
+Pref ..> UC2 : <<extend>>
+Fav ..> UC2 : <<extend>>
+UC5 ..> UC4 : <<extend>>
+UC7 ..> UC6 : <<extend>>
+UC8 ..> UC6 : <<extend>>
+UC9 ..> UC6 : <<extend>>
+UC13 ..> UC6 : <<extend>>
+
+' ── external systems ──
+UC1 --> GoogleSignIn
+UC9 --> Maps
+UC8 --> Claude
+UC15 --> FCM
+@enduml

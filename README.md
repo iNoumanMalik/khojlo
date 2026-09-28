@@ -2,31 +2,33 @@
 
 An AI‑powered platform to discover, promote, and connect local businesses and customers.
 Khojlo surfaces the new, the unusual and the underrated — before everyone else finds them.
-This repository is the **30% evaluation build** of the Final Year Project.
+This repository is working towards the **60% evaluation** of the Final Year Project.
 
 - **Frontend:** Flutter + Riverpod (`frontend/`)
 - **Backend:** FastAPI + PostgreSQL (`backend/`)
-- **Design source of truth:** `docs/Khojlo App.dc.html` (Claude Design bundle → 19 iOS screens)
+- **Design source of truth:** `docs/design/Khojlo App.dc.html` (Claude Design bundle → 19 iOS screens)
+- **Documentation:** `docs/README.md` (requirements, design, roadmap and module records)
+- **New teammate?** `docs/team_setup.md` lists the private files and settings to ask for
 
-## Scope (30% evaluation)
+## Scope
 
-Per `docs/development_roadmap/implementation_plan.md`, Modules 1–3 were built **production‑ready**
-(full frontend + backend + validation + state + DB) for the 30% evaluation, and Module 4 has since
-joined them (see `docs/development_roadmap/module4_search_filter_compare_plan.md`). The rest are
-**high‑fidelity prototypes** (UI‑complete, navigable, mock data).
+Per `docs/development_roadmap/implementation_plan.md`, Modules 1–4 were built **production‑ready**
+(full frontend + backend + validation + state + DB) for the 30% evaluation, and Modules 5 and 6
+followed for the 60% evaluation. The rest are **high‑fidelity prototypes** (UI‑complete, navigable,
+mock data) until their phase.
 
 | Module | Status |
 | --- | --- |
 | 1. User Authentication & Profile | ✅ Production (Flutter + FastAPI + Postgres) |
 | 2. Business Registration & Management | ✅ Production |
-| 3. Business Discovery Feed (no push) | ✅ Production |
+| 3. Business Discovery Feed | ✅ Production, with push notifications |
 | 4. Search / Filter / Compare | ✅ Production |
-| 5. Reviews & Ratings | 🎨 Prototype |
-| 6. Maps & Location | 🎨 Prototype |
-| 7. AI Chatbot (Kai) | 🎨 Prototype |
-| 8. Admin & Moderation | 🎨 Prototype |
-| 9. Chat & Messaging | 🎨 Prototype |
-| 10. AI Personalization | 🎨 Folded into Home + prototypes |
+| 5. Reviews & Ratings | ✅ Production |
+| 6. Maps & Location | ✅ Production |
+| 7. AI Chatbot (Kai) | 🎨 Prototype (100%) |
+| 8. Admin & Moderation | 🎨 Prototype · planned for 60% |
+| 9. Chat & Messaging | ✅ Production |
+| 10. AI Personalization | 🎨 Folded into Home + prototypes (100%) |
 
 ## Design system
 
@@ -69,6 +71,14 @@ Seeded logins (password `password123`): `owner@khojlo.app`, `customer@khojlo.app
 > probably missing a migration: the API logs a warning at startup, and `alembic upgrade head`
 > fixes it.
 
+Module 9 demo (chat): sign in as the customer on one device (or browser profile) and as the owner
+on another, both against the **same** backend. Open a business → **Message**, and the owner's Chat
+tab updates instantly with "typing…", "Seen" and a badge. The seed adds three demo conversations.
+Push notifications need Firebase keys: see the manual steps in
+`docs/development_roadmap/module9_chat_and_push_plan.md`. Before a demo,
+`python -m app.jobs.trending_digest` sends everyone a "Trending in …" notification. Run the API
+as one process (no `--workers`), because live chat events are kept in memory.
+
 Module 5 demo: as the customer, open any business, scroll to **Reviews** and tap **Write a
 review** (confetti on submit). Open **See all** to sort, filter by stars and mark reviews helpful,
 then check **Profile → My reviews**. As the owner, use **Business → Reviews & replies** to answer
@@ -84,6 +94,10 @@ gallery (the cover appears on every card; without photos the listing's colour is
 `darzi`. Anyone can open **Profile → Edit profile** to set a photo, phone number and interests.
 Photos are stored in PostgreSQL (SDD §5.1), resized on upload, and cropped automatically to fit
 each card.
+
+**Push notifications (optional).** Put the Firebase service account key at
+`backend/secrets/firebase-service-account.json` and set `GOOGLE_APPLICATION_CREDENTIALS` in
+`backend/.env`; without it, push is off and everything else works.
 
 Run the API tests (in‑memory SQLite, no Postgres needed):
 
@@ -125,6 +139,11 @@ The app resolves the API base URL per platform (`localhost:8000` on web/desktop,
 
 You can put `KHOJLO_API` in `dart_defines.json` instead of passing it on each run.
 
+**Push notifications (Module 9).** Android uses `android/app/google-services.json`. The web needs
+the Firebase web app settings and the Web Push key in `dart_defines.json` (see
+`dart_defines.example.json`); without them web push stays off. Setup:
+`docs/development_roadmap/module9_chat_and_push_plan.md` → "Your manual steps".
+
 **Maps (Module 6).** Google Maps keys are read from the gitignored `frontend/dart_defines.json`
 (copy `dart_defines.example.json`) via `flutter run --dart-define-from-file=dart_defines.json`.
 Address lookup uses `GOOGLE_MAPS_SERVER_KEY` in `backend/.env`. Without keys the app shows a
@@ -134,4 +153,5 @@ built-in preview map. Setup steps are in `docs/development_roadmap/module6_maps_
 
 Register a **business owner** → complete the registration stepper → the business appears in the
 Discovery feed → register a **customer** → save it → see it in Saved/Profile → open Business
-Detail → tab through Explore / Map / Chat / Business and the prototype screens.
+Detail → **Message** it (the owner sees it live in the Chat tab) → tab through Explore / Map / Chat /
+Business and the prototype screens.

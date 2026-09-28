@@ -338,6 +338,7 @@ class BusinessDetail extends BusinessCard {
     required this.offers,
     required this.isSaved,
     this.hours = const [],
+    this.isOwner = false,
   });
 
   final String description;
@@ -354,6 +355,9 @@ class BusinessDetail extends BusinessCard {
   final List<Offer> offers;
   final bool isSaved;
   final List<OpeningHours> hours;
+
+  /// The viewer owns this business (Message becomes "View messages").
+  final bool isOwner;
 
   factory BusinessDetail.fromJson(Map<String, dynamic> j) {
     final card = BusinessCard.fromJson(j);
@@ -399,6 +403,7 @@ class BusinessDetail extends BusinessCard {
               .toList() ??
           const [],
       isSaved: j['is_saved'] as bool? ?? false,
+      isOwner: j['is_owner'] as bool? ?? false,
       hours: (j['hours'] as List?)
               ?.map((e) => OpeningHours.fromJson(e as Map<String, dynamic>))
               .toList() ??

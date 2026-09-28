@@ -7,10 +7,12 @@ from app.api import (
     auth,
     businesses,
     categories,
+    chat,
     compare,
     feed,
     geo,
     media,
+    notifications,
     reviews,
     search,
     users,
@@ -30,7 +32,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="0.1.0",
-    description="Khojlo — discover new & hidden local businesses (30% evaluation build).",
+    description="Khojlo — discover new & hidden local businesses (60% evaluation build).",
     lifespan=lifespan,
 )
 
@@ -43,7 +45,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (auth, users, businesses, categories, feed, search, compare, media, geo, reviews):
+for module in (auth, users, businesses, categories, feed, search, compare, media, geo, reviews,
+               chat, notifications):
     app.include_router(module.router, prefix=settings.API_V1_PREFIX)
 
 

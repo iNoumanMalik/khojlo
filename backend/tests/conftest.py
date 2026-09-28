@@ -44,6 +44,37 @@ def sent_emails(monkeypatch):
     return sent
 
 
+@pytest.fixture(autouse=True)
+def _outside_request_sessions(monkeypatch):
+    """WebSocket events and background push jobs open their own sessions: use SQLite too."""
+    monkeypatch.setattr("app.core.database.session_factory", TestingSessionLocal)
+
+
+class RecordingSender:
+    """Stands in for Firebase: records each push instead of sending it."""
+
+    def __init__(self):
+        self.sent: list[tuple[list[str], object]] = []
+        # Tokens to report back as no longer valid (as FCM would).
+        self.invalid: set[str] = set()
+
+    def send(self, tokens, message):
+        from app.services.push import SendResult
+
+        self.sent.append((list(tokens), message))
+        return SendResult(sent=len(tokens), invalid=[t for t in tokens if t in self.invalid])
+
+    def titles(self) -> list[str]:
+        return [message.title for _, message in self.sent]
+
+
+@pytest.fixture(autouse=True)
+def pushes(monkeypatch):
+    sender = RecordingSender()
+    monkeypatch.setattr("app.services.push.get_sender", lambda: sender)
+    return sender
+
+
 @pytest.fixture
 def client():
     def override_get_db():

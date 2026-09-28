@@ -32,13 +32,13 @@ Status: **implemented** (27 Sep 2026). The decisions are below, the original pla
 - `docs/requirements/Feasibility_Report.pdf`:
   - Module 5 description (feedback on services, pricing and overall satisfaction; owners can view feedback)
   - Module 8 description (removing fake reviews)
-- `docs/design/files/modules_layout.md`:
+- `docs/design/modules_layout.md`:
   - Module 5 "Reviews": overall rating, rating circle, distribution, AI summary, photo reviews, recent reviews, write review; review cards with photos, reactions and a verified badge
   - Business page, business dashboard and profile sections that list "Reviews"
-- `docs/design/files/ui_design_direction.md`:
+- `docs/design/ui_design_direction.md`:
   - "Reviews": animated score circle, highlights, sentiment, helpful votes, photo reviews, reactions
   - Microinteraction: "Review submitted → confetti burst"
-- `docs/Khojlo App.dc.html`:
+- `docs/design/Khojlo App.dc.html`:
   - Reviews screen: score and distribution, "Write a review", filter chips (All / Photos / Recent / Top rated), cards with photos and "Helpful (12)"
   - Admin "Flagged reviews" tab (Spam / Fake)
 - Existing code:
@@ -114,7 +114,7 @@ Smaller defaults, unless you say otherwise:
 
 ## Documentation issues found
 
-1. **SRS UC-7 table is misaligned.** Its cells are shifted by a row: Normal Flow holds only steps 1–2, steps 3–4 sit under "Alternative Flows" and "Exceptions", and the real alternative flow, exception, business rule and assumption spill into the rows below. Most other use-case tables have the same problem.
+1. ~~**SRS UC-7 table is misaligned.**~~ *Correction (28 Sep 2026):* the use-case tables in `SRS.pdf` are laid out correctly. The shifted rows came from the PDF's extracted text, not from the document itself.
 2. **Actor naming.** UC-7 names the Customer, while Figure 3.1 links "Review & Ratings" to "User". Owners viewing feedback (Feasibility Report) has no use case or FR.
 3. **Traceability numbering.** The SDD matrix numbers "Submit Reviews and Ratings" FR11, but it is SRS **FR-6**. This is the same numbering drift noted in Module 6.
 4. **IDs.** The SDD gives `Review.id` as a UUID; the implementation uses integer IDs throughout, as in every earlier module.

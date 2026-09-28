@@ -11,7 +11,7 @@ Status: **implemented** (September 2026). The plan below is kept as written; wha
   - Algorithm 12 `GoogleMapsService.displayLocation()`
   - §8 screens: Home "Location Indicator"; Business Profile "location on Google Maps" and "Directions Button: opens Google Maps navigation"
 - `docs/requirements/Feasibility_Report.pdf`: Module 6 description; Concept-2 "Geolocation and Map Integration"; Google Maps API and SDK in the tools list
-- `docs/design/files/modules_layout.md` (Module 6 "Maps"; Module 4 "Map Toggle"; business page "Map" section) and `ui_design_direction.md` ("Maps Experience")
+- `docs/design/modules_layout.md` (Module 6 "Maps"; Module 4 "Map Toggle"; business page "Map" section) and `ui_design_direction.md` ("Maps Experience")
 - Existing code:
   - Module 4: device location, distances, radius filter, "Use my current location" pin in registration
   - the prototype `features/prototype/map_screen.dart`

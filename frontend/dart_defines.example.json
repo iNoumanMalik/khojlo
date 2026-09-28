@@ -2,23 +2,23 @@
   "//": "Copy to dart_defines.json and pass with --dart-define-from-file=dart_defines.json.",
   "//api": "Backend base URL. Overrides the per-platform default in lib/core/network/api_config.dart.",
   "KHOJLO_API": "http://localhost:8000/api/v1",
-
   "//google-signin": "Optional — overrides the Web client ID baked into lib/core/network/google_auth_config.dart.",
   "GOOGLE_WEB_CLIENT_ID": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
-
   "//maps": "Module 6 — Google Maps keys (Google Cloud console → APIs & Services → Credentials).",
   "//maps2": "Web: Maps JavaScript API, restricted to your site's HTTP referrers. Android: Maps SDK for",
   "//maps3": "Android, restricted to com.khojlo.khojlo + your SHA-1 (the Android build reads it from here).",
   "//maps4": "Leave empty to use the built-in preview map.",
   "MAPS_API_KEY_WEB": "",
   "MAPS_API_KEY_ANDROID": "",
-
-  "//firebase": "Firebase client config (future — FCM push / social auth). Values come from the",
-  "//firebase2": "Firebase console → Project settings → Your apps → SDK setup and configuration.",
+  "//firebase": "Push notifications on the WEB (Module 9). Android uses android/app/google-services.json",
+  "//firebase2": "instead. Values: Firebase console → Project settings → Your apps → the web app →",
+  "//firebase3": "SDK setup and configuration → Config. Leave the placeholders to keep web push off.",
   "FIREBASE_API_KEY": "your-web-api-key",
   "FIREBASE_APP_ID": "1:1234567890:web:abcdef",
   "FIREBASE_PROJECT_ID": "your-firebase-project-id",
   "FIREBASE_MESSAGING_SENDER_ID": "1234567890",
   "FIREBASE_AUTH_DOMAIN": "your-project.firebaseapp.com",
-  "FIREBASE_STORAGE_BUCKET": "your-project.appspot.com"
+  "FIREBASE_STORAGE_BUCKET": "your-project.appspot.com",
+  "//vapid": "Cloud Messaging → Web configuration → Web Push certificates → Generate key pair (public key).",
+  "FIREBASE_WEB_VAPID_KEY": ""
 }

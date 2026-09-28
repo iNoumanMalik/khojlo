@@ -8,7 +8,9 @@ import '../../../core/models/business.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/photo_viewer.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../chat/chat_providers.dart';
 import '../../maps/map_providers.dart';
 import '../../reviews/presentation/business_reviews_section.dart';
 import '../../reviews/reviews_providers.dart';
@@ -28,6 +30,26 @@ class BusinessDetailScreen extends ConsumerStatefulWidget {
 class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   bool? _savedOverride;
   bool _saving = false;
+  bool _openingChat = false;
+
+  /// UC-13: open (or start) the conversation with this business. Owners see
+  /// their customers' messages in the Chat tab instead.
+  Future<void> _message(BusinessDetail b) async {
+    if (b.isOwner) {
+      context.go('/chat');
+      return;
+    }
+    if (_openingChat) return;
+    setState(() => _openingChat = true);
+    try {
+      final id = await openConversationWith(ref, b.id);
+      if (mounted) context.push('/conversations/$id');
+    } catch (e) {
+      if (mounted) _snack(describeApiError(e));
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
+    }
+  }
 
   Future<void> _toggleSave(BusinessDetail b) async {
     setState(() => _saving = true);
@@ -251,8 +273,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                       onTap: () => _directions(b)),
                   _Action(
                       icon: Icons.chat_bubble_outline_rounded,
-                      label: 'Chat',
-                      onTap: () => context.push('/conversation')),
+                      label: b.isOwner ? 'Messages' : 'Chat',
+                      onTap: () => _message(b)),
                   _Action(
                       icon: Icons.compare_arrows_rounded,
                       label: comparing ? 'Comparing' : 'Compare',
@@ -358,10 +380,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
           right: 20,
           bottom: 28,
           child: PrimaryButton(
-            label: 'Message ${b.name}',
+            label: b.isOwner ? 'View customer messages' : 'Message ${b.name}',
             tone: ButtonTone.ink,
             icon: Icons.chat_bubble_outline_rounded,
-            onTap: () => context.push('/conversation'),
+            loading: _openingChat,
+            onTap: () => _message(b),
           ),
         ),
       ],

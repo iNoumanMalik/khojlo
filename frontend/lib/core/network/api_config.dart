@@ -15,6 +15,12 @@ class ApiConfig {
     return 'http://localhost:8000/api/v1';
   }
 
+  /// The live-events WebSocket (Module 9): the API's host with ws/wss.
+  static Uri get realtimeUri {
+    final base = Uri.parse(baseUrl);
+    return base.replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', path: '${base.path}/ws');
+  }
+
   /// Turns a path the API returns (e.g. `/api/v1/media/abc`) into a full URL on
   /// the same host. Absolute URLs pass through unchanged.
   static String resolve(String path) => Uri.parse(baseUrl).resolve(path).toString();

@@ -5,8 +5,21 @@ from app.models.business import (
     OpeningHours,
     Service,
 )
+from app.models.chat import (
+    Conversation,
+    ConversationReport,
+    ConversationReportReason,
+    ConversationReportStatus,
+    Message,
+)
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
 from app.models.media import BusinessPhoto, Media
+from app.models.notification import (
+    DevicePlatform,
+    DeviceToken,
+    Notification,
+    NotificationKind,
+)
 from app.models.otp import OtpCode, OtpPurpose
 from app.models.review import (
     ReportReason,
@@ -41,4 +54,13 @@ __all__ = [
     "SearchQuery",
     "Media",
     "BusinessPhoto",
+    "Conversation",
+    "Message",
+    "ConversationReport",
+    "ConversationReportReason",
+    "ConversationReportStatus",
+    "DeviceToken",
+    "DevicePlatform",
+    "Notification",
+    "NotificationKind",
 ]

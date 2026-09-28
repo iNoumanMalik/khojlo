@@ -2,24 +2,24 @@
 
 The development of Khojlo follows an incremental approach. Core modules are fully implemented first, and the remaining modules start as interactive prototypes that are converted into working features in later phases. This keeps the primary functionality stable and demonstrable at every evaluation (30%, 60% and 100%), while leaving room to grow.
 
-This plan reflects the implementation as of September 2026 and is aligned with the SRS, SDD and Feasibility Report in `docs/requirements/`.
+This plan reflects the implementation as of September 2026 and is aligned with the SRS, SDD and Feasibility Report in `docs/requirements/`. Requirement IDs follow SRS v1.1 (`docs/requirements/SRS.md`), which adds FR-16 to FR-25 and UC-13 to UC-15. The 60% scope follows the second-iteration slide presented to the FYP committee.
 
 > **Module numbering.** The Feasibility Report's body text and team work division list Module 5 as Reviews and Module 6 as Maps; its table of contents has them the other way round. This plan follows the body text. The table of contents should be updated to match before the next submission.
 
 #### Status at a Glance
 
-| # | Module | Requirements (SRS) | Status | Phase |
+| # | Module | Requirements (SRS v1.1) | Status | Phase |
 |---|---|---|---|---|
-| 1 | User Authentication and Profile Management | FR-1, FR-2, FR-7, UC-1, UC-2 | ✅ Implemented | 30% |
-| 2 | Business Registration and Management | FR-8, FR-9, FR-10, UC-10, UC-11 | ✅ Implemented | 30% |
-| 3 | Business Discovery Feed (New & Trending) | FR-5, FR-11, UC-3 | ✅ Implemented (push notifications pending) | 30% (push: 100%) |
-| 4 | Search, Filtering, and Comparison System | FR-3, FR-4, UC-4, UC-5 | ✅ Implemented | 30% |
-| 5 | Reviews and Ratings System | FR-6, REL-4 | ✅ Implemented (see `module5_reviews_ratings_plan.md`) | 60% |
+| 1 | User Authentication and Profile Management | FR-1, FR-2, FR-7, FR-16, FR-17, UC-1, UC-2 | ✅ Implemented | 30% |
+| 2 | Business Registration and Management | FR-8, FR-9, FR-10, FR-20, UC-10, UC-11 | ✅ Implemented (offers need rework, see Phase 2) | 30% |
+| 3 | Business Discovery Feed (New & Trending) | FR-5, FR-11, FR-21, UC-3, UC-6, UC-15 | ✅ Implemented, including push notifications (see `module9_chat_and_push_plan.md`) | 30% (push: 60%) |
+| 4 | Search, Filtering, and Comparison System | FR-3, FR-4, FR-18, UC-4, UC-5 | ✅ Implemented (see `module4_search_filter_compare_plan.md`) | 30% |
+| 5 | Reviews and Ratings System | FR-6, FR-19, UC-7, REL-4 | ✅ Implemented (see `module5_reviews_ratings_plan.md`) | 60% |
 | 6 | Maps and Location Integration | FR-12, UC-9 | ✅ Implemented (see `module6_maps_location_plan.md`) | 60% |
-| 7 | AI Chatbot Assistance (RAG) | FR-13, USE-5, PER-4 | 🎨 Prototype | 60% (basic) / 100% (complete) |
-| 8 | Admin and Moderation System | FR-14, FR-15, SEC-2, SEC-3 | 🎨 Prototype | 100% |
-| 9 | Chat and Messaging System | none yet (see below) | 🎨 Prototype | 60% |
-| 10 | AI Personalization and Recommendation | FR-11 (personalized feed) | 🟡 Basic version in the feed | 60% (enhanced) / 100% (advanced) |
+| 7 | AI Chatbot Assistance (RAG) | FR-13, UC-8, USE-5, PER-4 | 🎨 Prototype | 100% |
+| 8 | Admin and Moderation System | FR-14, FR-15, UC-12, SEC-2, SEC-3 | 🎨 Prototype | 60% |
+| 9 | Chat and Messaging System | FR-23, FR-24, FR-25, UC-13, UC-14 | ✅ Implemented (see `module9_chat_and_push_plan.md`) | 60% |
+| 10 | AI Personalization and Recommendation | FR-22 | 🟡 Basic version in the feed | 100% |
 
 ---
 
@@ -66,7 +66,7 @@ Phase 1 implements the functionality that demonstrates Khojlo's primary objectiv
 * Save business functionality
 * "Surprise me" discovery
 
-> **Note:** Push notifications for new businesses and offers are deferred to Phase 3, as originally planned.
+> **Note:** Push notifications for new businesses and offers were not part of the 30% build. They are scheduled for Phase 2 (60%), as shown on the committee's second-iteration slide.
 
 **Module 4: Search, Filtering, and Comparison System**
 
@@ -105,7 +105,18 @@ The following modules are presented as high-fidelity interactive prototypes, sho
 
 ### Phase 2 – 60% Evaluation
 
-The second phase converts the prototype modules into working features, in this order.
+The 60% scope is the second-iteration slide shown to the committee:
+
+| Slide item | Module | Status |
+|---|---|---|
+| User reviews and ratings | 5 | ✅ Implemented |
+| Business search and advanced filtering | 4 | ✅ Implemented (completed early, at 30%) |
+| Business comparison feature | 4 | ✅ Implemented (completed early, at 30%) |
+| Admin moderation panel | 8 | 🎨 Prototype, to build |
+| Google Maps and location services | 6 | ✅ Implemented |
+| Offers and promotional campaigns | 2 | 🟡 Basic offers exist; owner and scope to decide |
+| Push notification system | 3 | ✅ Implemented (Firebase keys: manual setup) |
+| Chat and messaging system | 9 | ✅ Implemented |
 
 **Module 6: Maps and Location Integration** (FR-12, UC-9) ✅ Implemented
 
@@ -117,7 +128,7 @@ The second phase converts the prototype modules into working features, in this o
 * Home location indicator ("Near F-7 Markaz, Islamabad") and a Nearby row in the feed
 * Valid coordinates enforced (BR-7). API keys are kept out of git; see the module record for setup
 
-**Module 5: Reviews and Ratings System** (FR-6, UC-7, REL-4) ✅ Implemented
+**Module 5: Reviews and Ratings System** (FR-6, FR-19, UC-7, REL-4) ✅ Implemented
 
 * Any signed-in user (except the business's owner) submits a 1–5★ rating with an optional comment and up to 3 photos, and can edit or delete it. One review per business per user (BR-4)
 * Business ratings and review counts recalculated from real reviews on every change (SDD Algorithm 7). Verified reviewers get a badge and are listed first
@@ -125,19 +136,31 @@ The second phase converts the prototype modules into working features, in this o
 * Owner replies, helpful votes, and user reports stored for the Module 8 moderation queue
 * Rating filters and sorting in search, and the feed's Trending row, use real review data (count-weighted for ranking)
 
-**Module 9: Chat and Messaging System**
+**Module 8: Admin and Moderation System** (FR-14, FR-15, UC-12, SEC-2, SEC-3)
 
-* Real-time messaging between customers and business owners
-* Conversation list, unread counts, and "Message" from the business page
-* Message counts added to business analytics
+* Verifying business profiles (FR-14), including the verification documents from UC-10. Whether businesses wait for verification before they appear is an open decision (see `docs/requirements/document_review.md`, decision 1)
+* Removing spam and inappropriate content (FR-15), starting with the review reports Module 5 already stores (FR-19)
+* Limiting profile changes to verified owners (SEC-2) and admin functions to admins (SEC-3)
 
-**Module 7: AI Chatbot Assistance Module** (FR-13)
+**Offers and Promotional Campaigns** (Module 2: FR-10, UC-11)
 
-* Working chatbot that answers questions using business data from the platform (RAG), available from the main navigation (USE-5)
+* Offers exist from Phase 1, with a title, start and end values stored as text, and a status
+* Missing compared with the SDD: offer description, discount, and real dates with validation (UC-11 "invalid dates", Algorithm 6)
+* "Campaigns" still needs defining. Telling users about new offers is covered by push notifications (FR-21)
 
-**Module 10: AI Personalization and Recommendation System**
+**Push Notification System** (Module 3: FR-21, UC-15) ✅ Implemented (see `module9_chat_and_push_plan.md`)
 
-* Enhanced recommendations based on interests, saves, views and searches
+* Firebase Cloud Messaging on Android and web, sent from the backend through the FCM HTTP v1 API. Push switches off cleanly without the Firebase keys, which are a manual setup step
+* Notifications for new chat messages (when the recipient isn't in the app), new reviews (to the owner), replies to reviews, new offers (to people who saved the business), new businesses (to users interested in the category), and a trending digest (`python -m app.jobs.trending_digest`)
+* The real Notifications screen (grouped timeline, mark read, tap to open) and per-type notification settings
+* Tapping a notification opens its screen; a push arriving while the app is open shows a banner
+
+**Module 9: Chat and Messaging System** (FR-23, FR-24, FR-25, UC-13, UC-14) ✅ Implemented (see `module9_chat_and_push_plan.md`)
+
+* Customers message a business from its page; the owner replies. One conversation per customer and business, visible only to the two of them
+* Live delivery over a WebSocket (about 20 ms on a local server), with polling when the connection drops
+* Conversation list with unread counts and a Chat tab badge, "Seen" receipts, a typing indicator, photos, suggested replies, the business's offers, and reporting a conversation for Module 8
+* Customer message counts (this week and unread) in the owner's dashboard
 
 **General**
 
@@ -149,16 +172,14 @@ The second phase converts the prototype modules into working features, in this o
 
 The final phase completes the remaining advanced features and prepares the application for a production-level demonstration.
 
-* Push notification system (Firebase Cloud Messaging) for new businesses, trending listings and offers (Module 3)
-* Admin and moderation workflow (Module 8):
-  * verifying business profiles before publication (FR-14), including the verification documents from UC-10
-  * removing spam and inappropriate content (FR-15)
-  * limiting profile changes to verified owners (SEC-2) and admin functions to admins (SEC-3)
-* Complete RAG-based chatbot, meeting the 5-second response target (PER-4)
-* Advanced AI personalization
+> Modules 7 and 10 were planned for 60% in earlier versions of this plan but are not on the 60% slide, so they are listed here. Confirm with their owner (see `docs/requirements/document_review.md`, decision 4).
+
+* **Module 7: AI Chatbot Assistance (FR-13):** a working chatbot that answers questions using business data from the platform (RAG), available from the main navigation (USE-5) and meeting the 5-second response target (PER-4)
+* **Module 10: AI Personalization and Recommendation (FR-22):** recommendations based on interests, saves, views and searches, then advanced personalization
+* Admin and moderation items not finished in the 60% panel
 * Advanced business analytics
-* Performance testing against the SRS targets (PER-1 to PER-5)
-* Security improvements, including HTTPS for all client-server traffic in deployment (SEC-4)
+* Performance testing against the SRS targets (PER-1 to PER-6)
+* Security improvements, including HTTPS and WSS for all client-server traffic in deployment (SEC-4)
 * Comprehensive testing and bug fixing
 * Final UI/UX refinements
 * Deployment and documentation
@@ -167,14 +188,18 @@ The final phase completes the remaining advanced features and prepares the appli
 
 ### Documentation Items to Resolve
 
-These inconsistencies in the requirement documents should be fixed before the next submission:
+The full review of the SRS, SDD and Feasibility Report, with a fix for each issue, is in `docs/requirements/document_review.md`. SRS v1.1 (`docs/requirements/SRS.md`) already resolves the SRS items, including:
 
-* Module 5 and 6 numbering differs between the Feasibility Report's table of contents and its body (see the note at the top).
-* The SDD traceability matrix numbers requirements differently from the SRS (e.g. SDD "FR10 View Business Location" is SRS FR-12).
-* The SRS has use cases for comparison (UC-5) but no functional requirement for it, and no functional requirement at all for chat and messaging (Module 9).
-* BR-3 (under FR-5) says only verified businesses are displayed. The agreed implementation shows every published business, with a "Verified only" filter; the rule should be reworded, or tied to the admin verification workflow in Phase 3.
-* UC-3 says verified businesses appear first in the feed, while FR-11 says newest businesses appear first.
-* The tables of contents in the SRS and Feasibility Report show "Error! Bookmark not defined." Updating the fields in Word before exporting fixes this.
+* the missing functional requirements for comparison, chat, push notifications, personalization and more (FR-16 to FR-25);
+* the UC-3 / FR-11 conflict over which businesses the feed prioritizes;
+* the product name on the cover ("KOJLO").
+
+Still open, and listed as decisions in the review:
+
+* The verification rule (BR-3, UC-6, SEC-2), which depends on how Module 8 implements verification.
+* The team work division for Modules 7, 8 and 10.
+* The owner and scope of "Offers and promotional campaigns".
+* The SDD and Feasibility Report corrections, which need to be made in the Word files. They include the traceability matrix numbering, the ER diagram, the screenshots, the Gantt chart and the tables of contents.
 
 ---
 

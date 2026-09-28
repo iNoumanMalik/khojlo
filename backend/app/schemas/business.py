@@ -277,6 +277,8 @@ class BusinessDetail(BusinessCard):
     hours: list[HoursOut] = Field(default_factory=list)
     offers: list[OfferOut] = Field(default_factory=list)
     is_saved: bool = False
+    # The viewer owns this business (the app shows "View messages" instead of "Message").
+    is_owner: bool = False
 
 
 # ─────────────── analytics ───────────────
@@ -289,7 +291,9 @@ class BusinessAnalytics(BaseModel):
     business_id: int
     profile_views: int
     saves: int
+    # Customer messages received in the last 7 days, and how many are still unread.
     messages: int
+    unread_messages: int = 0
     rating: float
     review_count: int
     weekly_views: list[WeeklyPoint]

@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
+import '../../notifications/notifications_providers.dart';
 import '../../search/search_providers.dart';
 import '../discovery_providers.dart';
 
@@ -220,7 +221,7 @@ class _SearchRow extends ConsumerWidget {
             GlassIconButton(
               icon: Icons.notifications_none_rounded,
               size: 48,
-              showDot: true,
+              showDot: ref.watch(unreadNotificationsProvider) > 0,
               onTap: () => context.push('/notifications'),
             ),
           ],

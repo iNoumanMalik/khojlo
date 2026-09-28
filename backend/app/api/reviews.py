@@ -6,7 +6,7 @@ report them; reports wait for the admin (Module 8, SDD Algorithm 10).
 """
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from app.api.deps import get_current_user, get_optional_user
 from app.core.database import get_db
 from app.models.business import BusinessProfile
 from app.models.media import Media
+from app.models.notification import NotificationKind
 from app.models.review import Review, ReviewPhoto, ReviewReport, ReviewVote
 from app.models.user import User
 from app.schemas.review import (
@@ -28,6 +29,7 @@ from app.schemas.review import (
     ReviewSort,
     ReviewUpdate,
 )
+from app.services import notification_service as ns
 from app.services import review_service as rs
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
 
@@ -187,6 +189,7 @@ def my_reviews(
 def create_review(
     business_id: int,
     payload: ReviewCreate,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReviewOut:
@@ -210,8 +213,18 @@ def create_review(
                             detail=f"You've already reviewed {b.name}. Edit your review instead.") from None
     _set_photos(db, review, media)
     rs.refresh_rating(db, b)
+    stars = "★" * review.rating
+    job = ns.notify(
+        db, [b.owner], NotificationKind.review,
+        title=f"New {review.rating}★ review for {b.name}",
+        body=f"{rs.display_name(user.full_name)}: {ns.snippet(review.comment)}"
+        if review.comment else f"{rs.display_name(user.full_name)} rated you {stars}",
+        route=ns.reviews_route(b),
+    )
     db.commit()
     db.refresh(review)
+    if job is not None:
+        background_tasks.add_task(job)
     return _out(db, review, user)
 
 
@@ -277,6 +290,7 @@ def _owned_review(db: Session, review_id: int, user: User) -> Review:
 def reply(
     review_id: int,
     payload: ReplyIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReviewOut:
@@ -285,10 +299,20 @@ def reply(
     if not text:
         raise HTTPException(status_code=UNPROCESSABLE, detail="Write a reply first.")
     if text != review.owner_reply:
+        is_new = review.owner_reply is None
         review.owner_reply = text
         review.owner_reply_at = _now()
+        job = None
+        if is_new:  # edits to a reply don't notify again
+            job = ns.notify(
+                db, [review.author], NotificationKind.review_reply,
+                title=f"{review.business.name} replied to your review",
+                body=ns.snippet(text), route=ns.reviews_route(review.business),
+            )
         db.commit()
         db.refresh(review)
+        if job is not None:
+            background_tasks.add_task(job)
     return _out(db, review, user)
 
 

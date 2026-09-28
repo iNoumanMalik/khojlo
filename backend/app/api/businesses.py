@@ -1,11 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_owner, get_current_user, get_optional_user
 from app.core.database import get_db
-from app.models.business import BusinessProfile, Category, Offer, OpeningHours, Service
+from app.models.business import (
+    BusinessProfile,
+    Category,
+    Offer,
+    OfferStatus,
+    OpeningHours,
+    Service,
+)
 from app.models.engagement import SavedBusiness, SavedList
+from app.models.notification import NotificationKind
 from app.models.user import User
 from app.schemas.business import (
     BusinessAnalytics,
@@ -28,6 +36,7 @@ from app.services.business_service import (
     set_business_photos,
     to_card,
 )
+from app.services import notification_service as ns
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
 
 UNPROCESSABLE = 422
@@ -88,6 +97,7 @@ def my_businesses(
 @router.post("", response_model=BusinessDetail, status_code=status.HTTP_201_CREATED)
 def create_business(
     payload: BusinessCreate,
+    background_tasks: BackgroundTasks,
     owner: User = Depends(get_current_owner),
     db: Session = Depends(get_db),
 ) -> BusinessDetail:
@@ -104,8 +114,19 @@ def create_business(
     db.add(b)
     db.flush()
     set_business_photos(db, b, photos)
+    job = None
+    if b.is_published and b.category is not None:
+        category = b.category_label or b.category.name
+        job = ns.notify(
+            db, ns.users_interested_in(db, b), NotificationKind.new_business,
+            title=f"New on Khojlo: {b.name}",
+            body=ns.snippet(b.tagline) if b.tagline else f"A new place in {category}",
+            route=ns.business_route(b),
+        )
     db.commit()
     db.refresh(b)
+    if job is not None:
+        background_tasks.add_task(job)
     return _detail(db, b, owner)
 
 
@@ -212,14 +233,24 @@ def list_offers(business_id: int, db: Session = Depends(get_db)) -> list[Offer]:
 def create_offer(
     business_id: int,
     payload: OfferIn,
+    background_tasks: BackgroundTasks,
     owner: User = Depends(get_current_owner),
     db: Session = Depends(get_db),
 ) -> Offer:
     b = _get_owned(db, business_id, owner)
     offer = Offer(business_id=b.id, **payload.model_dump())
     db.add(offer)
+    job = None
+    if b.is_published and offer.status == OfferStatus.active:
+        job = ns.notify(
+            db, ns.users_who_saved(db, b), NotificationKind.offer,
+            title=f"New offer at {b.name}", body=ns.snippet(offer.title),
+            route=ns.business_route(b),
+        )
     db.commit()
     db.refresh(offer)
+    if job is not None:
+        background_tasks.add_task(job)
     return offer
 
 
@@ -238,6 +269,7 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
         hours=b.hours,
         offers=b.offers,
         is_saved=is_saved_by(db, b.id, viewer.id) if viewer else False,
+        is_owner=viewer is not None and b.owner_id == viewer.id,
     )
 
 

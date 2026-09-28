@@ -16,14 +16,17 @@ import '../../features/business/presentation/edit_hours_screen.dart';
 import '../../features/business/presentation/edit_photos_screen.dart';
 import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
+import '../../features/chat/presentation/conversation_screen.dart';
+import '../../features/chat/presentation/messages_screen.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
 import '../../features/maps/presentation/map_screen.dart';
+import '../../features/notifications/presentation/notification_settings_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/reviews/presentation/my_reviews_screen.dart';
 import '../../features/reviews/presentation/reviews_screen.dart';
 import '../../features/prototype/admin_screen.dart';
-import '../../features/prototype/chat_screens.dart';
-import '../../features/prototype/notifications_screen.dart';
+import '../../features/prototype/kai_screen.dart';
 import '../../features/prototype/surprise_screen.dart';
 import '../../features/search/presentation/compare_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
@@ -158,6 +161,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const NotificationsScreen()),
       GoRoute(
+          path: '/notification-settings',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const NotificationSettingsScreen()),
+      GoRoute(
           path: '/surprise',
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const SurpriseScreen()),
@@ -166,9 +173,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const KaiScreen()),
       GoRoute(
-          path: '/conversation',
-          parentNavigatorKey: _rootKey,
-          builder: (_, __) => const ConversationScreen()),
+        path: '/conversations/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) =>
+            ConversationScreen(conversationId: int.parse(s.pathParameters['id']!)),
+      ),
       GoRoute(
           path: '/compare',
           parentNavigatorKey: _rootKey,

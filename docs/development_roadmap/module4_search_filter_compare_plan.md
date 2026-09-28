@@ -2,7 +2,7 @@
 
 **Owner:** Sayyam Tahir (SP23-BSE-014) · **Branch:** `dev` · **Status:** Implemented, not yet committed. Decisions D1–D4 confirmed on 26 Sep 2026.
 
-**Sources:** `docs/requirements/SRS.pdf`, `SDD.pdf` and `Feasibility_Report.pdf` (the updated versions), plus `docs/design/` and the design bundle `docs/Khojlo App.dc.html`.
+**Sources:** `docs/requirements/SRS.pdf`, `SDD.pdf` and `Feasibility_Report.pdf` (the updated versions), plus `docs/design/` and the design bundle `docs/design/Khojlo App.dc.html`.
 
 Goal: replace the Module 4 prototype (mock data only) with a production feature at the same bar as Modules 1–3. That means a real backend search engine, filters, comparison and search history, a Flutter UI wired to the API, validation, database changes, and tests.
 
@@ -150,11 +150,13 @@ The class diagram's `SearchEngine` holds one strategy at a time. A real request 
 
 ## 8. Issues found in the updated documents
 
-1. **Comparison still has no functional requirement.** The updated SRS adds UC-5 "Filter and Compare Businesses", but section 4 still lists no comparison FR, while SDD traceability has FR08 Compare. Consider adding "FR-16 Compare Businesses" under section 4.2.
-2. **Conflicting feed rules (Module 3).** SRS UC-3 says "Verified prioritized", but FR-11 BR-6 says "New businesses prioritized".
-3. **Numbering differs.** SDD traceability uses FR01–FR20 with different meanings from the SRS's FR-1 to FR-15. For example, SRS FR-3 is "Search" and SDD FR03 is "Business Registration".
+*Status (28 Sep 2026):* all of these are tracked in `docs/requirements/document_review.md`. Items 1, 2 and 6 are fixed in SRS v1.1 (`docs/requirements/SRS.md`); the others need the Word files updating.
+
+1. **Comparison still has no functional requirement.** The updated SRS adds UC-5 "Filter and Compare Businesses", but section 4 still lists no comparison FR, while SDD traceability has FR08 Compare. *Resolved: SRS v1.1 adds it as **FR-18 Compare Businesses**.*
+2. **Conflicting feed rules (Module 3).** SRS UC-3 says "Verified prioritized", but FR-11 BR-6 says "New businesses prioritized". *Resolved in SRS v1.1: UC-3 now follows BR-6.*
+3. **Numbering differs.** SDD traceability uses FR01–FR20 with different meanings from the SRS's FR-1 to FR-15. For example, SRS FR-3 is "Search" and SDD FR03 is "Business Registration". *A corrected matrix is in the documentation review.*
 4. **Broken tables of contents.** The SRS contents show "Error! Bookmark not defined." for UC-1 to UC-12, and the feasibility report does the same for Modules 1–7. Updating the fields in Word before exporting fixes it.
 5. **Feasibility report contents out of order.** The contents list Module 5 as Maps and Module 6 as Reviews, while the body has Module 5 Reviews and Module 6 Maps. Modules 8–10 are missing from the contents.
-6. **Project name typo.** The cover pages of all three documents say "KOJLO" instead of "Khojlo".
+6. **Project name typo.** The cover pages of all three documents say "KOJLO" instead of "Khojlo". *Fixed in SRS v1.1; the SDD and Feasibility Report still need it.*
 7. **Compare layout conflict:** a table in the SDD and design bundle versus cards in `modules_layout.md`. Resolved by D4.
 8. **Bottom navigation differs.** `modules_layout.md` lists Home, Search, AI, Chat, Profile; the app follows the design bundle with Home, Explore, Map, Chat, Business. No change planned.
