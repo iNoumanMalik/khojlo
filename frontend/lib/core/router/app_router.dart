@@ -14,13 +14,14 @@ import '../../features/business/presentation/business_tab_screen.dart';
 import '../../features/business/presentation/edit_business_screen.dart';
 import '../../features/business/presentation/edit_hours_screen.dart';
 import '../../features/business/presentation/edit_photos_screen.dart';
-import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
 import '../../features/chat/presentation/conversation_screen.dart';
 import '../../features/chat/presentation/messages_screen.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
 import '../../features/maps/presentation/map_screen.dart';
+import '../../features/promotions/presentation/campaign_screen.dart';
+import '../../features/promotions/presentation/promotions_screen.dart';
 import '../../features/notifications/presentation/notification_settings_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/reviews/presentation/my_reviews_screen.dart';
@@ -108,6 +109,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             BusinessDetailScreen(id: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
+        path: '/campaign/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => CampaignScreen(campaignId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
         path: '/business/:id/reviews',
         parentNavigatorKey: _rootKey,
         builder: (_, s) => ReviewsScreen(
@@ -142,7 +148,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/offers/:id',
         parentNavigatorKey: _rootKey,
         builder: (_, s) =>
-            OffersScreen(businessId: int.parse(s.pathParameters['id']!)),
+            PromotionsScreen(businessId: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
           path: '/profile',

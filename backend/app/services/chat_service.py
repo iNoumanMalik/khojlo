@@ -6,10 +6,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.business import BusinessProfile, OfferStatus
+from app.models.business import BusinessProfile
 from app.models.chat import Conversation, Message
 from app.models.user import User
-from app.schemas.business import OfferOut
 from app.schemas.chat import (
     ChatBusiness,
     ChatBusinessBrief,
@@ -19,6 +18,7 @@ from app.schemas.chat import (
     MessageOut,
     Side,
 )
+from app.services import promotion_service as ps
 from app.services.business_service import photo_out
 from app.services.hours import is_open_now, today_hours_label
 from app.services.review_service import display_name
@@ -131,6 +131,7 @@ def business_brief(b: BusinessProfile) -> ChatBusinessBrief:
 
 
 def business_header(b: BusinessProfile) -> ChatBusiness:
+    today = ps.local_today()
     return ChatBusiness(
         **business_brief(b).model_dump(),
         is_verified=b.is_verified,
@@ -139,7 +140,7 @@ def business_header(b: BusinessProfile) -> ChatBusiness:
         phone=b.phone,
         latitude=b.latitude,
         longitude=b.longitude,
-        offers=[OfferOut.model_validate(o) for o in b.offers if o.status == OfferStatus.active],
+        offers=[ps.offer_out(o, today) for o in ps.live_offers(b.offers, today)],
     )
 
 

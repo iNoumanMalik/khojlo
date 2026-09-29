@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from app.schemas.business import BusinessCard, CategoryOut
+from app.schemas.campaign import CampaignBanner
 
 
 class FeedSection(BaseModel):
@@ -16,3 +17,5 @@ class FeedResponse(BaseModel):
     headline: str
     categories: list[CategoryOut]
     sections: list[FeedSection]
+    # Live promotional campaigns, shown as banners at the top of Home.
+    campaigns: list[CampaignBanner] = []

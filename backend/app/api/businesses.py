@@ -7,8 +7,6 @@ from app.core.database import get_db
 from app.models.business import (
     BusinessProfile,
     Category,
-    Offer,
-    OfferStatus,
     OpeningHours,
     Service,
 )
@@ -22,8 +20,6 @@ from app.schemas.business import (
     BusinessDetail,
     BusinessUpdate,
     HoursReplace,
-    OfferIn,
-    OfferOut,
     PhotosReplace,
 )
 from app.schemas.saved import SaveToListRequest
@@ -38,6 +34,7 @@ from app.services.business_service import (
 )
 from app.services import notification_service as ns
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
+from app.services.promotion_service import live_offers, local_today, offer_out
 
 UNPROCESSABLE = 422
 
@@ -218,45 +215,10 @@ def business_analytics(
     return build_analytics(db, b)
 
 
-# ─────────────── offers ───────────────
-@router.get("/{business_id}/offers", response_model=list[OfferOut])
-def list_offers(business_id: int, db: Session = Depends(get_db)) -> list[Offer]:
-    b = db.get(BusinessProfile, business_id)
-    if b is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found")
-    return b.offers
-
-
-@router.post(
-    "/{business_id}/offers", response_model=OfferOut, status_code=status.HTTP_201_CREATED
-)
-def create_offer(
-    business_id: int,
-    payload: OfferIn,
-    background_tasks: BackgroundTasks,
-    owner: User = Depends(get_current_owner),
-    db: Session = Depends(get_db),
-) -> Offer:
-    b = _get_owned(db, business_id, owner)
-    offer = Offer(business_id=b.id, **payload.model_dump())
-    db.add(offer)
-    job = None
-    if b.is_published and offer.status == OfferStatus.active:
-        job = ns.notify(
-            db, ns.users_who_saved(db, b), NotificationKind.offer,
-            title=f"New offer at {b.name}", body=ns.snippet(offer.title),
-            route=ns.business_route(b),
-        )
-    db.commit()
-    db.refresh(offer)
-    if job is not None:
-        background_tasks.add_task(job)
-    return offer
-
-
 # ─────────────── public detail + save ───────────────
 def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDetail:
     card = to_card(b)
+    today = local_today()
     return BusinessDetail(
         **card.model_dump(),
         description=b.description,
@@ -267,7 +229,8 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
         view_count=b.view_count,
         services=b.services,
         hours=b.hours,
-        offers=b.offers,
+        # Customers see live offers only (switched on and within their dates).
+        offers=[offer_out(o, today) for o in live_offers(b.offers, today)],
         is_saved=is_saved_by(db, b.id, viewer.id) if viewer else False,
         is_owner=viewer is not None and b.owner_id == viewer.id,
     )

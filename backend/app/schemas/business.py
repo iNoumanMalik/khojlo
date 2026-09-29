@@ -1,9 +1,10 @@
 import re
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.business import OfferStatus
+from app.models.business import DealType
 from app.schemas.media import PhotoOut
 
 # Upper bound for any PKR amount we accept (a sanity limit, not a business rule).
@@ -215,18 +216,60 @@ class HoursOut(BaseModel):
 
 
 class OfferIn(BaseModel):
+    """A special offer (UC-11). `is_active` false keeps it a draft."""
+
     title: str = Field(min_length=1, max_length=200)
-    starts_on: str = ""
-    ends_on: str = ""
-    status: OfferStatus = OfferStatus.active
-    tone: str = "emerald"
+    description: str = Field(default="", max_length=1000)
+    deal_type: DealType = DealType.other
+    deal_value: float | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
+    deal_text: str = Field(default="", max_length=40)
+    start_date: date
+    end_date: date | None = None
+    terms: str = Field(default="", max_length=2000)
+    is_active: bool = False
+    tone: str = Field(default="emerald", max_length=16)
 
 
-class OfferOut(OfferIn):
-    model_config = ConfigDict(from_attributes=True)
+class OfferUpdate(BaseModel):
+    """Partial update: omitted fields stay; `end_date: null` makes it open-ended."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    deal_type: DealType | None = None
+    deal_value: float | None = Field(default=None, ge=0, le=MAX_PRICE_PKR)
+    deal_text: str | None = Field(default=None, max_length=40)
+    start_date: date | None = None
+    end_date: date | None = None
+    terms: str | None = Field(default=None, max_length=2000)
+    is_active: bool | None = None
+    tone: str | None = Field(default=None, max_length=16)
+
+
+class OfferOut(BaseModel):
     id: int
-    views: int
-    redemptions: int
+    title: str
+    description: str = ""
+    deal_type: DealType
+    deal_value: float | None = None
+    deal_text: str = ""
+    # Badge text built from the deal: "20% OFF", "BUY 1 GET 1".
+    deal_label: str
+    start_date: date
+    end_date: date | None = None
+    terms: str = ""
+    is_active: bool
+    # draft | scheduled | active | expired (from is_active and the dates).
+    status: str
+    tone: str = "emerald"
+    views: int = 0
+    redemptions: int = 0
+
+
+class CampaignRef(BaseModel):
+    """The business's live campaign, for the "Active promotion" badge on cards."""
+
+    id: int
+    name: str
 
 
 class BusinessCard(BaseModel):
@@ -260,6 +303,8 @@ class BusinessCard(BaseModel):
     cover: PhotoOut | None = None
     # What to show as the business type: the owner's own words for "Other".
     category_label: str | None = None
+    # ── Offers & campaigns: the live campaign behind the "Active promotion" badge ──
+    active_campaign: CampaignRef | None = None
     # ── Module 6: where to put the map pin (None: no location set) ──
     latitude: float | None = None
     longitude: float | None = None

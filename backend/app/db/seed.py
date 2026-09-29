@@ -11,7 +11,9 @@ save, or a business that isn't one of the demo owner's catalogue businesses. It:
 * refreshes the demo owner's businesses whose names are in the catalogue below (address,
   map pin, tagline, price range, verification, age, opening hours and services) and adds
   catalogue businesses that don't exist yet. Views and saves are kept;
-* adds catalogue offers, saved lists and search history only where none exist;
+* adds catalogue offers and campaigns, and refreshes the demo owner's catalogue ones (deal,
+  dates relative to today, on/off), so the demo always has live deals;
+* adds saved lists and search history only where none exist;
 * adds demo reviewer accounts and their reviews (with owner replies and helpful votes) to
   catalogue businesses that have none from them yet;
 * recalculates every business's rating and review count from its real reviews (SDD
@@ -41,17 +43,19 @@ from app.db.schema_check import schema_problem
 from app.models.business import (
     BusinessProfile,
     Category,
+    DealType,
     Offer,
-    OfferStatus,
     OpeningHours,
     Service,
 )
 from app.models.chat import Conversation, ConversationReport, Message
+from app.models.campaign import Campaign, CampaignOffer, CampaignService, sync_links
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
 from app.models.notification import DeviceToken, Notification, NotificationKind
 from app.models.review import Review, ReviewPhoto, ReviewReport, ReviewVote
 from app.models.search import SearchQuery
 from app.models.user import User, UserRole
+from app.services.promotion_service import local_today
 from app.services.review_service import refresh_rating
 
 DEMO_PASSWORD = "password123"
@@ -311,15 +315,72 @@ BUSINESSES: list[dict] = [
          services=[("Doodh patti", 150), ("Aloo paratha", 250), ("Chicken karahi (half)", 700)]),
 ]
 
+# Special offers per business: (title, deal type, value, text, start / end in days from
+# today (None = open-ended), switched on, tone, views, redemptions, description, terms).
+# Smash & Stack is unverified, so its offer stays a draft (UC-11 precondition).
 OFFERS = {
-    "Brew & Bloom": [("Buy one, plant one — free seedling", "Jul 1", "Jul 20", OfferStatus.active, "emerald", 96, 40)],
-    "Forno Italiano": [("Family pizza night — 25% off", "Jul 5", "Aug 5", OfferStatus.active, "gold", 210, 33)],
-    "Scoops & Swirls": [("2-for-1 sundaes on weekdays", "Sep 1", "Oct 15", OfferStatus.active, "emerald", 64, 20)],
-    "Iron & Ash Gym": [("First week free", "Sep 10", "Oct 10", OfferStatus.active, "emerald", 48, 9)],
-    "Glow Studio": [("15% off your first facial", "Sep 1", "Sep 30", OfferStatus.active, "gold", 72, 14)],
-    "Zilli Tailors": [("Free alterations this month", "Sep 1", "Sep 30", OfferStatus.active, "emerald", 30, 6)],
-    "Ember & Oak": [("Summer tasting menu", "Jun 1", "Jul 1", OfferStatus.ended, "gold", 140, 22)],
+    "Brew & Bloom": [
+        ("Buy one, plant one — free seedling", DealType.free_item, None, "Seedling", -5, 20,
+         True, "emerald", 96, 40, "Every coffee comes with a seedling from our plant wall.",
+         "One seedling per order, while stocks last."),
+        ("20% off your first order", DealType.percent_off, 20, "", -2, 12, True, "gold", 40, 11,
+         "New here? Your first visit is 20% off.", "First order only. Dine-in and takeaway."),
+    ],
+    "Forno Italiano": [
+        ("Family pizza night — 25% off", DealType.percent_off, 25, "", -3, 30, True, "gold",
+         210, 33, "25% off any two large pizzas for the family.", "Dine-in only, Fri–Sun."),
+        ("Buy 1 get 1 tiramisu", DealType.bogo, None, "", -1, 6, True, "emerald", 58, 12,
+         "Share the sweetest part of the meal.", "With any main course."),
+        ("Free drink with a family meal", DealType.free_item, None, "Drink", -1, 6, True,
+         "emerald", 31, 7, "A soft drink on us with every family meal.", ""),
+    ],
+    "Scoops & Swirls": [
+        ("2-for-1 sundaes on weekdays", DealType.bogo, None, "", -10, 25, False, "emerald",
+         64, 20, "Bring a friend on a weekday.", "Monday to Thursday."),
+    ],
+    "Iron & Ash Gym": [
+        ("First week free", DealType.free_item, None, "First week", -15, 15, True, "emerald",
+         48, 9, "Try every class free for your first week.", "New members only; CNIC required."),
+    ],
+    "Glow Studio": [
+        ("15% off your first facial", DealType.percent_off, 15, "", -8, 20, True, "gold", 72,
+         14, "A calm first visit at a friendlier price.", "Booking required."),
+        ("Rs 500 off winter hair spa", DealType.amount_off, 500, "", 0, 45, True, "gold", 18, 2,
+         "Beat the dry winter air.", ""),
+    ],
+    "Zilli Tailors": [
+        ("15% off for students", DealType.percent_off, 15, "", -30, None, True, "emerald", 30,
+         6, "Show your student card for 15% off stitching.", "Valid student ID required."),
+    ],
+    "Ember & Oak": [
+        ("Summer tasting menu", DealType.other, None, "Seasonal menu", -120, -60, True, "gold",
+         140, 22, "Our summer tasting menu.", ""),
+    ],
+    "Smash & Stack": [
+        ("Free fries with any burger", DealType.free_item, None, "Fries", 0, 14, False,
+         "gold", 0, 0, "Waiting for verification before it can go live.", ""),
+    ],
 }
+
+# Promotional campaigns: (business, name, description, message, start / end in days from
+# today, offers it links (titles above), featured services, terms, notify savers).
+CAMPAIGNS = [
+    ("Forno Italiano", "Weekend Food Festival",
+     "Enjoy special weekend deals at our restaurant: pizza for the family, dessert to share "
+     "and drinks on us.", "Special deals all weekend!", -1, 6,
+     ["Family pizza night — 25% off", "Buy 1 get 1 tiramisu", "Free drink with a family meal"],
+     ["Margherita pizza", "Tiramisu"], "Dine-in only. Offers can't be combined.", True),
+    ("Brew & Bloom", "Grand Opening",
+     "Celebrate our grand opening with exclusive introductory deals.",
+     "We're new in F-7 — come say hello!", -2, 12,
+     ["20% off your first order", "Buy one, plant one — free seedling"],
+     ["Pour over", "Plant of the month"], "", True),
+    ("Glow Studio", "Winter Special",
+     "Treat your skin and hair this winter with our seasonal deals.",
+     "Winter glow, limited time.", 0, 30,
+     ["15% off your first facial", "Rs 500 off winter hair spa"],
+     ["Hydrating facial"], "Appointments required.", False),
+]
 
 # Module 5: demo reviewers. Each writes at most one review per business (BR-4). About two
 # thirds have a verified email, so the "Verified" badge and ordering show up in the demo.
@@ -420,6 +481,7 @@ class SeedReport:
     businesses_added: int = 0
     businesses_refreshed: int = 0
     offers_added: int = 0
+    campaigns_added: int = 0
     reviews_added: int = 0
     searches_added: int = 0
     conversations_added: int = 0
@@ -429,7 +491,8 @@ class SeedReport:
         return (
             f"Businesses: {self.businesses_added} added, {self.businesses_refreshed} refreshed. "
             f"Also added {self.categories_added} categories, {self.users_added} demo accounts, "
-            f"{self.offers_added} offers, {self.reviews_added} reviews, "
+            f"{self.offers_added} offers, {self.campaigns_added} campaigns, "
+            f"{self.reviews_added} reviews, "
             f"{self.searches_added} searches, {self.conversations_added} conversations, "
             f"{self.notifications_added} notifications."
         )
@@ -440,7 +503,7 @@ def reset(db: Session) -> None:
     for model in (
         Notification, DeviceToken, ConversationReport, Message, Conversation,
         SearchQuery, BusinessView, SavedBusiness, SavedList, ReviewReport, ReviewVote,
-        ReviewPhoto, Review, Offer, Service,
+        ReviewPhoto, Review, CampaignService, CampaignOffer, Campaign, Offer, Service,
         OpeningHours, BusinessProfile, Category,
     ):
         db.execute(delete(model))
@@ -547,16 +610,58 @@ def _sync_businesses(
     return by_name
 
 
-def _add_offers(db: Session, biz: dict[str, BusinessProfile], report: SeedReport) -> None:
-    have = set(db.execute(select(Offer.business_id, Offer.title)).tuples())
+def _sync_offers(db: Session, biz: dict[str, BusinessProfile], now: datetime,
+                 report: SeedReport) -> dict[tuple[str, str], Offer]:
+    """Add missing catalogue offers and refresh existing ones, dated relative to today."""
+    today = local_today(now)
+    existing = {(o.business_id, o.title): o
+                for o in db.scalars(select(Offer).where(Offer.deleted_at.is_(None)))}
+    by_key = {}
     for bname, offers in OFFERS.items():
-        for title, starts, ends, status_, tone, views, redemptions in offers:
-            if (biz[bname].id, title) in have:
-                continue
-            db.add(Offer(business_id=biz[bname].id, title=title, starts_on=starts,
-                         ends_on=ends, status=status_, tone=tone, views=views,
-                         redemptions=redemptions))
-            report.offers_added += 1
+        b = biz[bname]
+        for (title, deal_type, value, text, start, end, active, tone, views, redemptions,
+             description, terms) in offers:
+            o = existing.get((b.id, title))
+            if o is None:
+                o = Offer(business_id=b.id, title=title, views=views, redemptions=redemptions,
+                          notified_at=now)  # demo data: nobody is notified about it
+                db.add(o)
+                report.offers_added += 1
+            o.deal_type, o.deal_value, o.deal_text = deal_type, value, text
+            o.start_date = today + timedelta(days=start)
+            o.end_date = today + timedelta(days=end) if end is not None else None
+            o.is_active = active and b.is_verified
+            o.tone, o.description, o.terms = tone, description, terms
+            by_key[(bname, title)] = o
+    db.flush()
+    return by_key
+
+
+def _sync_campaigns(db: Session, biz: dict[str, BusinessProfile],
+                    offers: dict[tuple[str, str], Offer], now: datetime,
+                    report: SeedReport) -> None:
+    today = local_today(now)
+    existing = {(c.business_id, c.name): c
+                for c in db.scalars(select(Campaign).where(Campaign.deleted_at.is_(None)))}
+    for (bname, name, description, message, start, end, offer_titles, services, terms,
+         notify) in CAMPAIGNS:
+        b = biz[bname]
+        c = existing.get((b.id, name))
+        if c is None:
+            c = Campaign(business_id=b.id, name=name, notified_at=now)
+            db.add(c)
+            report.campaigns_added += 1
+        c.description, c.message, c.terms, c.notify_savers = description, message, terms, notify
+        c.start_date = today + timedelta(days=start)
+        c.end_date = today + timedelta(days=end)
+        c.is_published = b.is_verified
+        sync_links(c.offer_links, [offers[(bname, t)] for t in offer_titles], "offer_id",
+                   lambda o, n: CampaignOffer(offer_id=o.id, offer=o, position=n))
+        by_name = {s.name: s for s in b.services}
+        sync_links(c.service_links, [by_name[n] for n in services if n in by_name],
+                   "service_id",
+                   lambda s, n: CampaignService(service_id=s.id, service=s, position=n))
+    db.flush()
 
 
 def _ensure_reviewers(db: Session, report: SeedReport) -> list[User]:
@@ -737,7 +842,8 @@ def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     users = _ensure_users(db, report)
     reviewers = _ensure_reviewers(db, report)
     biz = _sync_businesses(db, users[OWNER_EMAIL], cats, now, report)
-    _add_offers(db, biz, report)
+    offers = _sync_offers(db, biz, now, report)
+    _sync_campaigns(db, biz, offers, now, report)
     _add_reviews(db, biz, reviewers, users[CUSTOMER_EMAIL], now, report)
     _refresh_ratings(db)
     _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)

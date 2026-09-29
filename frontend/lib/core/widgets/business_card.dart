@@ -4,6 +4,7 @@ import '../models/business.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import 'image_tile.dart';
+import 'promotion_badge.dart';
 
 /// Compact vertical business card (image + name + rating/distance) used in
 /// horizontal carousels.
@@ -44,6 +45,10 @@ class BusinessMiniCard extends StatelessWidget {
               '${business.distanceLabel.isNotEmpty ? ' · ${business.distanceLabel}' : ''}',
               style: AppType.mono(size: 10.5, color: AppColors.inkA(0.47)),
             ),
+            if (business.activeCampaign != null) ...[
+              const SizedBox(height: 5),
+              PromotionBadge(campaign: business.activeCampaign!, compact: true),
+            ],
           ],
         ),
       ),
@@ -84,6 +89,12 @@ class BusinessHeroCard extends StatelessWidget {
               ),
             ),
           ),
+          if (business.activeCampaign != null)
+            Positioned(
+              top: 14,
+              left: 14,
+              child: PromotionBadge(campaign: business.activeCampaign!, onDark: true),
+            ),
           if (business.distanceLabel.isNotEmpty)
             Positioned(
               top: 14,
@@ -174,6 +185,10 @@ class BusinessListRow extends StatelessWidget {
                     ' · ${business.priceLevel}',
                     style: AppType.mono(size: 11.5, color: AppColors.inkA(0.53)),
                   ),
+                  if (business.activeCampaign != null) ...[
+                    const SizedBox(height: 6),
+                    PromotionBadge(campaign: business.activeCampaign!),
+                  ],
                 ],
               ),
             ),

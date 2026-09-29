@@ -1,10 +1,12 @@
 from app.models.business import (
     BusinessProfile,
     Category,
+    DealType,
     Offer,
     OpeningHours,
     Service,
 )
+from app.models.campaign import Campaign, CampaignOffer, CampaignService
 from app.models.chat import (
     Conversation,
     ConversationReport,
@@ -40,6 +42,10 @@ __all__ = [
     "Service",
     "OpeningHours",
     "Offer",
+    "DealType",
+    "Campaign",
+    "CampaignOffer",
+    "CampaignService",
     "SavedList",
     "SavedBusiness",
     "BusinessView",

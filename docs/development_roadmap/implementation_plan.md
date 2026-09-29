@@ -114,7 +114,7 @@ The 60% scope is the second-iteration slide shown to the committee:
 | Business comparison feature | 4 | ✅ Implemented (completed early, at 30%) |
 | Admin moderation panel | 8 | 🎨 Prototype, to build |
 | Google Maps and location services | 6 | ✅ Implemented |
-| Offers and promotional campaigns | 2 | 🟡 Basic offers exist; owner and scope to decide |
+| Offers and promotional campaigns | 2 | ✅ Implemented (see `offers_campaigns_plan.md`) |
 | Push notification system | 3 | ✅ Implemented (Firebase keys: manual setup) |
 | Chat and messaging system | 9 | ✅ Implemented |
 
@@ -142,11 +142,12 @@ The 60% scope is the second-iteration slide shown to the committee:
 * Removing spam and inappropriate content (FR-15), starting with the review reports Module 5 already stores (FR-19)
 * Limiting profile changes to verified owners (SEC-2) and admin functions to admins (SEC-3)
 
-**Offers and Promotional Campaigns** (Module 2: FR-10, UC-11)
+**Offers and Promotional Campaigns** (Module 2: FR-10, UC-11) ✅ Implemented
 
-* Offers exist from Phase 1, with a title, start and end values stored as text, and a status
-* Missing compared with the SDD: offer description, discount, and real dates with validation (UC-11 "invalid dates", Algorithm 6)
-* "Campaigns" still needs defining. Telling users about new offers is covered by push notifications (FR-21)
+* Special offers with a deal type and value (the SDD's discount), description, real dates validated per UC-11, terms, and Draft / Scheduled / Active / Expired. Owners create, edit, activate, deactivate and delete them
+* Promotional campaigns that link existing offers (and featured services) for a period, with a banner, message, terms and publish switch. One campaign at a time per business
+* Customers see live campaigns as Home banners, an "Active promotion" badge on cards, an "On now" strip and coupon-style offers on the business page, and a campaign details screen
+* Activating and publishing need a verified business (UC-11 precondition). Savers are notified once per offer, and once per campaign if the owner opts in
 
 **Push Notification System** (Module 3: FR-21, UC-15) ✅ Implemented (see `module9_chat_and_push_plan.md`)
 
@@ -198,7 +199,6 @@ Still open, and listed as decisions in the review:
 
 * The verification rule (BR-3, UC-6, SEC-2), which depends on how Module 8 implements verification.
 * The team work division for Modules 7, 8 and 10.
-* The owner and scope of "Offers and promotional campaigns".
 * The SDD and Feasibility Report corrections, which need to be made in the Word files. They include the traceability matrix numbering, the ER diagram, the screenshots, the Gantt chart and the tables of contents.
 
 ---

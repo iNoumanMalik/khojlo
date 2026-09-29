@@ -143,6 +143,16 @@ Future<void> pump(WidgetTester tester, ProviderContainer c, Widget screen,
   }
 }
 
+/// Waits for the map's debounced load. Polls rather than sleeping a fixed time, so a
+/// busy machine running the whole suite can't make the tests flaky.
+Future<void> mapLoaded(ProviderContainer c) async {
+  for (var i = 0; i < 150; i++) {
+    if (c.read(mapResultsProvider).status == MapStatus.ready) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('map results never loaded');
+}
+
 void main() {
   group('geometry and BR-7', () {
     test('(0, 0) and out-of-range points are not valid locations', () {
@@ -208,7 +218,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       c.read(mapResultsProvider.notifier).onCameraIdle(area);
-      await Future<void>.delayed(MapResultsNotifier.debounce + const Duration(milliseconds: 50));
+      await mapLoaded(c);
 
       final call = search.calls.last;
       expect(call.bounds, area);
@@ -224,7 +234,7 @@ void main() {
       final c = container(search: search);
       final notifier = c.read(mapResultsProvider.notifier);
       notifier.onCameraIdle(area);
-      await Future<void>.delayed(MapResultsNotifier.debounce + const Duration(milliseconds: 50));
+      await mapLoaded(c);
       notifier.select(2);
 
       search.items = [reading];
@@ -246,7 +256,7 @@ void main() {
       final c = container(search: search);
       final notifier = c.read(mapResultsProvider.notifier);
       notifier.onCameraIdle(area);
-      await Future<void>.delayed(MapResultsNotifier.debounce + const Duration(milliseconds: 50));
+      await mapLoaded(c);
       notifier.onCameraIdle(const GeoBounds(
           south: 33.70001, west: 73.04001, north: 33.73501, east: 73.08501));
       await Future<void>.delayed(MapResultsNotifier.debounce + const Duration(milliseconds: 50));

@@ -5,13 +5,12 @@ public API doesn't expose (rating, verification, age).
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.models.business import (
     BusinessProfile,
     Category,
     Offer,
-    OfferStatus,
     OpeningHours,
     Service,
 )
@@ -100,8 +99,14 @@ def make_world() -> dict[str, int]:
                 b.services.append(
                     Service(name=service_name, price=f"Rs {amount}", price_amount=amount)
                 )
-            for title, status in offers:
-                b.offers.append(Offer(title=title, status=status))
+            for title, live in offers:
+                # Live: switched on and open-ended from January. Ended: expired in June.
+                # Either way the result doesn't depend on today's date.
+                b.offers.append(Offer(
+                    title=title, deal_text="Special", is_active=live,
+                    start_date=date(2026, 1, 1),
+                    end_date=None if live else date(2026, 6, 1),
+                ))
             db.add(b)
             created.append(b)
 
@@ -109,7 +114,7 @@ def make_world() -> dict[str, int]:
             address="F-7 Markaz, Islamabad", pmin=450, pmax=1500, coords=F7, rating=4.8,
             saves=90, age_days=10, hours=every_day("08:00", "23:00"),
             services=(("Pour over", 650), ("Flat white", 550)),
-            offers=(("Free seedling", OfferStatus.active),))
+            offers=(("Free seedling", True),))
         biz("The Reading Room", "cafes", tagline="Quiet corners",
             description="Slow coffee for readers", address="Blue Area, Islamabad",
             pmin=350, pmax=1100, coords=(33.7095, 73.0561), rating=4.7, saves=60,
@@ -120,7 +125,7 @@ def make_world() -> dict[str, int]:
             rating=4.6, saves=70, age_days=90, verified=False,
             hours={1: ("18:00", "02:00"), 2: ("18:00", "02:00")},
             services=(("Margherita pizza", 1400),),
-            offers=(("Summer menu", OfferStatus.ended),))
+            offers=(("Summer menu", False),))
         biz("Zilli Tailors", "shopping", tagline="Unstitched fabric & suits", price="$",
             address="Jinnah Road, Abbottabad", pmin=800, pmax=2500,
             coords=(34.1519, 73.2157), rating=4.5, saves=30, age_days=5,

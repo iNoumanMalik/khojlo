@@ -13,6 +13,7 @@ from app.api import (
     geo,
     media,
     notifications,
+    promotions,
     reviews,
     search,
     users,
@@ -46,7 +47,7 @@ app.add_middleware(
 )
 
 for module in (auth, users, businesses, categories, feed, search, compare, media, geo, reviews,
-               chat, notifications):
+               chat, notifications, promotions):
     app.include_router(module.router, prefix=settings.API_V1_PREFIX)
 
 

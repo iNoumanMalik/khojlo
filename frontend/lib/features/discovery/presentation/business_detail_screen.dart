@@ -12,6 +12,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../chat/chat_providers.dart';
 import '../../maps/map_providers.dart';
+import '../../promotions/presentation/widgets/promo_widgets.dart';
 import '../../reviews/presentation/business_reviews_section.dart';
 import '../../reviews/reviews_providers.dart';
 import '../../search/compare_controller.dart';
@@ -285,6 +286,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            if (b.activeCampaign != null) _campaignStrip(b),
             if (b.offers.isNotEmpty) _offers(b),
             // The cover is already the hero, so the gallery appears once there's more.
             if (b.photos.length > 1) _gallery(b),
@@ -397,45 +399,65 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       children: [
         _sectionTitle('Offers'),
         SizedBox(
-          height: 96,
+          height: 118,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: b.offers.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) {
-              final o = b.offers[i];
-              return Container(
-                width: 240,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [
-                    AppColors.gold.withValues(alpha: 0.18),
-                    AppColors.gold.withValues(alpha: 0.05),
-                  ]),
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(o.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            AppType.sans(size: 13.5, weight: FontWeight.w700)),
-                    Text(o.rangeLabel,
-                        style: AppType.mono(
-                            size: 10.5, color: AppColors.inkA(0.6))),
-                  ],
-                ),
-              );
-            },
+            itemBuilder: (_, i) => OfferCoupon(
+              offer: b.offers[i],
+              width: 240,
+              onTap: () => showOfferDetails(context, b.offers[i], businessName: b.name),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  /// "On now": the business's live promotional campaign.
+  Widget _campaignStrip(BusinessDetail b) {
+    final campaign = b.activeCampaign!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+      child: GestureDetector(
+        onTap: () => context.push('/campaign/${campaign.id}'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              AppColors.plum.withValues(alpha: 0.14),
+              AppColors.gold.withValues(alpha: 0.1),
+            ]),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.plum.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.local_fire_department_rounded, color: AppColors.plum),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ON NOW',
+                        style: AppType.mono(
+                            size: 9.5, weight: FontWeight.w700, color: AppColors.plum)),
+                    Text(campaign.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppType.sans(size: 14.5, weight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+              Text('See deals',
+                  style: AppType.sans(size: 12.5, weight: FontWeight.w700, color: AppColors.plum)),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.plum),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

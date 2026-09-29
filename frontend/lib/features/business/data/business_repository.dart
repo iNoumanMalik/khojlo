@@ -126,22 +126,4 @@ class BusinessRepository {
     final res = await _dio.get('/businesses/$id/analytics');
     return BusinessAnalytics.fromJson(res.data as Map<String, dynamic>);
   }
-
-  Future<List<Offer>> offers(int id) async {
-    final res = await _dio.get('/businesses/$id/offers');
-    return (res.data as List)
-        .map((e) => Offer.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<Offer> createOffer(int id,
-      {required String title, String starts = '', String ends = ''}) async {
-    final res = await _dio.post('/businesses/$id/offers', data: {
-      'title': title,
-      'starts_on': starts,
-      'ends_on': ends,
-      'status': 'Active',
-    });
-    return Offer.fromJson(res.data as Map<String, dynamic>);
-  }
 }

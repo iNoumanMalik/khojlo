@@ -9,6 +9,7 @@ from app.models.business import BusinessProfile, Category
 from app.models.engagement import BusinessView
 from app.models.notification import DeviceToken, Notification
 from app.models.user import User
+from app.services.promotion_service import local_today
 from tests.conftest import TestingSessionLocal, auth, login, register
 
 P = "/api/v1"
@@ -23,6 +24,14 @@ def add_device(client, headers, token, platform="android"):
     r = client.put(f"{P}/notifications/devices", headers=headers,
                    json={"token": token, "platform": platform})
     assert r.status_code == 204, r.text
+
+
+def verify(business_id: int) -> None:
+    """What Module 8's admin will do; publishing offers needs it (UC-11)."""
+    db = TestingSessionLocal()
+    db.get(BusinessProfile, business_id).is_verified = True
+    db.commit()
+    db.close()
 
 
 def inbox(client, headers) -> dict:
@@ -133,12 +142,15 @@ def test_people_who_saved_a_business_hear_about_its_new_offers(client, business,
     add_device(client, bob, "bob-phone-token")
     client.post(f"{P}/businesses/{business}/save", headers=ali, json={})
 
+    verify(business)
+    today = local_today().isoformat()
+    deal = {"deal_type": "percent_off", "deal_value": 20, "start_date": today}
     client.post(f"{P}/businesses/{business}/offers", headers=owner,
-                json={"title": "20% off for first-time visitors"})
+                json={"title": "20% off for first-time visitors", "is_active": True, **deal})
     client.post(f"{P}/businesses/{business}/offers", headers=owner,
-                json={"title": "Old deal", "status": "Ended"})
+                json={"title": "Draft deal", **deal})
 
-    [(tokens, message)] = pushes.sent  # only Ali saved it; ended offers aren't announced
+    [(tokens, message)] = pushes.sent  # only Ali saved it; drafts aren't announced
     assert tokens == ["ali-phone-token"]
     assert (message.title, message.body) == ("New offer at Brew & Bloom",
                                              "20% off for first-time visitors")

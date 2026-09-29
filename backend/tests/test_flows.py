@@ -76,7 +76,8 @@ def test_business_lifecycle_and_feed(client):
     offer = client.post(
         f"{PREFIX}/businesses/{biz_id}/offers",
         headers=auth(otoken),
-        json={"title": "20% off", "status": "Active"},
+        json={"title": "20% off", "deal_type": "percent_off", "deal_value": 20,
+              "start_date": "2026-09-01"},  # a draft: the business isn't verified yet
     )
     assert offer.status_code == 201
 

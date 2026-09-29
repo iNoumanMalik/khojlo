@@ -1,4 +1,5 @@
 import 'business.dart';
+import 'campaign.dart';
 
 class FeedSection {
   const FeedSection({
@@ -32,12 +33,16 @@ class Feed {
     required this.headline,
     required this.categories,
     required this.sections,
+    this.campaigns = const [],
   });
 
   final String greeting;
   final String headline;
   final List<Category> categories;
   final List<FeedSection> sections;
+
+  /// Live promotional campaigns: banners at the top of Home.
+  final List<CampaignBanner> campaigns;
 
   factory Feed.fromJson(Map<String, dynamic> j) => Feed(
         greeting: j['greeting'] as String,
@@ -47,6 +52,9 @@ class Feed {
             .toList(),
         sections: (j['sections'] as List)
             .map((e) => FeedSection.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        campaigns: (j['campaigns'] as List? ?? const [])
+            .map((e) => CampaignBanner.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

@@ -79,6 +79,11 @@ Push notifications need Firebase keys: see the manual steps in
 `python -m app.jobs.trending_digest` sends everyone a "Trending in …" notification. Run the API
 as one process (no `--workers`), because live chat events are kept in memory.
 
+Offers & campaigns demo: open **Home** to see the campaign banners (Weekend Food Festival,
+Grand Opening, Winter Special), tap one for its offers, and look for the **Active promotion** badge
+on cards. As the owner, open **Business → Offers & promotions** to create offers (deal type, dates,
+terms) and a campaign that promotes them.
+
 Module 5 demo: as the customer, open any business, scroll to **Reviews** and tap **Write a
 review** (confetti on submit). Open **See all** to sort, filter by stars and mark reviews helpful,
 then check **Profile → My reviews**. As the owner, use **Business → Reviews & replies** to answer
