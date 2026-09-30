@@ -9,6 +9,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     role: UserRole = UserRole.customer
     interests: list[str] = Field(default_factory=list)
+    # The privacy policy version the user read and agreed to on the sign-up form.
+    privacy_policy_version: str = Field(max_length=32)
 
 
 class LoginRequest(BaseModel):

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'location_rationale.dart';
+
 /// A device position (WGS84).
 class LocationFix {
   const LocationFix(this.latitude, this.longitude);
@@ -42,6 +44,12 @@ class LocationResult {
 
 /// Thin wrapper over `geolocator` so screens (and tests) don't touch the plugin directly.
 class LocationService {
+  LocationService({this.explainBeforePrompt});
+
+  /// Says why Khojlo wants the location just before the system asks (SRS FR-26);
+  /// resolves false if the user declines, and the system prompt is skipped.
+  final Future<bool> Function()? explainBeforePrompt;
+
   /// Longest wait for a position fix. Enforced here in Dart because plugins don't all
   /// honour `LocationSettings.timeLimit` — geolocator_web hands it to the browser in the
   /// wrong unit (15 s becomes ~4 h), so a stalled request would otherwise never end.
@@ -64,6 +72,9 @@ class LocationService {
       if (prompt &&
           (permission == LocationPermission.denied ||
               permission == LocationPermission.unableToDetermine)) {
+        if (!(await explainBeforePrompt?.call() ?? true)) {
+          return const LocationResult(LocationStatus.denied);
+        }
         permission = await Geolocator.requestPermission()
             .timeout(promptTimeout, onTimeout: () => LocationPermission.denied);
       }
@@ -151,7 +162,8 @@ class LocationController extends StateNotifier<LocationState> {
   Future<void> openSettings() => _service.openSettings();
 }
 
-final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
+final locationServiceProvider = Provider<LocationService>(
+    (ref) => LocationService(explainBeforePrompt: explainLocationUse));
 
 final locationControllerProvider =
     StateNotifierProvider<LocationController, LocationState>((ref) {

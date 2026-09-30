@@ -1,11 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 from app.core.database import Base, get_db
+from app.core.privacy import PRIVACY_POLICY_VERSION
 from app.main import app
 
 # The startup schema check would connect to the real DATABASE_URL; tests use SQLite below.
@@ -17,6 +18,14 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+
+
+@event.listens_for(engine, "connect")
+def _sqlite_foreign_keys(dbapi_connection, _):
+    """Enforce foreign keys (and their ON DELETE rules) like PostgreSQL does."""
+    dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -97,6 +106,7 @@ def register(client, email, role="customer", **extra):
         "password": "password123",
         "role": role,
         "interests": extra.get("interests", []),
+        "privacy_policy_version": extra.get("privacy_policy_version", PRIVACY_POLICY_VERSION),
     }
     return client.post("/api/v1/auth/register", json=payload)
 

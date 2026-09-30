@@ -53,7 +53,10 @@ class BusinessView(Base):
     business_id: Mapped[int] = mapped_column(
         ForeignKey("businesses.id", ondelete="CASCADE"), index=True
     )
-    viewer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # Set to null when the viewer deletes their account, so the view still counts.
+    viewer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, index=True
     )

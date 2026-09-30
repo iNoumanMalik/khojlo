@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.privacy import PRIVACY_POLICY_VERSION
 from app.core.security import ACCESS_TOKEN, decode_token
 from app.models.user import User, UserRole
 
@@ -61,3 +62,12 @@ def get_now() -> datetime:
     """The current UTC time. Tests override this dependency to freeze the clock
     (e.g. to check "open now" at a known hour)."""
     return datetime.now(timezone.utc)
+
+
+def require_current_privacy_policy(version: str) -> None:
+    """The app agreed to an older policy than the server's: make the user read the new one."""
+    if version != PRIVACY_POLICY_VERSION:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Our privacy policy has changed. Please review it and try again.",
+        )

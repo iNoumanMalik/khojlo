@@ -7,6 +7,10 @@ import '../theme/app_typography.dart';
 /// (e.g. a push notification that arrives while the app is open).
 final rootMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+/// The router's root Navigator, for dialogs raised outside a screen (e.g. explaining
+/// why Khojlo wants location before the system asks).
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// A floating ink banner with an optional "Open" action.
 void showInAppBanner(String title, String body, {VoidCallback? onOpen}) {
   rootMessengerKey.currentState

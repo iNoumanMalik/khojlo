@@ -11,6 +11,7 @@ import '../../auth/auth_controller.dart';
 import '../../auth/presentation/email_verification_sheet.dart';
 import '../../reviews/reviews_providers.dart';
 import '../account_providers.dart';
+import 'delete_account_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -152,6 +153,10 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.manage_accounts_outlined,
                     label: 'Edit profile',
                     onTap: () => context.push('/edit-profile')),
+                _Row(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy policy',
+                    onTap: () => context.push('/privacy')),
               ],
             ),
           ),
@@ -166,6 +171,22 @@ class ProfileScreen extends ConsumerWidget {
                 await ref.read(authControllerProvider.notifier).logout();
                 if (context.mounted) context.go('/onboarding');
               },
+            ),
+          ),
+          const SizedBox(height: 14),
+          Center(
+            child: GestureDetector(
+              onTap: () async {
+                if (await showDeleteAccountSheet(context) && context.mounted) {
+                  context.go('/onboarding');
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text('Delete account',
+                    style: AppType.sans(
+                        size: 13, weight: FontWeight.w600, color: AppColors.inkA(0.45))),
+              ),
             ),
           ),
           const SizedBox(height: 60),

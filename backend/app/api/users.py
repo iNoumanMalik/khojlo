@@ -1,15 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.chat import CLOSE_UNAUTHORIZED
+from app.api.deps import get_current_user, require_current_privacy_policy
 from app.core.database import get_db
+from app.core.security import verify_password
 from app.models.engagement import SavedBusiness, SavedList
 from app.models.user import User
 from app.schemas.saved import SavedListCreate, SavedListOut
-from app.schemas.user import InterestsUpdate, UserOut, UserUpdate
+from app.schemas.user import (
+    DeleteAccountRequest,
+    InterestsUpdate,
+    PrivacyConsentRequest,
+    UserOut,
+    UserUpdate,
+)
+from app.services.account_service import delete_account
 from app.services.business_service import to_card
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
+from app.services.realtime import manager
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -47,6 +57,37 @@ def update_me(
     db.flush()
     if previous_avatar is not None and previous_avatar != user.avatar_media_id:
         delete_if_unused(db, {previous_avatar})
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(
+    payload: DeleteAccountRequest,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Permanently delete the account and everything in it (SRS FR-27)."""
+    if user.hashed_password is not None and not verify_password(
+        payload.password or "", user.hashed_password
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Incorrect password")
+    user_id = user.id
+    delete_account(db, user)
+    background_tasks.add_task(manager.disconnect, user_id, CLOSE_UNAUTHORIZED)
+
+
+@router.post("/me/privacy-consent", response_model=UserOut)
+def agree_to_privacy_policy(
+    payload: PrivacyConsentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """Record that the user agreed to the current privacy policy (SRS FR-26)."""
+    require_current_privacy_policy(payload.policy_version)
+    user.record_privacy_consent()
     db.commit()
     db.refresh(user)
     return user

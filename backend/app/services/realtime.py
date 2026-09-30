@@ -43,6 +43,14 @@ class ConnectionManager:
             except Exception:  # closed without a clean disconnect
                 self.remove(user_id, socket)
 
+    async def disconnect(self, user_id: int, code: int) -> None:
+        """Close every socket this user has open (e.g. their account was just deleted)."""
+        for socket in list(self._sockets.pop(user_id, ())):
+            try:
+                await socket.close(code=code)
+            except Exception:  # already closed
+                pass
+
     async def publish(self, events: dict[int, dict[str, Any]]) -> None:
         """Send each user their own event (e.g. `is_mine` differs per participant)."""
         for user_id, event in events.items():
