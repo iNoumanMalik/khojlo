@@ -57,6 +57,13 @@ class ChatRepository {
     return (res.data as Map<String, dynamic>)['unread_total'] as int;
   }
 
+  /// Module 8: nobody can send until the blocker unblocks.
+  Future<ConversationDetail> setBlocked(int conversationId, bool blocked) async {
+    final path = '/conversations/$conversationId/block';
+    final res = blocked ? await _dio.post(path) : await _dio.delete(path);
+    return ConversationDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<void> report(int conversationId, ConversationReportReason reason, {String note = ''}) =>
       _dio.post('/conversations/$conversationId/report',
           data: {'reason': reason.api, 'note': note});

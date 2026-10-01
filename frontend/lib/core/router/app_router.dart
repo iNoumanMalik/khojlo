@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/moderation.dart';
 import '../../features/account/presentation/edit_profile_screen.dart';
+import '../../features/account/presentation/guidelines_screen.dart';
+import '../../features/admin/presentation/admin_business_screen.dart';
+import '../../features/admin/presentation/admin_report_screen.dart';
+import '../../features/admin/presentation/admin_screen.dart';
+import '../../features/admin/presentation/admin_user_screen.dart';
 import '../../features/account/presentation/profile_screen.dart';
 import '../../features/account/presentation/saved_screen.dart';
 import '../../features/auth/auth_controller.dart';
@@ -14,18 +20,19 @@ import '../../features/business/presentation/business_tab_screen.dart';
 import '../../features/business/presentation/edit_business_screen.dart';
 import '../../features/business/presentation/edit_hours_screen.dart';
 import '../../features/business/presentation/edit_photos_screen.dart';
-import '../../features/business/presentation/offers_screen.dart';
 import '../../features/business/presentation/registration_stepper.dart';
+import '../../features/business/presentation/verification_screen.dart';
 import '../../features/chat/presentation/conversation_screen.dart';
 import '../../features/chat/presentation/messages_screen.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
 import '../../features/maps/presentation/map_screen.dart';
+import '../../features/promotions/presentation/campaign_screen.dart';
+import '../../features/promotions/presentation/promotions_screen.dart';
 import '../../features/notifications/presentation/notification_settings_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/reviews/presentation/my_reviews_screen.dart';
 import '../../features/reviews/presentation/reviews_screen.dart';
-import '../../features/prototype/admin_screen.dart';
 import '../../features/prototype/kai_screen.dart';
 import '../../features/prototype/surprise_screen.dart';
 import '../../features/search/presentation/compare_screen.dart';
@@ -44,6 +51,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
   ref.onDispose(refresh.dispose);
 
+  // A page opened directly (a link, or refreshing the browser on /admin) while the
+  // session is still being restored: shown once sign-in is confirmed, not lost.
+  String? pendingLocation;
+
   return GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/splash',
@@ -57,13 +68,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/forgot-password';
 
       if (status == AuthStatus.unknown) {
+        if (loc != '/splash' && !onboarding) pendingLocation = state.uri.toString();
         return loc == '/splash' ? null : '/splash';
       }
       if (status == AuthStatus.unauthenticated) {
+        pendingLocation = null;
         return onboarding && loc != '/splash' ? null : '/onboarding';
       }
       // authenticated
-      if (onboarding) return '/home';
+      if (onboarding) {
+        final next = pendingLocation;
+        pendingLocation = null;
+        return next ?? '/home';
+      }
+      // SEC-3: the admin panel is for admins only (the API refuses everyone else too).
+      if (loc.startsWith('/admin') &&
+          !(ref.read(authControllerProvider).user?.isAdmin ?? false)) {
+        return '/home';
+      }
       return null;
     },
     routes: [
@@ -108,6 +130,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             BusinessDetailScreen(id: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
+        path: '/campaign/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => CampaignScreen(campaignId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
         path: '/business/:id/reviews',
         parentNavigatorKey: _rootKey,
         builder: (_, s) => ReviewsScreen(
@@ -142,7 +169,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/offers/:id',
         parentNavigatorKey: _rootKey,
         builder: (_, s) =>
-            OffersScreen(businessId: int.parse(s.pathParameters['id']!)),
+            PromotionsScreen(businessId: int.parse(s.pathParameters['id']!)),
       ),
       GoRoute(
           path: '/profile',
@@ -186,10 +213,39 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/my-reviews',
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const MyReviewsScreen()),
+      // ── Module 8: admin and moderation ──
       GoRoute(
           path: '/admin',
           parentNavigatorKey: _rootKey,
-          builder: (_, __) => const AdminScreen()),
+          builder: (_, s) =>
+              AdminScreen(initial: AdminSection.fromName(s.uri.queryParameters['section']))),
+      GoRoute(
+        path: '/admin/business/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => AdminBusinessScreen(businessId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/admin/report/:kind/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => AdminReportScreen(
+          kind: ReportKind.fromApi(s.pathParameters['kind']),
+          targetId: int.parse(s.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/user/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => AdminUserScreen(userId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/verification/:id',
+        parentNavigatorKey: _rootKey,
+        builder: (_, s) => VerificationScreen(businessId: int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
+          path: '/guidelines',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const GuidelinesScreen()),
     ],
   );
 });

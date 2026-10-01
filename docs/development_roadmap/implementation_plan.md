@@ -17,7 +17,7 @@ This plan reflects the implementation as of September 2026 and is aligned with t
 | 5 | Reviews and Ratings System | FR-6, FR-19, UC-7, REL-4 | ✅ Implemented (see `module5_reviews_ratings_plan.md`) | 60% |
 | 6 | Maps and Location Integration | FR-12, UC-9 | ✅ Implemented (see `module6_maps_location_plan.md`) | 60% |
 | 7 | AI Chatbot Assistance (RAG) | FR-13, UC-8, USE-5, PER-4 | 🎨 Prototype | 100% |
-| 8 | Admin and Moderation System | FR-14, FR-15, UC-12, SEC-2, SEC-3 | 🎨 Prototype | 60% |
+| 8 | Admin and Moderation System | FR-14, FR-15, FR-19, FR-26–FR-30, UC-12, UC-16–UC-18, SEC-2, SEC-3, SEC-5, SEC-6 | ✅ Implemented (see `module8_admin_moderation_plan.md`); AI flagging and the Trust Score at 100% | 60% (AI: 100%) |
 | 9 | Chat and Messaging System | FR-23, FR-24, FR-25, UC-13, UC-14 | ✅ Implemented (see `module9_chat_and_push_plan.md`) | 60% |
 | 10 | AI Personalization and Recommendation | FR-22 | 🟡 Basic version in the feed | 100% |
 
@@ -112,9 +112,9 @@ The 60% scope is the second-iteration slide shown to the committee:
 | User reviews and ratings | 5 | ✅ Implemented |
 | Business search and advanced filtering | 4 | ✅ Implemented (completed early, at 30%) |
 | Business comparison feature | 4 | ✅ Implemented (completed early, at 30%) |
-| Admin moderation panel | 8 | 🎨 Prototype, to build |
+| Admin moderation panel | 8 | ✅ Implemented (see `module8_admin_moderation_plan.md`) |
 | Google Maps and location services | 6 | ✅ Implemented |
-| Offers and promotional campaigns | 2 | 🟡 Basic offers exist; owner and scope to decide |
+| Offers and promotional campaigns | 2 | ✅ Implemented (see `offers_campaigns_plan.md`) |
 | Push notification system | 3 | ✅ Implemented (Firebase keys: manual setup) |
 | Chat and messaging system | 9 | ✅ Implemented |
 
@@ -136,17 +136,21 @@ The 60% scope is the second-iteration slide shown to the committee:
 * Owner replies, helpful votes, and user reports stored for the Module 8 moderation queue
 * Rating filters and sorting in search, and the feed's Trending row, use real review data (count-weighted for ranking)
 
-**Module 8: Admin and Moderation System** (FR-14, FR-15, UC-12, SEC-2, SEC-3)
+**Module 8: Admin and Moderation System** (FR-14, FR-15, FR-19, FR-26–FR-30, UC-12, UC-16–UC-18, SEC-2, SEC-3) ✅ Implemented (see `module8_admin_moderation_plan.md`)
 
-* Verifying business profiles (FR-14), including the verification documents from UC-10. Whether businesses wait for verification before they appear is an open decision (see `docs/requirements/document_review.md`, decision 1)
-* Removing spam and inappropriate content (FR-15), starting with the review reports Module 5 already stores (FR-19)
-* Limiting profile changes to verified owners (SEC-2) and admin functions to admins (SEC-3)
+* Automatic verification (decision 1). Businesses are listed straight away, and the system gives the Verified badge once the owner's email is verified, the listing is complete, a storefront photo is taken in the app and there's no open report. Admins review only the businesses the checks refer, and can verify, reject, ask for more, revoke or suspend
+* An admin panel (web sidebar, phone tabs) with an overview, a verification queue, reports, spam & flags, users, businesses and an activity timeline
+* Reports on reviews, conversations (readable by admins once reported, decision 8) and businesses: remove or keep, and optionally warn, suspend or ban the account. Suspended accounts can't sign in
+* Rule-based flags for spam, scams, adult or prohibited content, fake-review bursts, duplicate listings and mass messaging (English and Roman Urdu); nothing is hidden automatically
+* Blocking in chat, Community Guidelines, notices for every decision, and an audit log
+* Only owners edit businesses (SEC-2); admin functions are for admins only, and sign-up can't create admins (SEC-3)
 
-**Offers and Promotional Campaigns** (Module 2: FR-10, UC-11)
+**Offers and Promotional Campaigns** (Module 2: FR-10, UC-11) ✅ Implemented
 
-* Offers exist from Phase 1, with a title, start and end values stored as text, and a status
-* Missing compared with the SDD: offer description, discount, and real dates with validation (UC-11 "invalid dates", Algorithm 6)
-* "Campaigns" still needs defining. Telling users about new offers is covered by push notifications (FR-21)
+* Special offers with a deal type and value (the SDD's discount), description, real dates validated per UC-11, terms, and Draft / Scheduled / Active / Expired. Owners create, edit, activate, deactivate and delete them
+* Promotional campaigns that link existing offers (and featured services) for a period, with a banner, message, terms and publish switch. One campaign at a time per business
+* Customers see live campaigns as Home banners, an "Active promotion" badge on cards, an "On now" strip and coupon-style offers on the business page, and a campaign details screen
+* Activating and publishing need a verified business (UC-11 precondition). Savers are notified once per offer, and once per campaign if the owner opts in
 
 **Push Notification System** (Module 3: FR-21, UC-15) ✅ Implemented (see `module9_chat_and_push_plan.md`)
 
@@ -176,7 +180,7 @@ The final phase completes the remaining advanced features and prepares the appli
 
 * **Module 7: AI Chatbot Assistance (FR-13):** a working chatbot that answers questions using business data from the platform (RAG), available from the main navigation (USE-5) and meeting the 5-second response target (PER-4)
 * **Module 10: AI Personalization and Recommendation (FR-22):** recommendations based on interests, saves, views and searches, then advanced personalization
-* Admin and moderation items not finished in the 60% panel
+* Module 8 at 100%: an AI classifier (Claude) for listings, reviews, offers and photos, measured against the admins' decisions; the Trust Score (decision 7); appeals
 * Advanced business analytics
 * Performance testing against the SRS targets (PER-1 to PER-6)
 * Security improvements, including HTTPS and WSS for all client-server traffic in deployment (SEC-4)
@@ -192,13 +196,13 @@ The full review of the SRS, SDD and Feasibility Report, with a fix for each issu
 
 * the missing functional requirements for comparison, chat, push notifications, personalization and more (FR-16 to FR-25);
 * the UC-3 / FR-11 conflict over which businesses the feed prioritizes;
-* the product name on the cover ("KOJLO").
+* the product name on the cover ("KOJLO");
+* **(v1.2, Module 8)** the verification rule (BR-3, BR-9, FR-14, UC-12, SEC-2: verification is automatic), admin access to reported conversations (BR-15, SEC-5), and the tables for Manage Content, Manage Users and Monitor System (UC-16 to UC-18).
 
 Still open, and listed as decisions in the review:
 
-* The verification rule (BR-3, UC-6, SEC-2), which depends on how Module 8 implements verification.
+* The Trust Score on SDD Screen 3 (decision 7).
 * The team work division for Modules 7, 8 and 10.
-* The owner and scope of "Offers and promotional campaigns".
 * The SDD and Feasibility Report corrections, which need to be made in the Word files. They include the traceability matrix numbering, the ER diagram, the screenshots, the Gantt chart and the tables of contents.
 
 ---

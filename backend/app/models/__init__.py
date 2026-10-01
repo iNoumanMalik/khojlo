@@ -1,10 +1,12 @@
 from app.models.business import (
     BusinessProfile,
     Category,
+    DealType,
     Offer,
     OpeningHours,
     Service,
 )
+from app.models.campaign import Campaign, CampaignOffer, CampaignService
 from app.models.chat import (
     Conversation,
     ConversationReport,
@@ -14,6 +16,19 @@ from app.models.chat import (
 )
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
 from app.models.media import BusinessPhoto, Media
+from app.models.moderation import (
+    ActionKind,
+    BusinessReport,
+    BusinessReportReason,
+    BusinessReportStatus,
+    FlagLabel,
+    FlagStatus,
+    FlagTarget,
+    ModerationAction,
+    ModerationFlag,
+    ModerationReason,
+    VerificationStatus,
+)
 from app.models.notification import (
     DevicePlatform,
     DeviceToken,
@@ -40,6 +55,10 @@ __all__ = [
     "Service",
     "OpeningHours",
     "Offer",
+    "DealType",
+    "Campaign",
+    "CampaignOffer",
+    "CampaignService",
     "SavedList",
     "SavedBusiness",
     "BusinessView",
@@ -63,4 +82,15 @@ __all__ = [
     "DevicePlatform",
     "Notification",
     "NotificationKind",
+    "BusinessReport",
+    "BusinessReportReason",
+    "BusinessReportStatus",
+    "ModerationFlag",
+    "FlagTarget",
+    "FlagLabel",
+    "FlagStatus",
+    "ModerationAction",
+    "ActionKind",
+    "ModerationReason",
+    "VerificationStatus",
 ]

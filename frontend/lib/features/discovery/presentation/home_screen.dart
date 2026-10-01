@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/maps/geo_repository.dart';
 import '../../../core/models/business.dart';
+import '../../../core/models/campaign.dart';
 import '../../../core/models/feed.dart';
 import '../../../core/models/photo.dart';
 import '../../../core/theme/app_colors.dart';
@@ -13,6 +14,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
 import '../../notifications/notifications_providers.dart';
+import '../../promotions/presentation/widgets/promo_widgets.dart';
 import '../../search/search_providers.dart';
 import '../discovery_providers.dart';
 
@@ -50,14 +52,20 @@ class HomeScreen extends ConsumerWidget {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              _Header(
-                greeting: feed.greeting,
-                headline: feed.headline,
-                initials: user?.initials ?? '?',
-                tone: user?.avatarTone ?? 'gold',
-                photo: user?.avatar,
+              _HeaderWithSearch(
+                header: _Header(
+                  greeting: feed.greeting,
+                  headline: feed.headline,
+                  initials: user?.initials ?? '?',
+                  tone: user?.avatarTone ?? 'gold',
+                  photo: user?.avatar,
+                ),
               ),
-              _SearchRow(),
+              const SizedBox(height: _HeaderWithSearch.overlap),
+              if (feed.campaigns.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                _CampaignCarousel(campaigns: feed.campaigns),
+              ],
               const SizedBox(height: 18),
               _Categories(categories: feed.categories),
               const SizedBox(height: 8),
@@ -201,31 +209,57 @@ class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
   }
 }
 
+/// The header with the search row overlapping its bottom edge.
+///
+/// A Stack rather than `Transform.translate`: a translated widget only receives
+/// taps inside its original, untranslated box, which left most of the search bar
+/// and the bell dead.
+class _HeaderWithSearch extends StatelessWidget {
+  const _HeaderWithSearch({required this.header});
+  final Widget header;
+
+  /// How far the search row reaches up into the header.
+  static const overlap = 30.0;
+  static const _rowHeight = 48.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: _rowHeight - overlap),
+          child: header,
+        ),
+        const Positioned(left: 0, right: 0, bottom: 0, child: _SearchRow()),
+      ],
+    );
+  }
+}
+
 class _SearchRow extends ConsumerWidget {
+  const _SearchRow();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Transform.translate(
-      offset: const Offset(0, -30),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        child: Row(
-          children: [
-            Expanded(
-              // One tap to the Explore tab with the keyboard up (SRS USE-1).
-              child: SearchPill(onTap: () {
-                context.go('/explore');
-                ref.read(searchFocusRequestProvider.notifier).state++;
-              }),
-            ),
-            const SizedBox(width: 10),
-            GlassIconButton(
-              icon: Icons.notifications_none_rounded,
-              size: 48,
-              showDot: ref.watch(unreadNotificationsProvider) > 0,
-              onTap: () => context.push('/notifications'),
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Row(
+        children: [
+          Expanded(
+            // One tap to the Explore tab with the keyboard up (SRS USE-1).
+            child: SearchPill(onTap: () {
+              context.go('/explore');
+              ref.read(searchFocusRequestProvider.notifier).state++;
+            }),
+          ),
+          const SizedBox(width: 10),
+          GlassIconButton(
+            icon: Icons.notifications_none_rounded,
+            size: 48,
+            showDot: ref.watch(unreadNotificationsProvider) > 0,
+            onTap: () => context.push('/notifications'),
+          ),
+        ],
       ),
     );
   }
@@ -322,7 +356,10 @@ class _HorizontalSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 172,
+            // Cards with a "Promotion" badge are taller; size the row to fit them.
+            height: section.businesses.any((b) => b.activeCampaign != null)
+                ? BusinessMiniCard.heightWithBadge
+                : BusinessMiniCard.height,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -400,5 +437,70 @@ class _FeedError extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// Live promotional campaigns as swipeable banners at the top of the discovery feed.
+/// Banner → campaign details → offers → business.
+class _CampaignCarousel extends StatefulWidget {
+  const _CampaignCarousel({required this.campaigns});
+  final List<CampaignBanner> campaigns;
+
+  @override
+  State<_CampaignCarousel> createState() => _CampaignCarouselState();
+}
+
+class _CampaignCarouselState extends State<_CampaignCarousel> {
+  final _pages = PageController(viewportFraction: 0.9);
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final campaigns = widget.campaigns;
+    return Column(
+      children: [
+        SizedBox(
+          height: 196,
+          child: PageView.builder(
+            controller: _pages,
+            itemCount: campaigns.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: CampaignBannerCard(
+                banner: campaigns[i],
+                onTap: () => context.push('/campaign/${campaigns[i].id}'),
+              ),
+            ),
+          ),
+        ),
+        if (campaigns.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < campaigns.length; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == _page ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i == _page ? AppColors.emerald : AppColors.inkA(0.15),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
+    ).animate().fadeIn(duration: 350.ms);
   }
 }

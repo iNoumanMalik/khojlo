@@ -41,7 +41,7 @@ def search_businesses(
     min_rating: float | None = Query(default=None, ge=0, le=5),
     open_now: bool = Query(default=False, description="Only places open right now"),
     has_offer: bool = Query(default=False, description="Only places with an active offer"),
-    verified_only: bool = Query(default=False, description="Only admin-verified places"),
+    verified_only: bool = Query(default=False, description="Only places with the Verified badge"),
     lat: float | None = Query(default=None, ge=-90, le=90, description="Searcher latitude"),
     lng: float | None = Query(default=None, ge=-180, le=180, description="Searcher longitude"),
     radius_km: float | None = Query(

@@ -1,9 +1,10 @@
 import enum
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -11,20 +12,26 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.moderation import VerificationStatus
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class OfferStatus(str, enum.Enum):
-    active = "Active"
-    scheduled = "Scheduled"
-    ended = "Ended"
+class DealType(str, enum.Enum):
+    """What kind of deal an offer is; `Offer.deal_value` / `deal_text` complete it."""
+
+    percent_off = "percent_off"  # value: 1–100 → "20% OFF"
+    amount_off = "amount_off"  # value: rupees → "Rs 500 OFF"
+    bogo = "bogo"  # "BUY 1 GET 1"
+    free_item = "free_item"  # text: what's free → "FREE DESSERT"
+    other = "other"  # text: the owner's own short label
 
 
 # The catch-all category; its businesses describe themselves in `custom_category`.
@@ -82,8 +89,34 @@ class BusinessProfile(Base):
     # Legacy, unused: photos live in `business_photos`. Kept so builds from before photo
     # support keep working against the shared database.
     images: Mapped[list] = mapped_column(JSON, default=list)
+    # The Verified badge. Kept in step with `verification_status` (verified ⇔ True), and
+    # read by search, cards and the offer/campaign rules (UC-11 precondition).
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+    # ── Module 8: verification (SRS FR-14, UC-12) and suspension ──
+    verification_status: Mapped[VerificationStatus] = mapped_column(
+        Enum(VerificationStatus, name="verification_status", native_enum=False, length=16),
+        default=VerificationStatus.unverified,
+        server_default=text("'unverified'"),
+        index=True,
+    )
+    # An admin's message to the owner: why it was rejected, or what else is needed.
+    verification_note: Mapped[str] = mapped_column(String(500), default="",
+                                                   server_default=text("''"))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The admin who verified it; None with a verified status means the automatic checks.
+    verified_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Taken in the app: the shop front or signboard. Private to the owner and admins.
+    storefront_media_id: Mapped[int | None] = mapped_column(
+        ForeignKey("media.id", ondelete="SET NULL"), nullable=True
+    )
+    storefront_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set while an admin has taken the listing down; it's unpublished until reinstated.
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    suspension_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # denormalized engagement counters kept fresh for fast feed / dashboard reads
     view_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -95,11 +128,18 @@ class BusinessProfile(Base):
         DateTime(timezone=True), default=_utcnow, index=True
     )
 
-    owner = relationship("User", back_populates="businesses")
+    owner = relationship("User", back_populates="businesses", foreign_keys=[owner_id])
+    storefront = relationship("Media", foreign_keys=[storefront_media_id], lazy="joined")
     category = relationship("Category", back_populates="businesses")
     services = relationship("Service", back_populates="business", cascade="all, delete-orphan")
     hours = relationship("OpeningHours", back_populates="business", cascade="all, delete-orphan")
-    offers = relationship("Offer", back_populates="business", cascade="all, delete-orphan")
+    offers = relationship(
+        "Offer", back_populates="business", cascade="all, delete-orphan", order_by="Offer.id"
+    )
+    campaigns = relationship(
+        "Campaign", back_populates="business", cascade="all, delete-orphan",
+        order_by="Campaign.id",
+    )
     photos = relationship(
         "BusinessPhoto",
         back_populates="business",
@@ -111,6 +151,10 @@ class BusinessProfile(Base):
     def cover(self):
         """The cover photo's media row, or None (cards then use the tone gradient)."""
         return self.photos[0].media if self.photos else None
+
+    @property
+    def is_suspended(self) -> bool:
+        return self.suspended_at is not None
 
     @property
     def category_label(self) -> str | None:
@@ -153,6 +197,13 @@ class OpeningHours(Base):
 
 
 class Offer(Base):
+    """A special offer: the deal itself (SRS FR-10, UC-11; SDD `Offer`).
+
+    The owner switches it on or off (`is_active`, SDD ER `is_active`); whether it's draft,
+    scheduled, active or expired follows from that and the dates — see
+    `promotion_service.offer_state`.
+    """
+
     __tablename__ = "offers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -160,14 +211,25 @@ class Offer(Base):
         ForeignKey("businesses.id", ondelete="CASCADE"), index=True
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
-    starts_on: Mapped[str] = mapped_column(String(40), default="")
-    ends_on: Mapped[str] = mapped_column(String(40), default="")
-    status: Mapped[OfferStatus] = mapped_column(
-        Enum(OfferStatus, native_enum=False, length=16), default=OfferStatus.active
+    description: Mapped[str] = mapped_column(Text, default="")
+    deal_type: Mapped[DealType] = mapped_column(
+        Enum(DealType, native_enum=False, length=16), default=DealType.other
     )
+    # The SDD's `discount`: percent for percent_off, rupees for amount_off.
+    deal_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    deal_text: Mapped[str] = mapped_column(String(60), default="")
+    start_date: Mapped[date] = mapped_column(Date)
+    # None: open-ended ("15% off for students").
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    terms: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     tone: Mapped[str] = mapped_column(String(16), default="emerald")
     views: Mapped[int] = mapped_column(Integer, default=0)
     redemptions: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # When people who saved the business were told it went live (once per offer).
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     business = relationship("BusinessProfile", back_populates="offers")

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/analytics.dart';
 import '../../../core/models/business.dart';
+import '../../../core/models/moderation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
@@ -66,7 +67,9 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          _VerificationCard(business: business),
+          const SizedBox(height: 16),
           analytics.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(horizontal: 22),
@@ -136,6 +139,7 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           const Hairline(),
           for (final item in const [
+            ('Verification', Icons.verified_outlined),
             ('Edit business profile', Icons.edit_outlined),
             ('Reviews & replies', Icons.forum_outlined),
             ('Offers & promotions', Icons.local_offer_outlined),
@@ -145,6 +149,7 @@ class DashboardScreen extends ConsumerWidget {
             _ManageRow(
               label: item.$1,
               onTap: switch (item.$1) {
+                'Verification' => () => context.push('/verification/${business.id}'),
                 'Edit business profile' => () =>
                     context.push('/edit-business/${business.id}'),
                 'Reviews & replies' => () =>
@@ -303,6 +308,58 @@ class _RatingStat extends ConsumerWidget {
           : unreplied > 0
               ? '$unreplied awaiting reply'
               : '$count review${count == 1 ? '' : 's'}',
+    );
+  }
+}
+
+
+/// Module 8: where verification stands, or the suspension notice, at the top of
+/// the dashboard. Hidden once the business is verified (the badge says it all).
+class _VerificationCard extends ConsumerWidget {
+  const _VerificationCard({required this.business});
+  final BusinessCard business;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final info = ref.watch(verificationProvider(business.id)).valueOrNull;
+    if (info == null || (info.isVerified && !info.isSuspended)) return const SizedBox.shrink();
+    final (color, title, body) = info.isSuspended
+        ? (AppColors.plum, 'Suspended by Khojlo',
+            'Your listing is hidden until Khojlo’s team reinstates it.')
+        : switch (info.status) {
+            VerificationStatus.pendingReview => (const Color(0xFF8A5B15),
+                'Being reviewed', 'Khojlo’s team is looking at your listing.'),
+            VerificationStatus.needsInfo => (const Color(0xFF8A5B15),
+                'Khojlo needs a little more', 'Tap to see what to change.'),
+            VerificationStatus.rejected => (AppColors.plum, 'Not verified',
+                'Tap to see why and ask for another look.'),
+            _ => (AppColors.emerald, 'Get the Verified badge',
+                '${info.passedCount} of ${info.checks.length} checks done. It’s automatic.'),
+          };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: GestureDetector(
+        onTap: () => context.push('/verification/${business.id}'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(children: [
+            Icon(info.isSuspended ? Icons.block_rounded : Icons.verified_outlined, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: AppType.sans(size: 13.5, weight: FontWeight.w700)),
+                Text(body, style: AppType.sans(size: 12, color: AppColors.inkA(0.6))),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.inkA(0.4)),
+          ]),
+        ),
+      ),
     );
   }
 }

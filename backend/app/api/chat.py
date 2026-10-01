@@ -46,7 +46,9 @@ from app.schemas.chat import (
     UnreadOut,
 )
 from app.services import chat_service as cs
+from app.services import moderation_rules as rules
 from app.services import notification_service as ns
+from app.services.moderation_service import account_block
 from app.services.media_service import UnknownPhotos, resolve_keys
 from app.services.realtime import manager
 from app.services.review_service import display_name
@@ -203,6 +205,8 @@ def send_message(
 ) -> MessageOut:
     """SDD Algorithm 8: validate, store, deliver to the other side (live or by push)."""
     conversation, side = _participant(db, conversation_id, user)
+    if (problem := cs.send_problem(conversation, side)) is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=problem)
 
     def existing() -> Message | None:
         return db.scalar(select(Message).where(
@@ -239,6 +243,8 @@ def send_message(
     else:
         conversation.business_last_read_id = message.id
 
+    if side == "customer":  # Module 8: the same message to many businesses
+        rules.check_mass_messaging(db, user)
     recipient_id = cs.other_user_id(conversation, side)
     job = None
     if not manager.is_online(recipient_id):
@@ -291,7 +297,9 @@ def report_conversation(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Response:
-    """Stored for the admin's moderation queue (Module 8, SDD Algorithm 10)."""
+    """Stored for the admin's moderation queue (Module 8, SDD Algorithm 10). Reporting
+    shares the conversation with Khojlo's moderators, who can then read it (decision 8,
+    the SEC-5 exception); the other participant isn't told who reported it."""
     conversation, _ = _participant(db, conversation_id, user)
     db.add(ConversationReport(conversation_id=conversation.id, reporter_id=user.id,
                               reason=payload.reason, note=payload.note.strip()))
@@ -304,6 +312,43 @@ def report_conversation(
     return Response(status_code=status.HTTP_201_CREATED)
 
 
+# ─────────────── blocking (Module 8) ───────────────
+@router.post("/conversations/{conversation_id}/block", response_model=ConversationDetail,
+             summary="Block the other person in this conversation")
+def block_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationDetail:
+    """Nobody can send until the blocker unblocks. A customer blocking a business also
+    stops its messages; an owner blocking a customer stops theirs."""
+    conversation, side = _participant(db, conversation_id, user)
+    if conversation.blocked_by is not None and conversation.blocked_by != side:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="This conversation is already blocked.")
+    if conversation.blocked_by is None:
+        conversation.blocked_by, conversation.blocked_at = side, _now()
+        db.commit()
+    return cs.detail_out(db, conversation, side)
+
+
+@router.delete("/conversations/{conversation_id}/block", response_model=ConversationDetail,
+               summary="Unblock")
+def unblock_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationDetail:
+    conversation, side = _participant(db, conversation_id, user)
+    if conversation.blocked_by not in (None, side):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only the person who blocked it can unblock it.")
+    if conversation.blocked_by == side:
+        conversation.blocked_by, conversation.blocked_at = None, None
+        db.commit()
+    return cs.detail_out(db, conversation, side)
+
+
 # ─────────────── live events ───────────────
 def _authenticate(token: object) -> int | None:
     if not isinstance(token, str):
@@ -313,7 +358,9 @@ def _authenticate(token: object) -> int | None:
         return None
     user_id = int(payload["sub"])
     with session_scope() as db:
-        return user_id if db.get(User, user_id) is not None else None
+        user = db.get(User, user_id)
+        # Module 8: suspended and banned accounts get no live connection either.
+        return user_id if user is not None and account_block(user) is None else None
 
 
 def _typing_target(user_id: int, conversation_id: object) -> tuple[int, Side] | None:
@@ -324,7 +371,9 @@ def _typing_target(user_id: int, conversation_id: object) -> tuple[int, Side] | 
         conversation = db.get(Conversation, conversation_id)
         user = db.get(User, user_id)
         side = cs.side_of(conversation, user) if conversation and user else None
-        return (cs.other_user_id(conversation, side), side) if side else None
+        if side is None or cs.send_problem(conversation, side) is not None:
+            return None  # no typing indicator in a blocked or closed conversation
+        return cs.other_user_id(conversation, side), side
 
 
 @router.websocket("/ws")

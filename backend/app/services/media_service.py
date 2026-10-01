@@ -22,6 +22,8 @@ from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 from sqlalchemy import delete, exists, or_, select
 from sqlalchemy.orm import Session
 
+from app.models.business import BusinessProfile
+from app.models.campaign import Campaign
 from app.models.chat import Message
 from app.models.media import BusinessPhoto, Media
 from app.models.review import ReviewPhoto
@@ -132,10 +134,12 @@ def process_image(raw: bytes) -> ProcessedImage:
 
 
 def _referenced():
-    """SQL condition: the media row is used by a business, a review, a chat message, or as
-    someone's avatar."""
+    """SQL condition: the media row is used by a business, a review, a chat message, a
+    campaign banner, a verification storefront photo, or as someone's avatar."""
     return or_(
         exists().where(BusinessPhoto.media_id == Media.id),
+        exists().where(BusinessProfile.storefront_media_id == Media.id),
+        exists().where(Campaign.banner_media_id == Media.id),
         exists().where(ReviewPhoto.media_id == Media.id),
         exists().where(Message.media_id == Media.id),
         exists().where(User.avatar_media_id == Media.id),

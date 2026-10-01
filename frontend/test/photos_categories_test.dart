@@ -38,6 +38,9 @@ class FakeSource implements PhotoSource {
 
   @override
   Future<PickedPhoto?> pickOne() async => PickedPhoto(bytes: Uint8List(0), name: 'one.jpg');
+
+  @override
+  Future<PickedPhoto?> takePhoto() => pickOne();
 }
 
 class FakeMedia extends MediaRepository {

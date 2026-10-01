@@ -46,8 +46,17 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
+    # ── Module 8: account moderation. A banned or suspended account can't sign in or
+    # use the API; `suspension_reason` is a `ModerationReason` value. ──
+    is_banned: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    suspended_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    suspension_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     businesses = relationship(
-        "BusinessProfile", back_populates="owner", cascade="all, delete-orphan"
+        "BusinessProfile", back_populates="owner", cascade="all, delete-orphan",
+        foreign_keys="BusinessProfile.owner_id",
     )
     saved_lists = relationship(
         "SavedList", back_populates="user", cascade="all, delete-orphan"
