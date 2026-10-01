@@ -8,6 +8,7 @@ import '../../../core/models/user.dart';
 import '../../../core/network/google_auth_config.dart';
 import '../../../core/providers.dart';
 import '../../../core/storage/token_storage.dart';
+import '../../legal/privacy_policy.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
@@ -80,6 +81,8 @@ class AuthRepository {
       'password': password,
       'role': roleToString(role),
       'interests': interests,
+      // The sign-up form's consent checkbox must be ticked to get here.
+      'privacy_policy_version': kPrivacyPolicyVersion,
     });
     return login(email: email, password: password);
   }
@@ -121,6 +124,17 @@ class AuthRepository {
   Future<AppUser> setInterests(List<String> interests) async {
     final res = await _dio.put('/users/me/interests', data: {'interests': interests});
     return AppUser.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<AppUser> acceptPrivacyPolicy() async {
+    final res = await _dio.post('/users/me/privacy-consent',
+        data: {'policy_version': kPrivacyPolicyVersion});
+    return AppUser.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Permanently deletes the account. [password] is required unless it's Google-only.
+  Future<void> deleteAccount({String? password}) async {
+    await _dio.delete('/users/me', data: {'password': password});
   }
 
   Future<void> logout() => _tokens.clear();

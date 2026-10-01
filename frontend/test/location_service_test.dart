@@ -30,6 +30,18 @@ class StalledGeolocator extends GeolocatorPlatform {
   }
 }
 
+/// Not asked yet; counts how often the system prompt is shown.
+class UndecidedGeolocator extends StalledGeolocator {
+  UndecidedGeolocator() : super(permission: LocationPermission.denied);
+  var prompts = 0;
+
+  @override
+  Future<LocationPermission> requestPermission() async {
+    prompts++;
+    return LocationPermission.denied;
+  }
+}
+
 void main() {
   late GeolocatorPlatform original;
   setUp(() => original = GeolocatorPlatform.instance);
@@ -69,5 +81,28 @@ void main() {
     await tester.pump(LocationService.fixTimeout + const Duration(seconds: 1));
     expect(controller.state.status, LocationStatus.error);
     expect(controller.state.hasFix, isFalse);
+  });
+
+  test('the system prompt comes only after the user accepts the explanation', () async {
+    final platform = UndecidedGeolocator();
+    GeolocatorPlatform.instance = platform;
+
+    var explained = 0;
+    final declined = await LocationService(explainBeforePrompt: () async {
+      explained++;
+      return false;
+    }).locate(prompt: true);
+    expect(declined.status, LocationStatus.denied);
+    expect((explained, platform.prompts), (1, 0));
+
+    await LocationService(explainBeforePrompt: () async => true).locate(prompt: true);
+    expect(platform.prompts, 1);
+
+    // Silent checks never explain or prompt.
+    await LocationService(explainBeforePrompt: () async {
+      explained++;
+      return true;
+    }).locate();
+    expect((explained, platform.prompts), (1, 1));
   });
 }

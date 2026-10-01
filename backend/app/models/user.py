@@ -5,6 +5,7 @@ from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.privacy import PRIVACY_POLICY_VERSION
 
 
 class UserRole(str, enum.Enum):
@@ -44,6 +45,12 @@ class User(Base):
         JSON, default=dict, server_default=text("'{}'")
     )
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # The privacy policy version the user last agreed to, and when (null: never agreed,
+    # e.g. a Google sign-up or an account from before consent was recorded).
+    privacy_policy_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    privacy_consent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     # ── Module 8: account moderation. A banned or suspended account can't sign in or
@@ -62,6 +69,19 @@ class User(Base):
         "SavedList", back_populates="user", cascade="all, delete-orphan"
     )
     avatar = relationship("Media", foreign_keys=[avatar_media_id], lazy="joined")
+
+    @property
+    def has_password(self) -> bool:
+        return self.hashed_password is not None
+
+    @property
+    def needs_privacy_consent(self) -> bool:
+        """True until the user agrees to the current privacy policy."""
+        return self.privacy_policy_version != PRIVACY_POLICY_VERSION
+
+    def record_privacy_consent(self) -> None:
+        self.privacy_policy_version = PRIVACY_POLICY_VERSION
+        self.privacy_consent_at = _utcnow()
 
     @property
     def initials(self) -> str:

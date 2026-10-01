@@ -26,6 +26,8 @@ import '../../features/chat/presentation/conversation_screen.dart';
 import '../../features/chat/presentation/messages_screen.dart';
 import '../../features/discovery/presentation/business_detail_screen.dart';
 import '../../features/discovery/presentation/home_screen.dart';
+import '../../features/legal/presentation/privacy_consent_screen.dart';
+import '../../features/legal/presentation/privacy_policy_screen.dart';
 import '../../features/maps/presentation/map_screen.dart';
 import '../../features/promotions/presentation/campaign_screen.dart';
 import '../../features/promotions/presentation/promotions_screen.dart';
@@ -38,15 +40,19 @@ import '../../features/prototype/surprise_screen.dart';
 import '../../features/search/presentation/compare_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../theme/app_colors.dart';
+import '../ui/messenger.dart';
 import 'shell_scaffold.dart';
 
-final _rootKey = GlobalKey<NavigatorState>();
+final _rootKey = rootNavigatorKey;
 final _shellKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Bridge Riverpod auth changes into a Listenable the router can refresh on.
   final refresh = ValueNotifier(0);
   ref.listen(authControllerProvider.select((s) => s.status), (_, __) {
+    refresh.value++;
+  });
+  ref.listen(authControllerProvider.select((s) => s.user?.needsPrivacyConsent), (_, __) {
     refresh.value++;
   });
   ref.onDispose(refresh.dispose);
@@ -60,8 +66,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: refresh,
     redirect: (context, state) {
-      final status = ref.read(authControllerProvider).status;
+      final auth = ref.read(authControllerProvider);
+      final status = auth.status;
       final loc = state.matchedLocation;
+      // The policy itself is readable by anyone, signed in or not.
+      if (loc == '/privacy' && status != AuthStatus.unknown) return null;
       final onboarding = loc == '/onboarding' ||
           loc == '/auth' ||
           loc == '/splash' ||
@@ -75,15 +84,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         pendingLocation = null;
         return onboarding && loc != '/splash' ? null : '/onboarding';
       }
-      // authenticated
-      if (onboarding) {
+      // authenticated: agree to the privacy policy before anything else (SRS FR-31)
+      if (auth.user?.needsPrivacyConsent ?? false) {
+        return loc == '/privacy-consent' ? null : '/privacy-consent';
+      }
+      if (onboarding || loc == '/privacy-consent') {
         final next = pendingLocation;
         pendingLocation = null;
         return next ?? '/home';
       }
       // SEC-3: the admin panel is for admins only (the API refuses everyone else too).
-      if (loc.startsWith('/admin') &&
-          !(ref.read(authControllerProvider).user?.isAdmin ?? false)) {
+      if (loc.startsWith('/admin') && !(auth.user?.isAdmin ?? false)) {
         return '/home';
       }
       return null;
@@ -97,6 +108,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           parentNavigatorKey: _rootKey,
           builder: (_, __) => const ForgotPasswordScreen()),
       GoRoute(path: '/interests', builder: (_, __) => const InterestsScreen()),
+      GoRoute(
+          path: '/privacy-consent',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const PrivacyConsentScreen()),
+      GoRoute(
+          path: '/privacy',
+          parentNavigatorKey: _rootKey,
+          builder: (_, __) => const PrivacyPolicyScreen()),
 
       // ── primary tab shell ──
       StatefulShellRoute.indexedStack(

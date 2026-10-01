@@ -35,5 +35,6 @@ When two sources disagree:
 | 8. Admin and Moderation | [module8_admin_moderation_plan.md](development_roadmap/module8_admin_moderation_plan.md) |
 | 9. Chat and Messaging, with push notifications (Module 3) | [module9_chat_and_push_plan.md](development_roadmap/module9_chat_and_push_plan.md) (includes the Firebase setup steps) · how it works: [module9_how_it_works.md](development_roadmap/module9_how_it_works.md) |
 | Photos, categories, contact and profile (between Modules 4 and 5) | [polish_photos_categories_profile.md](development_roadmap/polish_photos_categories_profile.md) |
+| Privacy consent and account deletion (Module 1) | [privacy_consent_and_account_deletion.md](development_roadmap/privacy_consent_and_account_deletion.md) |
 
 Modules 1–3 were built for the 30% evaluation before module records were kept; the [implementation plan](development_roadmap/implementation_plan.md) lists what they contain.

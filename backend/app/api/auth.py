@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import ensure_active, get_current_user
+from app.api.deps import ensure_active, get_current_user, require_current_privacy_policy
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
@@ -56,6 +56,7 @@ def register(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
+    require_current_privacy_policy(payload.privacy_policy_version)
     user = User(
         email=payload.email,
         full_name=payload.full_name,
@@ -63,6 +64,7 @@ def register(
         role=payload.role,
         interests=payload.interests,
     )
+    user.record_privacy_consent()
     db.add(user)
     db.commit()
     db.refresh(user)

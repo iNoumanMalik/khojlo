@@ -21,7 +21,23 @@ class UserOut(BaseModel):
     initials: str
     interests: list[str]
     is_verified: bool
+    # False for Google-only accounts (deleting one then needs no password).
+    has_password: bool
+    # The app asks the user to agree to the privacy policy while this is true.
+    needs_privacy_consent: bool
+    privacy_policy_version: str | None = None
+    privacy_consent_at: datetime | None = None
     created_at: datetime
+
+
+class PrivacyConsentRequest(BaseModel):
+    policy_version: str = Field(max_length=32)
+
+
+class DeleteAccountRequest(BaseModel):
+    """Accounts with a password must re-enter it; Google-only accounts have none."""
+
+    password: str | None = None
 
 
 class UserUpdate(BaseModel):

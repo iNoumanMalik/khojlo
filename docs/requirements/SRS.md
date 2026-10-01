@@ -21,6 +21,7 @@ Bachelor of Science in Software Engineering (2023–2027)
 | Project team | 2026 | Initial version | 1.0 |
 | Nouman Khan | 28 Sep 2026 | Product name corrected to "Khojlo". Scope, operating environment and constraints aligned with the implementation. Added the missing requirements for profile management, account recovery, comparison, reporting, analytics, push notifications, personalization and chat (FR-16 to FR-25) and their use cases (UC-13 to UC-15). Resolved the UC-3 / BR-6 conflict. Added non-functional requirements for messaging. Added a module traceability table (Appendix A). | 1.1 |
 | Sayyam Tahir | 30 Sep 2026 | Module 8 decisions: business verification is automatic, with admins reviewing the businesses the checks refer to them (FR-14, BR-3, BR-9, UC-12, SEC-2); admins can read a conversation once a participant reports it (BR-15, SEC-5); reporting covers conversations and businesses (FR-19). Added account moderation, automatic flagging, blocking, the Community Guidelines and the audit log (FR-26 to FR-30, BR-17 to BR-20, SEC-6), and use case tables for Manage Content, Manage Users and Monitor System (UC-16 to UC-18). | 1.2 |
+| Nouman Khan | 30 Sep 2026 | Added privacy consent and account deletion (FR-31, FR-32, BR-21, BR-22) and the matching security requirements (SEC-7, SEC-8). | 1.2 |
 
 ## Application Evaluation History
 
@@ -448,6 +449,30 @@ This feature enables users to register, log in, and manage their profiles.
 | Dependencies | FR-1 |
 | Priority | Medium |
 
+**Table 4.1.5 (v1.2)**
+
+| Identifier | FR-31 |
+|---|---|
+| Title | Privacy Consent |
+| Requirement | The system shall show users a privacy policy explaining what personal data Khojlo collects (account, location, messages, device tokens), why, who can see it and how long it is kept. A user shall agree to it before using the app: on the sign-up form, or on a consent screen after Google sign-in or when the policy changes. The system shall record the policy version agreed to and when. The app shall explain why it needs the location before the device asks for permission. |
+| Source | User, Legal |
+| Rationale | Users should know how their data is used and give informed consent, and the team needs a record of it. |
+| Business Rule | BR-21 A user must agree to the current policy version before using the app; the consent box is never pre-ticked |
+| Dependencies | FR-1, FR-2 |
+| Priority | High |
+
+**Table 4.1.6 (v1.2)**
+
+| Identifier | FR-32 |
+|---|---|
+| Title | Delete Account |
+| Requirement | The user shall be able to permanently delete their account from the app. This removes their profile, photos, businesses, reviews, votes, reports, saved lists, conversations and messages, devices, notifications and search history. Counts shown to others (ratings, helpful votes, saves) shall be recalculated, and business view counts kept without the viewer. |
+| Source | User, Legal |
+| Rationale | Users control their own data. Google Play requires in-app account deletion for apps that let users create accounts. |
+| Business Rule | BR-22 Deletion needs the account password (Google-only accounts confirm without one) and cannot be undone |
+| Dependencies | FR-2 |
+| Priority | High |
+
 ### 4.2 Business Discovery and Search
 
 Users can discover, search, filter, compare and view detailed information about businesses.
@@ -830,6 +855,8 @@ The system shall protect user data and prevent unauthorized access.
 - **SEC-4:** The system shall use secure HTTPS communication (and secure WebSockets, WSS, for real-time features) for all client-server interactions. **(v1.1)**
 - **SEC-5 (v1.1):** A conversation's messages shall be accessible only to its participants, unless a participant reports the conversation for moderation. **(v1.2:** exception added.**)**
 - **SEC-6 (v1.2):** Suspended and banned accounts shall be refused at sign-in and on every request.
+- **SEC-7 (v1.2):** The system shall collect only the personal data a feature needs. The user's device location shall be used only for the request it was sent with and not stored against the user.
+- **SEC-8 (v1.2):** Deleting an account shall remove the user's personal data from the database immediately, and their existing sessions shall stop working.
 
 ### 5.5 Scalability
 
@@ -855,7 +882,7 @@ How the modules in the Feasibility Report map to the use cases and functional re
 
 | # | Module | Use cases | Functional requirements |
 |---|---|---|---|
-| 1 | User Authentication and Profile Management | UC-1, UC-2 | FR-1, FR-2, FR-7, FR-16, FR-17 |
+| 1 | User Authentication and Profile Management | UC-1, UC-2 | FR-1, FR-2, FR-7, FR-16, FR-17, FR-31, FR-32 |
 | 2 | Business Registration and Management | UC-10, UC-11 | FR-8, FR-9, FR-10, FR-20 |
 | 3 | Business Discovery Feed (with push notifications) | UC-3, UC-6, UC-15 | FR-5, FR-11, FR-21 |
 | 4 | Search, Filtering, and Comparison | UC-4, UC-5 | FR-3, FR-4, FR-18 |

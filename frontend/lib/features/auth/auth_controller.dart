@@ -159,6 +159,25 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(user: user);
   }
 
+  /// Records agreement to the current privacy policy; throws so the consent
+  /// screen can show what went wrong.
+  Future<void> acceptPrivacyPolicy() async {
+    final user = await _repo.acceptPrivacyPolicy();
+    state = state.copyWith(user: user);
+  }
+
+  /// Deletes the account for good, then signs out. Throws (e.g. wrong
+  /// password) so the confirmation sheet can show the error.
+  Future<void> deleteAccount({String? password}) async {
+    await _repo.deleteAccount(password: password);
+    try {
+      // The server already forgot this device; this also drops its push token.
+      await _beforeLogout?.call();
+    } catch (_) {}
+    await _repo.logout();
+    state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
   Future<void> setInterests(List<String> interests) async {
     try {
       final user = await _repo.setInterests(interests);

@@ -24,6 +24,8 @@ class AppUser {
     required this.initials,
     required this.interests,
     required this.isVerified,
+    this.hasPassword = true,
+    this.needsPrivacyConsent = false,
     this.avatar,
     this.phone,
   });
@@ -36,6 +38,12 @@ class AppUser {
   final String initials;
   final List<String> interests;
   final bool isVerified;
+
+  /// False for Google-only accounts.
+  final bool hasPassword;
+
+  /// The app shows the privacy consent screen until this is false.
+  final bool needsPrivacyConsent;
 
   /// Profile photo; null → initials on [avatarTone].
   final Photo? avatar;
@@ -55,6 +63,8 @@ class AppUser {
         initials: j['initials'] as String? ?? '?',
         interests: (j['interests'] as List?)?.cast<String>() ?? const [],
         isVerified: j['is_verified'] as bool? ?? false,
+        hasPassword: j['has_password'] as bool? ?? true,
+        needsPrivacyConsent: j['needs_privacy_consent'] as bool? ?? false,
         avatar: Photo.maybe(j['avatar']),
         phone: j['phone'] as String?,
       );

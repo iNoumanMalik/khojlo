@@ -29,6 +29,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   int _mode = 1; // 0 = sign in, 1 = sign up
   UserRole _role = UserRole.customer;
+  // Sign-up needs agreement to the privacy policy (SRS FR-31); never pre-ticked.
+  bool _agreed = false;
+  bool _showAgreeError = false;
 
   bool get _isSignUp => _mode == 1;
 
@@ -63,7 +66,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = _formKey.currentState!.validate();
+    if (_isSignUp && !_agreed) setState(() => _showAgreeError = true);
+    if (!valid || (_isSignUp && !_agreed)) return;
     final auth = ref.read(authControllerProvider.notifier);
     final ok = _isSignUp
         ? await auth.register(
@@ -207,6 +212,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
                   ),
                 ],
+                if (_isSignUp) ...[
+                  const SizedBox(height: 14),
+                  _ConsentCheckbox(
+                    value: _agreed,
+                    showError: _showAgreeError && !_agreed,
+                    onChanged: (v) => setState(() => _agreed = v),
+                  ),
+                ],
                 if (state.error != null) ...[
                   const SizedBox(height: 14),
                   _ErrorBanner(message: state.error!),
@@ -250,11 +263,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 // const SizedBox(height: 22),
                 const SizedBox(height: 22),
                 Center(
-                  child: Text(
-                    "By continuing you agree to Khojlo's\nTerms of Service & Privacy Policy",
-                    textAlign: TextAlign.center,
-                    style: AppType.mono(
-                        size: 10, height: 1.6, color: AppColors.inkA(0.4)),
+                  child: GestureDetector(
+                    onTap: () => context.push('/privacy'),
+                    child: Text.rich(
+                      TextSpan(children: [
+                        const TextSpan(text: 'How Khojlo uses your data: '),
+                        TextSpan(
+                          text: 'Privacy Policy',
+                          style: AppType.mono(
+                              size: 10, weight: FontWeight.w500, color: AppColors.emerald),
+                        ),
+                      ]),
+                      textAlign: TextAlign.center,
+                      style: AppType.mono(
+                          size: 10, height: 1.6, color: AppColors.inkA(0.4)),
+                    ),
                   ),
                 ),
               ],
@@ -316,6 +339,73 @@ class _RoleCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "I agree to the Privacy Policy" — the link opens the full policy.
+class _ConsentCheckbox extends StatelessWidget {
+  const _ConsentCheckbox({
+    required this.value,
+    required this.showError,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final bool showError;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = AppType.sans(size: 12.5, height: 1.45, color: AppColors.inkA(0.7));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: value,
+                activeColor: AppColors.emerald,
+                side: BorderSide(
+                    color: showError ? AppColors.plum : AppColors.inkA(0.35), width: 1.5),
+                onChanged: (v) => onChanged(v ?? false),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(!value),
+                child: Text.rich(
+                  TextSpan(style: base, children: [
+                    const TextSpan(text: 'I have read and agree to Khojlo’s '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: () => context.push('/privacy'),
+                        child: Text('Privacy Policy',
+                            style: base.copyWith(
+                                fontWeight: FontWeight.w700, color: AppColors.emerald)),
+                      ),
+                    ),
+                    const TextSpan(text: ', including how my location and messages are used.'),
+                  ]),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (showError)
+          Padding(
+            padding: const EdgeInsets.only(left: 34, top: 4),
+            child: Text('Please agree to the privacy policy to create an account.',
+                style: AppType.sans(size: 11.5, color: AppColors.plum)),
+          ),
+      ],
     );
   }
 }
