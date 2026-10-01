@@ -1,4 +1,4 @@
-"""Privacy consent and account deletion (SRS FR-26, FR-27)."""
+"""Privacy consent and account deletion (SRS FR-31, FR-32)."""
 from sqlalchemy import func, select
 
 from app.core.privacy import PRIVACY_POLICY_VERSION
@@ -47,7 +47,7 @@ def delete_me(client, headers, password="password123"):
     return client.request("DELETE", f"{P}/users/me", headers=headers, json={"password": password})
 
 
-# ─────────────── FR-26: consent ───────────────
+# ─────────────── FR-31: consent ───────────────
 def test_signing_up_records_consent_to_the_current_policy(client):
     user = me(client, make_user(client, "a@khojlo.app"))
     assert user["needs_privacy_consent"] is False
@@ -85,7 +85,7 @@ def test_a_new_policy_version_asks_everyone_again(client, monkeypatch):
     assert me(client, headers)["needs_privacy_consent"] is True
 
 
-# ─────────────── FR-27: account deletion ───────────────
+# ─────────────── FR-32: account deletion ───────────────
 def test_deleting_needs_the_password(client):
     headers = make_user(client, "e@khojlo.app")
     assert delete_me(client, headers, password="wrong-password").status_code == 403

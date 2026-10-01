@@ -46,7 +46,7 @@ class LocationResult {
 class LocationService {
   LocationService({this.explainBeforePrompt});
 
-  /// Says why Khojlo wants the location just before the system asks (SRS FR-26);
+  /// Says why Khojlo wants the location just before the system asks (SRS FR-31);
   /// resolves false if the user declines, and the system prompt is skipped.
   final Future<bool> Function()? explainBeforePrompt;
 

@@ -20,7 +20,8 @@ from datetime import datetime
 from sqlalchemy import Select, and_, exists, func, or_
 from sqlalchemy.orm import InstrumentedAttribute
 
-from app.models.business import BusinessProfile, Category, Offer, OfferStatus, Service
+from app.models.business import BusinessProfile, Category, Service
+from app.services.promotion_service import live_offers, local_today, offer_may_be_live
 from app.services.business_service import distance_km
 from app.services.hours import is_open_now
 from app.services.search.criteria import MapBounds, SearchCriteria
@@ -288,21 +289,17 @@ class RatingFilter(SearchStrategy):
 
 
 class OfferFilter(SearchStrategy):
-    """Businesses running at least one active offer."""
+    """Businesses with at least one live offer (switched on and within its dates)."""
 
     def apply(self, stmt: Select) -> Select:
-        return stmt.where(
-            exists().where(
-                Offer.business_id == BusinessProfile.id, Offer.status == OfferStatus.active
-            )
-        )
+        return stmt.where(exists().where(offer_may_be_live()))
 
     def matches(self, business: BusinessProfile, ctx: SearchContext) -> bool:
-        return any(o.status == OfferStatus.active for o in business.offers)
+        return bool(live_offers(business.offers, local_today(ctx.now)))
 
 
 class VerifiedFilter(SearchStrategy):
-    """Only admin-verified businesses (SRS BR-3, optional until Module 8 ships)."""
+    """Only businesses with the Verified badge (SRS BR-3, FR-14; Module 8 verifies them)."""
 
     def apply(self, stmt: Select) -> Select:
         return stmt.where(BusinessProfile.is_verified.is_(True))

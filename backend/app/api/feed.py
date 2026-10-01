@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,9 @@ from app.api.deps import get_optional_user
 from app.core.database import get_db
 from app.models.business import BusinessProfile
 from app.models.user import User
+from app.api.promotions import feed_banners
 from app.schemas.feed import FeedResponse, FeedSection
+from app.services import promotion_service as ps
 from app.services.business_service import card_load_options, to_card
 from app.services.review_service import ranking_score
 
@@ -27,11 +29,22 @@ def _greeting() -> tuple[str, str]:
 
 @router.get("", response_model=FeedResponse)
 def get_feed(
+    background_tasks: BackgroundTasks,
     lat: float | None = Query(default=None),
     lng: float | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User | None = Depends(get_optional_user),
 ) -> FeedResponse:
+    now = datetime.now(timezone.utc)
+    # Scheduled offers and campaigns that have started owe their "it's live" notification.
+    # There's no scheduler, so Home (the most visited screen) sends them; the
+    # `app.jobs.promotions` job does the same from cron.
+    jobs = ps.due_notices(db, now)
+    if jobs:
+        db.commit()
+        for job in jobs:
+            background_tasks.add_task(job)
+
     origin = (lat, lng) if lat is not None and lng is not None else None
 
     published = (
@@ -105,18 +118,20 @@ def get_feed(
         headline=headline,
         categories=categories,
         sections=sections,
+        campaigns=feed_banners(db, now),
     )
 
 
 @router.get("/surprise", response_model=list[dict])
 def surprise(db: Session = Depends(get_db)) -> list[dict]:
-    """Shuffle stack for the "Surprise Me" screen."""
+    """Shuffle stack for the "Surprise Me" screen: every listed business, in a new random
+    order each time (suspended ones are unpublished, so they never appear)."""
     import random
 
-    businesses = db.execute(
+    businesses = list(db.execute(
         select(BusinessProfile)
         .options(*card_load_options())
         .where(BusinessProfile.is_published.is_(True))
-    ).scalars().all()
+    ).scalars().all())
     random.shuffle(businesses)
-    return [to_card(b).model_dump() for b in businesses[:12]]
+    return [to_card(b).model_dump() for b in businesses]

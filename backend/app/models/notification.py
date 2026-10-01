@@ -32,6 +32,9 @@ class NotificationKind(str, enum.Enum):
     offer = "offer"
     new_business = "new_business"
     trending = "trending"
+    # Module 8. Not switchable: people must hear about decisions on their account.
+    account = "account"  # warnings, suspensions, removed content, report outcomes
+    verification = "verification"  # the business's verification status changed
 
 
 class DeviceToken(Base):

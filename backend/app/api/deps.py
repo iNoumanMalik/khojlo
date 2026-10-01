@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.privacy import PRIVACY_POLICY_VERSION
 from app.core.security import ACCESS_TOKEN, decode_token
 from app.models.user import User, UserRole
+from app.services.moderation_service import account_block
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=True)
 
@@ -30,6 +31,27 @@ def get_current_user(
     user = db.get(User, int(user_id))
     if user is None:
         raise _credentials_error
+    ensure_active(user)
+    return user
+
+
+def ensure_active(user: User) -> None:
+    """Module 8: suspended and banned accounts can't use the API (403, with the reason)."""
+    reason = account_block(user)
+    if reason:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=reason,
+            headers={"X-Account-Status": "blocked"},
+        )
+
+
+def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    """SEC-3: administrative functions are for administrators only."""
+    if user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin account required"
+        )
     return user
 
 
@@ -55,7 +77,9 @@ def get_optional_user(
     user_id = payload.get("sub")
     if user_id is None:
         return None
-    return db.get(User, int(user_id))
+    user = db.get(User, int(user_id))
+    # A suspended account browses like a signed-out visitor.
+    return user if user is not None and account_block(user) is None else None
 
 
 def get_now() -> datetime:

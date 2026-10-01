@@ -26,6 +26,13 @@ def test_short_password_rejected(client):
     assert r.status_code == 422
 
 
+def test_cannot_register_as_admin(client):
+    # SEC-3: public sign-up must not hand out the admin role.
+    r = register(client, "sneaky@khojlo.app", role="admin")
+    assert r.status_code == 422, r.text
+    assert register(client, "sneaky@khojlo.app", role="business_owner").status_code == 201
+
+
 def test_interests_update(client):
     register(client, "i@khojlo.app")
     token = login(client, "i@khojlo.app")
@@ -76,7 +83,8 @@ def test_business_lifecycle_and_feed(client):
     offer = client.post(
         f"{PREFIX}/businesses/{biz_id}/offers",
         headers=auth(otoken),
-        json={"title": "20% off", "status": "Active"},
+        json={"title": "20% off", "deal_type": "percent_off", "deal_value": 20,
+              "start_date": "2026-09-01"},  # a draft: the business isn't verified yet
     )
     assert offer.status_code == 201
 
@@ -123,3 +131,16 @@ def test_refresh_token(client):
     r = client.post(f"{PREFIX}/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
     assert r.status_code == 200
     assert "access_token" in r.json()
+
+
+def test_surprise_deals_every_listed_business_shuffled(client):
+    register(client, "deck@khojlo.app", role="business_owner")
+    token = login(client, "deck@khojlo.app")
+    ids = [client.post(f"{PREFIX}/businesses", headers=auth(token),
+                       json={"name": f"Place {i}"}).json()["id"] for i in range(15)]
+    hidden = ids.pop()
+    client.patch(f"{PREFIX}/businesses/{hidden}", headers=auth(token), json={"is_published": False})
+
+    decks = [[b["id"] for b in client.get(f"{PREFIX}/feed/surprise").json()] for _ in range(4)]
+    assert all(sorted(d) == sorted(ids) for d in decks)  # all of them, more than the old 12
+    assert len({tuple(d) for d in decks}) > 1  # and shuffled

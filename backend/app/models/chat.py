@@ -49,6 +49,12 @@ class Conversation(Base):
     # The newest message each side has seen.
     customer_last_read_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     business_last_read_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Module 8: the side that blocked the other ("customer" / "business"). Nobody can send
+    # while it's blocked; only the blocker can unblock.
+    blocked_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Closed by a moderator after a report was upheld: readable, but no new messages.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("User", lazy="joined")
     business = relationship("BusinessProfile", lazy="joined")
@@ -119,3 +125,7 @@ class ConversationReport(Base):
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )

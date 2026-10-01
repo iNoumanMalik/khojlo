@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/business.dart';
 import '../../../core/models/feed.dart';
+import '../../../core/models/moderation.dart';
 import '../../../core/providers.dart';
 
 final discoveryRepositoryProvider = Provider<DiscoveryRepository>((ref) {
@@ -37,6 +38,9 @@ class DiscoveryRepository {
     final res = await _dio.post('/businesses/$id/save', data: {'list_id': listId});
     return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
   }
+
+  Future<void> report(int id, BusinessReportReason reason, {String note = ''}) =>
+      _dio.post('/businesses/$id/report', data: {'reason': reason.api, 'note': note});
 
   Future<BusinessDetail> unsave(int id) async {
     final res = await _dio.delete('/businesses/$id/save');

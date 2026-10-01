@@ -238,11 +238,25 @@ class ConversationDetail extends ConversationSummary {
     super.unreadCount,
     this.otherLastReadId,
     this.myLastReadId,
+    this.blockedByMe = false,
+    this.blockedByThem = false,
+    this.closed = false,
+    this.canSend = true,
   });
 
   /// Messages up to this id show "Seen".
   final int? otherLastReadId;
   final int? myLastReadId;
+
+  // ── Module 8 ──
+  final bool blockedByMe;
+  final bool blockedByThem;
+
+  /// Closed by Khojlo's moderators after a report.
+  final bool closed;
+
+  /// Whether the viewer can send a message now.
+  final bool canSend;
 
   factory ConversationDetail.fromJson(Map<String, dynamic> j) {
     final s = ConversationSummary.fromJson(j);
@@ -256,6 +270,10 @@ class ConversationDetail extends ConversationSummary {
       unreadCount: s.unreadCount,
       otherLastReadId: j['other_last_read_id'] as int?,
       myLastReadId: j['my_last_read_id'] as int?,
+      blockedByMe: j['blocked_by_me'] as bool? ?? false,
+      blockedByThem: j['blocked_by_them'] as bool? ?? false,
+      closed: j['closed'] as bool? ?? false,
+      canSend: j['can_send'] as bool? ?? true,
     );
   }
 
@@ -269,6 +287,10 @@ class ConversationDetail extends ConversationSummary {
         unreadCount: unreadCount,
         otherLastReadId: lastReadId,
         myLastReadId: myLastReadId,
+        blockedByMe: blockedByMe,
+        blockedByThem: blockedByThem,
+        closed: closed,
+        canSend: canSend,
       );
 }
 

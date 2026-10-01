@@ -1,3 +1,4 @@
+import html as _html
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -104,3 +105,17 @@ def send_password_reset_otp(to: str, code: str) -> None:
         body_html=_otp_block(code, settings.OTP_EXPIRE_MINUTES),
     )
     send_email(to=to, subject="Your Khojlo password reset code", html=html)
+
+
+def send_account_notice(*, to: str, subject: str, heading: str, body: str) -> None:
+    """Module 8: tell someone about a decision on their account (suspension, ban, lift)."""
+    html = _shell(
+        eyebrow="Your account",
+        heading=_html.escape(heading),
+        body_html=f"""\
+<p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:{_INK};">{_html.escape(body)}</p>
+<p style="margin:0;font-size:12.5px;color:{_MUTED};">
+  Khojlo’s Community Guidelines are in the app, under Profile → Community Guidelines.
+</p>""",
+    )
+    send_email(to=to, subject=subject, html=html)

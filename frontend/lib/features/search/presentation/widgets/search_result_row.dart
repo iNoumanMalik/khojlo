@@ -80,12 +80,13 @@ class SearchResultRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: metaStyle,
                   ),
-                  if (b.isNew || b.hasOffer || b.isVerified) ...[
+                  if (b.isNew || b.hasOffer || b.isVerified || b.activeCampaign != null) ...[
                     const SizedBox(height: 7),
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       children: [
+                        if (b.activeCampaign != null) PromotionBadge(campaign: b.activeCampaign!),
                         if (b.isNew) const KhojloBadge(label: 'New', tone: BadgeTone.gold),
                         if (b.hasOffer) const KhojloBadge(label: 'Offer', tone: BadgeTone.plum),
                         if (b.isVerified)

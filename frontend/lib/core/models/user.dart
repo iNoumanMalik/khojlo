@@ -51,6 +51,9 @@ class AppUser {
 
   bool get isOwner => role == UserRole.businessOwner || role == UserRole.admin;
 
+  /// Module 8: can open the admin panel (SEC-3).
+  bool get isAdmin => role == UserRole.admin;
+
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] as int,
         email: j['email'] as String,

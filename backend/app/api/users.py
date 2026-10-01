@@ -69,7 +69,7 @@ def delete_me(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
-    """Permanently delete the account and everything in it (SRS FR-27)."""
+    """Permanently delete the account and everything in it (SRS FR-32)."""
     if user.hashed_password is not None and not verify_password(
         payload.password or "", user.hashed_password
     ):
@@ -85,7 +85,7 @@ def agree_to_privacy_policy(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
-    """Record that the user agreed to the current privacy policy (SRS FR-26)."""
+    """Record that the user agreed to the current privacy policy (SRS FR-31)."""
     require_current_privacy_policy(payload.policy_version)
     user.record_privacy_consent()
     db.commit()

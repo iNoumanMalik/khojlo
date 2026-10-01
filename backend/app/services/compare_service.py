@@ -11,7 +11,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.business import BusinessProfile, OfferStatus
+from app.models.business import BusinessProfile
+from app.services.promotion_service import live_offers, local_today
 from app.schemas.business import ServiceOut
 from app.schemas.search import CompareHighlights, CompareItem, CompareResponse
 from app.services.business_service import card_load_options, to_card
@@ -82,7 +83,7 @@ def build_comparison(
             CompareItem(
                 **to_card(b, origin=origin, now=now).model_dump(),
                 services=[ServiceOut.model_validate(s) for s in b.services],
-                active_offers=[o.title for o in b.offers if o.status == OfferStatus.active],
+                active_offers=[o.title for o in live_offers(b.offers, local_today(now))],
             )
         )
     return CompareResponse(items=items, highlights=compute_highlights(items))

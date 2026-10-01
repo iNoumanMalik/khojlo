@@ -9,6 +9,7 @@ export 'floating_tab_bar.dart';
 export 'glass.dart';
 export 'image_tile.dart';
 export 'misc.dart';
+export 'promotion_badge.dart';
 export 'search_pill.dart';
 export 'skeletons.dart';
 export 'stat_card.dart';

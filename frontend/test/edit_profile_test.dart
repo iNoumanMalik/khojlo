@@ -52,6 +52,9 @@ class _OnePhoto implements PhotoSource {
 
   @override
   Future<PickedPhoto?> pickOne() async => PickedPhoto(bytes: Uint8List(0), name: 'me.jpg');
+
+  @override
+  Future<PickedPhoto?> takePhoto() => pickOne();
 }
 
 class _FakeMedia extends MediaRepository {

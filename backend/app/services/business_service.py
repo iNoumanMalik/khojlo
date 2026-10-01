@@ -6,13 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.models.business import BusinessProfile, OfferStatus
+from app.models.business import BusinessProfile
+from app.models.campaign import Campaign
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
 from app.models.media import BusinessPhoto, Media
-from app.schemas.business import BusinessAnalytics, BusinessCard, WeeklyPoint
+from app.schemas.business import BusinessAnalytics, BusinessCard, CampaignRef, WeeklyPoint
 from app.schemas.media import PhotoOut
 from app.services.hours import is_open_now, today_hours_label
 from app.services.media_service import delete_if_unused
+from app.services.promotion_service import live_offers, local_today, visible_campaign
 
 _DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"]
 
@@ -38,6 +40,8 @@ def card_load_options() -> tuple:
         selectinload(BusinessProfile.category),
         selectinload(BusinessProfile.hours),
         selectinload(BusinessProfile.offers),
+        # Campaigns and their linked offers, for the "Active promotion" badge.
+        selectinload(BusinessProfile.campaigns).selectinload(Campaign.offer_links),
         selectinload(BusinessProfile.photos),  # media rows join in; their bytes stay deferred
     )
 
@@ -69,8 +73,13 @@ def set_business_photos(db: Session, b: BusinessProfile, media: list[Media]) -> 
     db.expire(b, ["photos"])
 
 
-def has_active_offer(b: BusinessProfile) -> bool:
-    return any(o.status == OfferStatus.active for o in b.offers)
+def has_active_offer(b: BusinessProfile, now: datetime | None = None) -> bool:
+    return bool(live_offers(b.offers, local_today(now)))
+
+
+def campaign_ref(b: BusinessProfile, now: datetime | None = None) -> CampaignRef | None:
+    c = visible_campaign(b, local_today(now))
+    return CampaignRef(id=c.id, name=c.name) if c is not None else None
 
 
 def is_new_business(b: BusinessProfile, now: datetime | None = None) -> bool:
@@ -110,12 +119,14 @@ def to_card(
         price_max=b.price_max,
         is_open_now=is_open_now(b.hours, now),
         today_hours=today_hours_label(b.hours, now),
-        has_offer=has_active_offer(b),
+        has_offer=has_active_offer(b, now),
+        active_campaign=campaign_ref(b, now),
         is_new=is_new_business(b, now),
         cover=photo_out(b.cover),
         category_label=b.category_label,
         latitude=b.latitude,
         longitude=b.longitude,
+        is_suspended=b.suspended_at is not None,
     )
 
 

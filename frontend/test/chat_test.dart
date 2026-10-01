@@ -395,7 +395,16 @@ void main() {
 
     testWidgets('conversation: send from the composer, suggestions and offers', (tester) async {
       final chat = FakeChat(detail: detail(offers: [
-        {'id': 3, 'title': '20% off first visit', 'status': 'Active'}
+        {
+          'id': 3,
+          'title': '20% off first visit',
+          'deal_type': 'percent_off',
+          'deal_value': 20,
+          'deal_label': '20% OFF',
+          'start_date': '2026-09-01',
+          'is_active': true,
+          'status': 'active',
+        }
       ]));
       final c = makeContainer(chat, FakeRealtime());
       await pumpScreen(tester, c, const ConversationScreen(conversationId: 1));

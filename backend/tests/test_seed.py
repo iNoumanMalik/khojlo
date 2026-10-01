@@ -72,8 +72,8 @@ def test_seed_upgrades_old_placeholder_data_and_keeps_everything_else(client):
     db.expire_all()
 
     assert report.businesses_refreshed == 1
-    # customer + admin + demo reviewers; the owner already existed
-    assert report.users_added == 2 + len(seed_module.REVIEWERS)
+    # customer + admin + the Module 8 demo spammer + demo reviewers; the owner already existed
+    assert report.users_added == 3 + len(seed_module.REVIEWERS)
     brew = db.scalar(select(BusinessProfile).where(BusinessProfile.name == "Brew & Bloom"))
     spec = CATALOGUE["Brew & Bloom"]
     assert (brew.price_min, brew.price_max, brew.address) == (spec["pmin"], spec["pmax"],

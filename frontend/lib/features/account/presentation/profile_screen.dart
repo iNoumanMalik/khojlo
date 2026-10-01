@@ -92,7 +92,11 @@ class ProfileScreen extends ConsumerWidget {
                       runSpacing: 8,
                       children: [
                         KhojloBadge(
-                            label: user.isOwner ? 'Business owner' : 'Explorer',
+                            label: user.isAdmin
+                                ? 'Admin'
+                                : user.isOwner
+                                    ? 'Business owner'
+                                    : 'Explorer',
                             tone: BadgeTone.gold),
                         if (!user.isVerified)
                           _UnverifiedBadge(
@@ -154,9 +158,18 @@ class ProfileScreen extends ConsumerWidget {
                     label: 'Edit profile',
                     onTap: () => context.push('/edit-profile')),
                 _Row(
+                    icon: Icons.gavel_rounded,
+                    label: 'Community Guidelines',
+                    onTap: () => context.push('/guidelines')),
+                _Row(
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacy policy',
                     onTap: () => context.push('/privacy')),
+                if (user.isAdmin)
+                  _Row(
+                      icon: Icons.admin_panel_settings_outlined,
+                      label: 'Admin panel',
+                      onTap: () => context.push('/admin')),
               ],
             ),
           ),

@@ -12,7 +12,7 @@ import '../privacy_policy.dart';
 
 /// Shown after sign-in until the user agrees to the current privacy policy: Google
 /// sign-ups, accounts from before consent was recorded, and everyone after the policy
-/// changes (SRS FR-26). The router keeps the rest of the app behind it.
+/// changes (SRS FR-31). The router keeps the rest of the app behind it.
 class PrivacyConsentScreen extends ConsumerStatefulWidget {
   const PrivacyConsentScreen({super.key});
 

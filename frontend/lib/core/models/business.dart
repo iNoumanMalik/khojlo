@@ -104,6 +104,8 @@ class BusinessCard {
     this.categoryLabel,
     this.latitude,
     this.longitude,
+    this.activeCampaign,
+    this.isSuspended = false,
   });
 
   final int id;
@@ -142,9 +144,15 @@ class BusinessCard {
   /// What kind of business it is: the category, or the owner's own words for "Other".
   final String? categoryLabel;
 
+  /// A live promotional campaign ("Active promotion" badge); null when there's none.
+  final CampaignRef? activeCampaign;
+
   // ── Module 6 ──
   final double? latitude;
   final double? longitude;
+
+  // ── Module 8: taken down by a moderator (only the owner still sees it) ──
+  final bool isSuspended;
 
   /// Where to put the map pin; null without valid coordinates (SRS BR-7).
   GeoPoint? get location {
@@ -199,6 +207,8 @@ class BusinessCard {
         categoryLabel: j['category_label'] as String?,
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
+        activeCampaign: CampaignRef.maybe(j['active_campaign']),
+        isSuspended: j['is_suspended'] as bool? ?? false,
       );
 }
 
@@ -267,40 +277,131 @@ class OpeningHours {
       );
 }
 
+/// What kind of deal an offer is (backend `DealType`).
+enum DealType {
+  percentOff('percent_off', '% off'),
+  amountOff('amount_off', 'Rs off'),
+  bogo('bogo', 'Buy 1 Get 1'),
+  freeItem('free_item', 'Free item'),
+  other('other', 'Other');
+
+  const DealType(this.api, this.label);
+  final String api;
+  final String label;
+
+  static DealType parse(String? v) =>
+      DealType.values.firstWhere((t) => t.api == v, orElse: () => DealType.other);
+}
+
+/// Draft / Scheduled / Active / Expired: from the on/off switch and the dates.
+enum PromoStatus {
+  draft('draft', 'Draft'),
+  scheduled('scheduled', 'Scheduled'),
+  active('active', 'Active'),
+  expired('expired', 'Expired');
+
+  const PromoStatus(this.api, this.label);
+  final String api;
+  final String label;
+
+  static PromoStatus parse(String? v) =>
+      PromoStatus.values.firstWhere((s) => s.api == v, orElse: () => PromoStatus.draft);
+}
+
+/// A special offer: the deal itself (SRS FR-10, UC-11).
 class Offer {
   const Offer({
     required this.id,
     required this.title,
-    required this.startsOn,
-    required this.endsOn,
+    required this.dealType,
+    required this.dealLabel,
+    required this.startDate,
     required this.status,
-    required this.tone,
-    required this.views,
-    required this.redemptions,
+    this.description = '',
+    this.dealValue,
+    this.dealText = '',
+    this.endDate,
+    this.terms = '',
+    this.isActive = false,
+    this.tone = 'emerald',
+    this.views = 0,
+    this.redemptions = 0,
   });
 
   final int id;
   final String title;
-  final String startsOn;
-  final String endsOn;
-  final String status;
+  final String description;
+  final DealType dealType;
+
+  /// Percent for % off, rupees for Rs off.
+  final double? dealValue;
+
+  /// What's free, or the owner's own label.
+  final String dealText;
+
+  /// Badge text from the server: "20% OFF", "BUY 1 GET 1".
+  final String dealLabel;
+  final DateTime startDate;
+
+  /// null: open-ended.
+  final DateTime? endDate;
+  final String terms;
+  final bool isActive;
+  final PromoStatus status;
   final String tone;
   final int views;
   final int redemptions;
 
-  String get rangeLabel =>
-      [startsOn, endsOn].where((s) => s.isNotEmpty).join(' – ');
+  /// "Until 20 Oct", "From 3 Oct", "1 – 20 Oct", "Ongoing".
+  String get rangeLabel => dateRangeLabel(startDate, endDate);
 
   factory Offer.fromJson(Map<String, dynamic> j) => Offer(
         id: j['id'] as int? ?? 0,
         title: j['title'] as String,
-        startsOn: j['starts_on'] as String? ?? '',
-        endsOn: j['ends_on'] as String? ?? '',
-        status: j['status'] as String? ?? 'Active',
+        description: j['description'] as String? ?? '',
+        dealType: DealType.parse(j['deal_type'] as String?),
+        dealValue: (j['deal_value'] as num?)?.toDouble(),
+        dealText: j['deal_text'] as String? ?? '',
+        dealLabel: j['deal_label'] as String? ?? 'SPECIAL OFFER',
+        startDate: DateTime.parse(j['start_date'] as String),
+        endDate: j['end_date'] == null ? null : DateTime.parse(j['end_date'] as String),
+        terms: j['terms'] as String? ?? '',
+        isActive: j['is_active'] as bool? ?? false,
+        status: PromoStatus.parse(j['status'] as String?),
         tone: j['tone'] as String? ?? 'emerald',
         views: j['views'] as int? ?? 0,
         redemptions: j['redemptions'] as int? ?? 0,
       );
+}
+
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov',
+    'Dec'];
+
+String shortDate(DateTime d) => '${d.day} ${_months[d.month - 1]}';
+
+/// Human dates for offers and campaigns, relative to today where it helps.
+String dateRangeLabel(DateTime start, DateTime? end, {DateTime? today}) {
+  final now = today ?? DateTime.now();
+  final t = DateTime(now.year, now.month, now.day);
+  if (start.isAfter(t)) {
+    return end == null ? 'From ${shortDate(start)}' : '${shortDate(start)} – ${shortDate(end)}';
+  }
+  if (end == null) return 'Ongoing';
+  final left = end.difference(t).inDays;
+  if (left == 0) return 'Ends today';
+  if (left == 1) return 'Ends tomorrow';
+  return 'Until ${shortDate(end)}';
+}
+
+/// The business's live campaign, behind the "Active promotion" badge on cards.
+class CampaignRef {
+  const CampaignRef({required this.id, required this.name});
+  final int id;
+  final String name;
+
+  static CampaignRef? maybe(Object? j) => j is Map<String, dynamic>
+      ? CampaignRef(id: j['id'] as int, name: j['name'] as String? ?? '')
+      : null;
 }
 
 class BusinessDetail extends BusinessCard {
@@ -328,6 +429,7 @@ class BusinessDetail extends BusinessCard {
     super.categoryLabel,
     super.latitude,
     super.longitude,
+    super.activeCampaign,
     required this.description,
     this.photos = const [],
     this.phone,
@@ -385,6 +487,7 @@ class BusinessDetail extends BusinessCard {
       categoryLabel: card.categoryLabel,
       latitude: card.latitude,
       longitude: card.longitude,
+      activeCampaign: card.activeCampaign,
       description: j['description'] as String? ?? '',
       photos: (j['photos'] as List?)
               ?.map((e) => Photo.fromJson(e as Map<String, dynamic>))

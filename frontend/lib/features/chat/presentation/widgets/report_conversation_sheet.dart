@@ -56,7 +56,10 @@ class _ReportSheetState extends State<_ReportSheet> {
           ),
           Text('Report this conversation', style: AppType.serif(size: 22)),
           const SizedBox(height: 4),
-          Text('Khojlo’s team will check it. The other person won’t know who reported it.',
+          // Decision 8 (SEC-5 exception): reporting shares the conversation with moderators.
+          Text(
+              'Reporting shares this conversation with Khojlo’s moderators so they can check '
+              'it. The other person won’t know who reported it.',
               style: AppType.sans(size: 12.5, color: AppColors.inkA(0.55))),
           const SizedBox(height: 10),
           RadioGroup<ConversationReportReason>(

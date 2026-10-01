@@ -1,6 +1,6 @@
 # Software Requirements Specification (SRS) for Khojlo
 
-**Version 1.1 (working draft)**
+**Version 1.2 (working draft)**
 COMSATS University Islamabad, Abbottabad Campus
 Bachelor of Science in Software Engineering (2023–2027)
 
@@ -12,7 +12,7 @@ Bachelor of Science in Software Engineering (2023–2027)
 
 **Supervisor:** Muhammad Tariq Baloch
 
-> This is the editable copy of `SRS.pdf` (version 1.0). Items changed or added in version 1.1 are marked **(v1.1)**. Paste the changes into the Word file before exporting the next PDF. Every issue found in the review, including the ones that need a team decision, is listed in [document_review.md](document_review.md).
+> This is the editable copy of `SRS.pdf` (version 1.0). Items changed or added in version 1.1 are marked **(v1.1)**, and in version 1.2 **(v1.2)**. Paste the changes into the Word file before exporting the next PDF. Every issue found in the review, including the ones that need a team decision, is listed in [document_review.md](document_review.md).
 
 ## Revision History
 
@@ -20,7 +20,8 @@ Bachelor of Science in Software Engineering (2023–2027)
 |---|---|---|---|
 | Project team | 2026 | Initial version | 1.0 |
 | Nouman Khan | 28 Sep 2026 | Product name corrected to "Khojlo". Scope, operating environment and constraints aligned with the implementation. Added the missing requirements for profile management, account recovery, comparison, reporting, analytics, push notifications, personalization and chat (FR-16 to FR-25) and their use cases (UC-13 to UC-15). Resolved the UC-3 / BR-6 conflict. Added non-functional requirements for messaging. Added a module traceability table (Appendix A). | 1.1 |
-| Nouman Khan | 30 Sep 2026 | Added privacy consent and account deletion (FR-26, FR-27, BR-17, BR-18) and the matching security requirements (SEC-6, SEC-7). | 1.1 |
+| Sayyam Tahir | 30 Sep 2026 | Module 8 decisions: business verification is automatic, with admins reviewing the businesses the checks refer to them (FR-14, BR-3, BR-9, UC-12, SEC-2); admins can read a conversation once a participant reports it (BR-15, SEC-5); reporting covers conversations and businesses (FR-19). Added account moderation, automatic flagging, blocking, the Community Guidelines and the audit log (FR-26 to FR-30, BR-17 to BR-20, SEC-6), and use case tables for Manage Content, Manage Users and Monitor System (UC-16 to UC-18). | 1.2 |
+| Nouman Khan | 30 Sep 2026 | Added privacy consent and account deletion (FR-31, FR-32, BR-21, BR-22) and the matching security requirements (SEC-7, SEC-8). | 1.2 |
 
 ## Application Evaluation History
 
@@ -96,6 +97,7 @@ The requirements for the Khojlo system were identified using the Use Case Modeli
 - New use cases: **Message Business** (UC-13, extends View Business Details), **Respond to Messages** (UC-14) and **Receive Notifications** (UC-15).
 - The Admin is connected to Login, as UC-1 lists the Admin as an actor.
 - The "User" actor is renamed **Customer**, matching the use case tables, and the "Googel Maps API" typo is fixed.
+- **(v1.2)** New use case **Report Content** (Customer and Business Owner), which feeds Manage Content. Manage Content, Manage Users and Monitor System now have tables (UC-16 to UC-18).
 
 ### 3.1 Use Case Descriptions
 
@@ -194,10 +196,8 @@ Use cases describe the interactions between the actors and the Khojlo system to 
 | Normal Flow | 1. Select business<br>2. Retrieve details<br>3. Display details |
 | Alternative Flows | Open map / reviews / **message the business (UC-13)** **(v1.1)** |
 | Exceptions | Business unavailable |
-| Business Rules | Only verified businesses (BR-3) |
+| Business Rules | Suspended businesses aren't shown; verified ones carry the Verified badge (BR-3) **(v1.2)** |
 | Assumptions | Profile exists |
-
-> **Open issue:** BR-3 depends on how Module 8 implements verification. See [document_review.md](document_review.md#decisions-needed).
 
 **Table 3.1.7**
 
@@ -279,23 +279,23 @@ Use cases describe the interactions between the actors and the Khojlo system to 
 | Business Rules | Offer dates valid |
 | Assumptions | Business active |
 
-> **Open issue:** the "Business verified" precondition depends on Module 8, like BR-3.
+> **(v1.2)** The "Business verified" precondition stays. Verification is automatic (FR-14), so an owner meets it by passing the checks, without waiting for an admin.
 
 **Table 3.1.12**
 
-| Use Case ID | UC-12 |
+| Use Case ID | UC-12 **(v1.2)** |
 |---|---|
 | Use Case Name | Verify Business |
-| Actors | Admin |
-| Description | Verify submitted businesses. |
-| Trigger | Pending request. |
-| Preconditions | Admin logged in. |
-| Postconditions | Status updated. |
-| Normal Flow | 1. Review request<br>2. Validate<br>3. Approve/Reject |
-| Alternative Flows | Request more info |
-| Exceptions | Verification failed |
-| Business Rules | Only admin verifies |
-| Assumptions | Documents provided |
+| Actors | System (automatic checks), Admin |
+| Description | Give the Verified badge to businesses that pass the verification checks, and let an admin decide the ones the checks refer. |
+| Trigger | The owner completes a check (email, listing, storefront photo), or the checks refer a business to an admin. |
+| Preconditions | Business listed. For the admin: logged in as an admin. |
+| Postconditions | Status updated (Verified, Pending Review, Needs Info or Rejected); the owner is notified. |
+| Normal Flow | 1. Run the checks<br>2. All pass: mark Verified<br>3. All pass except the clean record: refer to an admin<br>4. Admin reviews the details, storefront photo, reports and flags<br>5. Approve or reject |
+| Alternative Flows | Admin requests more info and the owner answers; admin revokes a badge |
+| Exceptions | A check fails (the owner is told what's missing) |
+| Business Rules | BR-9 |
+| Assumptions | The owner can take a photo of the shop front |
 
 **Table 3.1.13 (v1.1)**
 
@@ -344,6 +344,54 @@ Use cases describe the interactions between the actors and the Khojlo system to 
 | Exceptions | Device unreachable or registration expired |
 | Business Rules | Only users who allowed notifications receive them (BR-14) |
 | Assumptions | Supported device or browser |
+
+**Table 3.1.16 (v1.2)**
+
+| Use Case ID | UC-16 |
+|---|---|
+| Use Case Name | Manage Content |
+| Actors | Admin |
+| Description | Decide on reported and automatically flagged content. |
+| Trigger | A report or an automatic flag is open. |
+| Preconditions | Admin logged in. |
+| Postconditions | The content is removed or kept; the reports and flags are resolved; the people affected and the reporters are notified; the decision is logged. |
+| Normal Flow | 1. Open the reports or flags queue<br>2. Open an item<br>3. Review the content, reports and flags<br>4. Remove it, giving a reason from the Community Guidelines<br>5. Optionally act on the account (UC-17) |
+| Alternative Flows | Dismiss: the content stays |
+| Exceptions | Already resolved by another admin |
+| Business Rules | BR-10, BR-13 |
+| Assumptions | Reported content is still available |
+
+**Table 3.1.17 (v1.2)**
+
+| Use Case ID | UC-17 |
+|---|---|
+| Use Case Name | Manage Users |
+| Actors | Admin |
+| Description | Warn, suspend, ban or reinstate an account. |
+| Trigger | A decision in UC-16, or an admin looks up an account. |
+| Preconditions | Admin logged in. |
+| Postconditions | The account's standing is updated; the person is notified; the action is logged. |
+| Normal Flow | 1. Find the account<br>2. Review its history, businesses and flags<br>3. Warn, suspend for a period, or ban, giving a reason |
+| Alternative Flows | Lift a suspension or ban |
+| Exceptions | Admin accounts can't be acted on |
+| Business Rules | BR-17 |
+| Assumptions | — |
+
+**Table 3.1.18 (v1.2)**
+
+| Use Case ID | UC-18 |
+|---|---|
+| Use Case Name | Monitor System |
+| Actors | Admin |
+| Description | See what needs attention and how the platform is doing. |
+| Trigger | Admin opens the admin panel. |
+| Preconditions | Admin logged in. |
+| Postconditions | Overview displayed. |
+| Normal Flow | 1. Open the overview<br>2. See the queues, today's numbers, 14-day activity and recent decisions<br>3. Open the audit log |
+| Alternative Flows | Open a queue from the overview |
+| Exceptions | Data unavailable |
+| Business Rules | BR-20 |
+| Assumptions | — |
 
 ## 4. Functional Requirements
 
@@ -401,27 +449,27 @@ This feature enables users to register, log in, and manage their profiles.
 | Dependencies | FR-1 |
 | Priority | Medium |
 
-**Table 4.1.5 (v1.1)**
+**Table 4.1.5 (v1.2)**
 
-| Identifier | FR-26 |
+| Identifier | FR-31 |
 |---|---|
 | Title | Privacy Consent |
 | Requirement | The system shall show users a privacy policy explaining what personal data Khojlo collects (account, location, messages, device tokens), why, who can see it and how long it is kept. A user shall agree to it before using the app: on the sign-up form, or on a consent screen after Google sign-in or when the policy changes. The system shall record the policy version agreed to and when. The app shall explain why it needs the location before the device asks for permission. |
 | Source | User, Legal |
 | Rationale | Users should know how their data is used and give informed consent, and the team needs a record of it. |
-| Business Rule | BR-17 A user must agree to the current policy version before using the app; the consent box is never pre-ticked |
+| Business Rule | BR-21 A user must agree to the current policy version before using the app; the consent box is never pre-ticked |
 | Dependencies | FR-1, FR-2 |
 | Priority | High |
 
-**Table 4.1.6 (v1.1)**
+**Table 4.1.6 (v1.2)**
 
-| Identifier | FR-27 |
+| Identifier | FR-32 |
 |---|---|
 | Title | Delete Account |
 | Requirement | The user shall be able to permanently delete their account from the app. This removes their profile, photos, businesses, reviews, votes, reports, saved lists, conversations and messages, devices, notifications and search history. Counts shown to others (ratings, helpful votes, saves) shall be recalculated, and business view counts kept without the viewer. |
 | Source | User, Legal |
 | Rationale | Users control their own data. Google Play requires in-app account deletion for apps that let users create accounts. |
-| Business Rule | BR-18 Deletion needs the account password (Google-only accounts confirm without one) and cannot be undone |
+| Business Rule | BR-22 Deletion needs the account password (Google-only accounts confirm without one) and cannot be undone |
 | Dependencies | FR-2 |
 | Priority | High |
 
@@ -461,11 +509,9 @@ Users can discover, search, filter, compare and view detailed information about 
 | Requirement | The system shall display complete business information. |
 | Source | User |
 | Rationale | Provide informed decision making. |
-| Business Rule | BR-3 Only verified business profiles displayed |
+| Business Rule | BR-3 Suspended businesses aren't displayed; verified businesses carry the Verified badge **(v1.2:** was "Only verified business profiles displayed"; decision 1.**)** |
 | Dependencies | FR-3 |
 | Priority | High |
-
-> **Open issue:** see UC-6 above.
 
 **Table 4.2.4 (v1.1)**
 
@@ -512,7 +558,7 @@ Users can leave reviews, submit ratings, and save favorite businesses for quick 
 | Identifier | FR-19 |
 |---|---|
 | Title | Report Content |
-| Requirement | The user shall be able to report a review as spam, fake, offensive or other, for review by an admin. |
+| Requirement | The user shall be able to report a review, a conversation they take part in, or a business, giving a reason, for review by an admin. **(v1.2:** was reviews only.**)** |
 | Source | User |
 | Rationale | Give the admin moderation workflow (FR-15, SDD Algorithm 10) its "reported content". |
 | Business Rule | BR-13 Each user can report an item once; reported content stays visible until an admin decides |
@@ -643,11 +689,11 @@ Administrative functions for verifying business profiles and moderating platform
 
 | Identifier | FR-14 |
 |---|---|
-| Title | Admin Verification |
-| Requirement | Admin shall verify business profiles before publication. |
+| Title | Business Verification **(v1.2)** |
+| Requirement | The system shall verify a business automatically when its owner's email is verified, its listing is complete, the owner has taken a storefront photo in the app, and it has no open report or flag. Admins shall review the businesses the checks refer to them, and may verify, reject, request more information about, revoke or suspend any business. **(v1.2:** was "Admin shall verify business profiles before publication"; businesses are now listed on publication and verification adds the badge.**)** |
 | Source | Admin |
-| Rationale | Ensure authenticity. |
-| Business Rule | BR-9 Only admins may verify businesses |
+| Rationale | Ensure authenticity without an admin having to approve every business by hand. |
+| Business Rule | BR-9 Only the automatic checks or an admin can verify a business; only an admin can reject, revoke or suspend one **(v1.2)** |
 | Dependencies | FR-8 |
 | Priority | High |
 
@@ -659,9 +705,69 @@ Administrative functions for verifying business profiles and moderating platform
 | Requirement | Admin shall remove spam and inappropriate content. |
 | Source | Admin |
 | Rationale | Maintain platform quality. |
-| Business Rule | BR-10 Moderation policies enforced |
+| Business Rule | BR-10 Content is removed according to the Community Guidelines (FR-29), and the people affected are told why **(v1.2)** |
 | Dependencies | FR-14 |
 | Priority | High |
+
+**Table 4.6.3 (v1.2)**
+
+| Identifier | FR-26 |
+|---|---|
+| Title | Account Moderation |
+| Requirement | Admin shall be able to warn an account, suspend it for a period, ban it, or lift a suspension or ban. A suspended or banned account can't sign in or use the system. |
+| Source | Admin |
+| Rationale | Stop repeat offenders such as scammers and spammers (UC-17). |
+| Business Rule | BR-17 Every action gives a reason from the Community Guidelines and is sent to the person; admin accounts can't be acted on |
+| Dependencies | FR-15 |
+| Priority | High |
+
+**Table 4.6.4 (v1.2)**
+
+| Identifier | FR-27 |
+|---|---|
+| Title | Automatic Flagging |
+| Requirement | The system shall flag likely spam, scams, adult or prohibited content, fake reviews and duplicate listings for an admin to review. |
+| Source | System |
+| Rationale | Catch problems before anyone reports them (the design's "Spam" section). |
+| Business Rule | BR-18 A flag never hides or changes content by itself, and private message text is never scanned |
+| Dependencies | FR-15 |
+| Priority | Medium |
+
+**Table 4.6.5 (v1.2)**
+
+| Identifier | FR-28 |
+|---|---|
+| Title | Block a Conversation |
+| Requirement | Either participant shall be able to block a conversation, after which neither can send messages in it until the blocker unblocks it. |
+| Source | User |
+| Rationale | Protect people from harassment immediately, without waiting for an admin. |
+| Business Rule | BR-19 Only the person who blocked a conversation can unblock it |
+| Dependencies | FR-23 |
+| Priority | Medium |
+
+**Table 4.6.6 (v1.2)**
+
+| Identifier | FR-29 |
+|---|---|
+| Title | Community Guidelines and Notices |
+| Requirement | The system shall publish Community Guidelines, and shall notify users of decisions about their content, their account, their business's verification and their reports. |
+| Source | Admin |
+| Rationale | Make the moderation policy (BR-10) concrete and decisions transparent. |
+| Business Rule | These notices can't be turned off |
+| Dependencies | FR-15, FR-21 |
+| Priority | Medium |
+
+**Table 4.6.7 (v1.2)**
+
+| Identifier | FR-30 |
+|---|---|
+| Title | Moderation Audit Log |
+| Requirement | The system shall record every verification and moderation decision, with who made it (an admin or the automatic checks), when, and why, and show it to admins. |
+| Source | Admin |
+| Rationale | Accountability, and the admin overview and activity feed (UC-18). |
+| Business Rule | BR-20 Audit entries can't be edited or deleted from the app |
+| Dependencies | FR-14, FR-15 |
+| Priority | Medium |
 
 ### 4.7 Chat and Messaging (v1.1)
 
@@ -675,7 +781,7 @@ Customers and business owners can communicate directly through one-to-one conver
 | Requirement | The user shall be able to send a text message to a business from its profile or from an existing conversation. |
 | Source | User |
 | Rationale | Let customers ask about products, services, prices, availability or appointments before visiting (UC-13). |
-| Business Rule | BR-15 Only the two participants of a conversation can read its messages |
+| Business Rule | BR-15 Only the two participants of a conversation can read its messages, except that admins can read a conversation once a participant reports it **(v1.2)** |
 | Dependencies | FR-2, FR-5 |
 | Priority | High |
 
@@ -744,14 +850,13 @@ The system shall provide dependable and consistent operation.
 The system shall protect user data and prevent unauthorized access.
 
 - **SEC-1:** All user passwords shall be stored in encrypted form.
-- **SEC-2:** Only verified business owners shall be allowed to modify business profiles.
+- **SEC-2:** Only a business's owner shall be allowed to modify its profile; admins act on businesses only through the audited admin functions. **(v1.2:** was "Only verified business owners shall be allowed to modify business profiles".**)**
 - **SEC-3:** Administrative functions shall be accessible only to authorized administrators.
 - **SEC-4:** The system shall use secure HTTPS communication (and secure WebSockets, WSS, for real-time features) for all client-server interactions. **(v1.1)**
-- **SEC-5 (v1.1):** A conversation's messages shall be accessible only to its participants.
-- **SEC-6 (v1.1):** The system shall collect only the personal data a feature needs. The user's device location shall be used only for the request it was sent with and not stored against the user.
-- **SEC-7 (v1.1):** Deleting an account shall remove the user's personal data from the database immediately, and their existing sessions shall stop working.
-
-> **Open issue:** SEC-2 depends on Module 8, like BR-3.
+- **SEC-5 (v1.1):** A conversation's messages shall be accessible only to its participants, unless a participant reports the conversation for moderation. **(v1.2:** exception added.**)**
+- **SEC-6 (v1.2):** Suspended and banned accounts shall be refused at sign-in and on every request.
+- **SEC-7 (v1.2):** The system shall collect only the personal data a feature needs. The user's device location shall be used only for the request it was sent with and not stored against the user.
+- **SEC-8 (v1.2):** Deleting an account shall remove the user's personal data from the database immediately, and their existing sessions shall stop working.
 
 ### 5.5 Scalability
 
@@ -777,13 +882,13 @@ How the modules in the Feasibility Report map to the use cases and functional re
 
 | # | Module | Use cases | Functional requirements |
 |---|---|---|---|
-| 1 | User Authentication and Profile Management | UC-1, UC-2 | FR-1, FR-2, FR-7, FR-16, FR-17, FR-26, FR-27 |
+| 1 | User Authentication and Profile Management | UC-1, UC-2 | FR-1, FR-2, FR-7, FR-16, FR-17, FR-31, FR-32 |
 | 2 | Business Registration and Management | UC-10, UC-11 | FR-8, FR-9, FR-10, FR-20 |
 | 3 | Business Discovery Feed (with push notifications) | UC-3, UC-6, UC-15 | FR-5, FR-11, FR-21 |
 | 4 | Search, Filtering, and Comparison | UC-4, UC-5 | FR-3, FR-4, FR-18 |
 | 5 | Reviews and Ratings | UC-7 | FR-6, FR-19 |
 | 6 | Maps and Location Integration | UC-9 | FR-12 |
 | 7 | AI Chatbot Assistance (RAG) | UC-8 | FR-13 |
-| 8 | Admin and Moderation | UC-12 | FR-14, FR-15 |
+| 8 | Admin and Moderation | UC-12, UC-16, UC-17, UC-18 | FR-14, FR-15, FR-19 (shared with Module 5), FR-26 to FR-30 |
 | 9 | Chat and Messaging | UC-13, UC-14 | FR-23, FR-24, FR-25 |
 | 10 | AI Personalization and Recommendation | — | FR-22 |

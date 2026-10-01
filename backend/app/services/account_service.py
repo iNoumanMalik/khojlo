@@ -1,4 +1,4 @@
-"""Deleting an account and everything that belongs to it (SRS FR-27).
+"""Deleting an account and everything that belongs to it (SRS FR-32).
 
 Nearly all of a user's data hangs off `users` with ON DELETE CASCADE: their businesses (and
 those businesses' photos, offers, reviews and conversations), reviews, votes, reports, saved

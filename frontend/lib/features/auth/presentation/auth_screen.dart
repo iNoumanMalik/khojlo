@@ -29,7 +29,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   int _mode = 1; // 0 = sign in, 1 = sign up
   UserRole _role = UserRole.customer;
-  // Sign-up needs agreement to the privacy policy (SRS FR-26); never pre-ticked.
+  // Sign-up needs agreement to the privacy policy (SRS FR-31); never pre-ticked.
   bool _agreed = false;
   bool _showAgreeError = false;
 

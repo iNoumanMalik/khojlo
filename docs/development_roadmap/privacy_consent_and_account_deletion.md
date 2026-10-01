@@ -1,6 +1,6 @@
 # Privacy Consent and Account Deletion (Module 1) — Implementation Record
 
-Status: **implemented** (30 Sep 2026, for the 60% evaluation on 6 Oct 2026). Requirements: SRS v1.1 **FR-26** (Privacy Consent), **FR-27** (Delete Account), BR-17, BR-18, SEC-6, SEC-7.
+Status: **implemented** (30 Sep 2026, for the 60% evaluation on 6 Oct 2026). Requirements: SRS v1.2 **FR-31** (Privacy Consent), **FR-32** (Delete Account), BR-21, BR-22, SEC-7, SEC-8.
 
 Khojlo stores names, emails, phone numbers, photos, private messages and push device tokens, and it uses the device location. Before this change, the sign-in screen had a line of text about a privacy policy that didn't exist, consent was never recorded, and there was no way to delete an account.
 
@@ -14,7 +14,7 @@ Khojlo stores names, emails, phone numbers, photos, private messages and push de
 | 4 | What deletion removes | Everything, immediately (hard delete via the existing `ON DELETE CASCADE`s): profile, photos, businesses (with their photos, offers, reviews and conversations), reviews, votes, reports, saved lists, conversations and messages (**both sides' copy**), devices, notifications, one-time codes and search history. |
 | 5 | What deletion keeps | Business **view counts**: `business_views.viewer_id` becomes null, so owners' analytics don't drop. Anonymous "popular searches" rows were never linked to a user. |
 | 6 | Confirming deletion | Re-enter the password. Google-only accounts have no password, so they just confirm. The wrong password returns 403, not 401, so the app doesn't treat it as an expired session. |
-| 7 | Location | Before the device's permission prompt, a sheet explains why Khojlo wants the location. "Not now" skips the system prompt entirely. On iOS that prompt only appears once, so skipping it keeps the option to ask later. The location is never stored (SEC-6). Push already asks only from a "Turn on" button with an explanation. |
+| 7 | Location | Before the device's permission prompt, a sheet explains why Khojlo wants the location. "Not now" skips the system prompt entirely. On iOS that prompt only appears once, so skipping it keeps the option to ask later. The location is never stored (SEC-7). Push already asks only from a "Turn on" button with an explanation. |
 
 ## What was built
 
@@ -43,5 +43,5 @@ Khojlo stores names, emails, phone numbers, photos, private messages and push de
 
 1. Run `alembic upgrade head` in `backend/` (every teammate and the shared database).
 2. Replace the placeholder contact address `privacy@khojlo.app` in `privacy_policy.dart` (`kPrivacyContactEmail`) with a real inbox.
-3. The seeded demo accounts have no consent recorded, so each one shows the consent screen once after signing in. That's a good way to demo FR-26.
+3. The seeded demo accounts have no consent recorded, so each one shows the consent screen once after signing in. That's a good way to demo FR-31.
 4. Have the policy text read by the team or supervisor. It describes what the code does as of this date. Update it whenever a feature starts collecting something new (e.g. Module 7's chatbot or Module 10's personalisation).

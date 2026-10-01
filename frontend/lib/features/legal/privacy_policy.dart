@@ -1,4 +1,4 @@
-/// Khojlo's privacy policy (SRS FR-26).
+/// Khojlo's privacy policy (SRS FR-31).
 ///
 /// The server records which version each user agreed to. When the wording changes, bump
 /// [kPrivacyPolicyVersion] here and `PRIVACY_POLICY_VERSION` in

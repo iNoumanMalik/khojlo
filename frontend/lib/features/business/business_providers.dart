@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/analytics.dart';
 import '../../core/models/business.dart';
+import '../../core/models/moderation.dart';
 import 'data/business_repository.dart';
 
 /// Businesses owned by the current user (drives CTA-vs-dashboard on the Business tab).
@@ -22,14 +23,14 @@ final analyticsProvider =
   return ref.watch(businessRepositoryProvider).analytics(id);
 });
 
-/// Offers for a specific business.
-final offersProvider =
-    FutureProvider.autoDispose.family<List<Offer>, int>((ref, id) async {
-  return ref.watch(businessRepositoryProvider).offers(id);
-});
-
 /// An owned business's full profile for editing (fetched without counting a view).
 final ownerBusinessDetailProvider =
     FutureProvider.autoDispose.family<BusinessDetail, int>((ref, id) async {
   return ref.watch(businessRepositoryProvider).detail(id);
+});
+
+/// Module 8: an owned business's verification checklist (FR-14, UC-12).
+final verificationProvider =
+    FutureProvider.autoDispose.family<VerificationInfo, int>((ref, id) async {
+  return ref.watch(businessRepositoryProvider).verification(id);
 });

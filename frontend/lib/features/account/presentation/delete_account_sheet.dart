@@ -7,7 +7,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/auth_controller.dart';
 
-/// Confirms and performs permanent account deletion (SRS FR-27). Resolves true once
+/// Confirms and performs permanent account deletion (SRS FR-32). Resolves true once
 /// the account is gone (and the user signed out).
 Future<bool> showDeleteAccountSheet(BuildContext context) async {
   final deleted = await showModalBottomSheet<bool>(

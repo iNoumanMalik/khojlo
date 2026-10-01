@@ -13,8 +13,8 @@ This repository is working towards the **60% evaluation** of the Final Year Proj
 ## Scope
 
 Per `docs/development_roadmap/implementation_plan.md`, Modules 1–4 were built **production‑ready**
-(full frontend + backend + validation + state + DB) for the 30% evaluation, and Modules 5 and 6
-followed for the 60% evaluation. The rest are **high‑fidelity prototypes** (UI‑complete, navigable,
+(full frontend + backend + validation + state + DB) for the 30% evaluation, and Modules 5, 6, 8
+and 9 followed for the 60% evaluation. The rest are **high‑fidelity prototypes** (UI‑complete, navigable,
 mock data) until their phase.
 
 | Module | Status |
@@ -26,7 +26,7 @@ mock data) until their phase.
 | 5. Reviews & Ratings | ✅ Production |
 | 6. Maps & Location | ✅ Production |
 | 7. AI Chatbot (Kai) | 🎨 Prototype (100%) |
-| 8. Admin & Moderation | 🎨 Prototype · planned for 60% |
+| 8. Admin & Moderation | ✅ Production (automatic verification, reports, rule-based flags); AI flagging at 100% |
 | 9. Chat & Messaging | ✅ Production |
 | 10. AI Personalization | 🎨 Folded into Home + prototypes (100%) |
 
@@ -79,10 +79,24 @@ Push notifications need Firebase keys: see the manual steps in
 `python -m app.jobs.trending_digest` sends everyone a "Trending in …" notification. Run the API
 as one process (no `--workers`), because live chat events are kept in memory.
 
+Offers & campaigns demo: open **Home** to see the campaign banners (Weekend Food Festival,
+Grand Opening, Winter Special), tap one for its offers, and look for the **Active promotion** badge
+on cards. As the owner, open **Business → Offers & promotions** to create offers (deal type, dates,
+terms) and a campaign that promotes them.
+
 Module 5 demo: as the customer, open any business, scroll to **Reviews** and tap **Write a
 review** (confetti on submit). Open **See all** to sort, filter by stars and mark reviews helpful,
 then check **Profile → My reviews**. As the owner, use **Business → Reviews & replies** to answer
 reviews. Ratings everywhere come from real reviews.
+
+Module 8 demo (admin & moderation): sign in as `admin@khojlo.app` and open **Profile → Admin
+panel** (on the web it has a sidebar). The seed puts something in each queue: a spam review
+caught by the automatic rules and reported twice, a fake "Khojlo support" chat the owner reported,
+and a report about a listing. Open one and **Decide** (remove or keep, optionally warn, suspend or
+ban the account). As the owner, open **Business → Verification**: verify the email, complete the
+listing and take a storefront photo, and the Verified badge appears automatically. Customers can
+report a listing from the bottom of any business page, and block a conversation from its menu.
+Details: `docs/development_roadmap/module8_admin_moderation_plan.md`.
 
 Module 4 demo: sign in as the customer, open **Explore**, search `unstitched fabric` (the SDD
 mockup's Abbottabad tailors), filter, tick two results and tap **Compare**. Allow location to see

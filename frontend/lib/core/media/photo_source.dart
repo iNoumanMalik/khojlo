@@ -18,6 +18,10 @@ abstract class PhotoSource {
 
   /// One photo, or null if the user cancels.
   Future<PickedPhoto?> pickOne();
+
+  /// A new photo from the camera (the storefront photo for verification). Web
+  /// browsers without a camera fall back to picking a file.
+  Future<PickedPhoto?> takePhoto() => pickOne();
 }
 
 final photoSourceProvider = Provider<PhotoSource>((ref) => DevicePhotoSource());
@@ -50,6 +54,17 @@ class DevicePhotoSource implements PhotoSource {
   Future<PickedPhoto?> pickOne() async {
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
+      maxWidth: _maxEdge,
+      maxHeight: _maxEdge,
+      imageQuality: _quality,
+    );
+    return file == null ? null : _read(file);
+  }
+
+  @override
+  Future<PickedPhoto?> takePhoto() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.camera,
       maxWidth: _maxEdge,
       maxHeight: _maxEdge,
       imageQuality: _quality,

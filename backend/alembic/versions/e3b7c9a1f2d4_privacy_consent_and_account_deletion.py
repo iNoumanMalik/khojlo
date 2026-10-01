@@ -7,7 +7,7 @@ the delete), so users can delete their accounts.
 Additive only: builds from before this revision keep working against the same database.
 
 Revision ID: e3b7c9a1f2d4
-Revises: d9a4e1c7b3f5
+Revises: f4c1a8e2b9d3
 Create Date: 2026-09-30 12:00:00.000000
 
 """
@@ -18,7 +18,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e3b7c9a1f2d4"
-down_revision: Union[str, None] = "d9a4e1c7b3f5"
+down_revision: Union[str, None] = "f4c1a8e2b9d3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
