@@ -105,6 +105,7 @@ class BusinessCard {
     this.latitude,
     this.longitude,
     this.activeCampaign,
+    this.isSuspended = false,
   });
 
   final int id;
@@ -149,6 +150,9 @@ class BusinessCard {
   // ── Module 6 ──
   final double? latitude;
   final double? longitude;
+
+  // ── Module 8: taken down by a moderator (only the owner still sees it) ──
+  final bool isSuspended;
 
   /// Where to put the map pin; null without valid coordinates (SRS BR-7).
   GeoPoint? get location {
@@ -204,6 +208,7 @@ class BusinessCard {
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
         activeCampaign: CampaignRef.maybe(j['active_campaign']),
+        isSuspended: j['is_suspended'] as bool? ?? false,
       );
 }
 

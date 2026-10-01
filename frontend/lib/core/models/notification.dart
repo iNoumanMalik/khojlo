@@ -7,7 +7,10 @@ enum NotificationKind {
   reviewReply,
   offer,
   newBusiness,
-  trending;
+  trending,
+  // Module 8: always delivered, not switchable.
+  account,
+  verification;
 
   static NotificationKind fromApi(String? s) => switch (s) {
         'message' => message,
@@ -15,6 +18,8 @@ enum NotificationKind {
         'review_reply' => reviewReply,
         'offer' => offer,
         'new_business' => newBusiness,
+        'account' => account,
+        'verification' => verification,
         _ => trending,
       };
 }

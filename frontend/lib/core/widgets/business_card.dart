@@ -20,6 +20,12 @@ class BusinessMiniCard extends StatelessWidget {
   final VoidCallback? onTap;
   final double width;
 
+  /// The height a horizontal row needs for these cards, without and with the
+  /// "Promotion" badge (text lines use generous line heights, so the fonts'
+  /// ascenders and descenders fit on every platform).
+  static const double height = 164;
+  static const double heightWithBadge = 194;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -27,6 +33,7 @@ class BusinessMiniCard extends StatelessWidget {
       child: SizedBox(
         width: width,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ImageTile(
@@ -43,6 +50,8 @@ class BusinessMiniCard extends StatelessWidget {
             Text(
               '${business.ratingLabel}'
               '${business.distanceLabel.isNotEmpty ? ' · ${business.distanceLabel}' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppType.mono(size: 10.5, color: AppColors.inkA(0.47)),
             ),
             if (business.activeCampaign != null) ...[
@@ -118,6 +127,8 @@ class BusinessHeroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(business.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: AppType.serif(size: 24, color: Colors.white)),
                 if (business.tagline.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -177,12 +188,17 @@ class BusinessListRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(business.name, style: AppType.serif(size: 18)),
+                  Text(business.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppType.serif(size: 18)),
                   const SizedBox(height: 3),
                   Text(
                     '${business.ratingLabel}'
                     '${business.distanceLabel.isNotEmpty ? ' · ${business.distanceLabel}' : ''}'
                     ' · ${business.priceLevel}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AppType.mono(size: 11.5, color: AppColors.inkA(0.53)),
                   ),
                   if (business.activeCampaign != null) ...[

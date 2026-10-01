@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    admin,
     auth,
     businesses,
     categories,
@@ -47,7 +48,7 @@ app.add_middleware(
 )
 
 for module in (auth, users, businesses, categories, feed, search, compare, media, geo, reviews,
-               chat, notifications, promotions):
+               chat, notifications, promotions, admin):
     app.include_router(module.router, prefix=settings.API_V1_PREFIX)
 
 

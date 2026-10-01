@@ -14,9 +14,10 @@ from app.api.deps import get_current_owner, get_optional_user
 from app.core.database import get_db
 from app.models.business import BusinessProfile, Offer, Service
 from app.models.campaign import Campaign, CampaignOffer, CampaignService, sync_links
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.business import OfferIn, OfferOut, OfferUpdate, ServiceOut
 from app.schemas.campaign import CampaignBanner, CampaignIn, CampaignOut, CampaignUpdate
+from app.services import moderation_rules as rules
 from app.services import promotion_service as ps
 from app.services.business_service import is_new_business, photo_out, to_card
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
@@ -33,7 +34,8 @@ def _now() -> datetime:
 
 
 def _owns(user: User | None, b: BusinessProfile) -> bool:
-    return user is not None and (b.owner_id == user.id or user.role == UserRole.admin)
+    # SEC-2: only the owner. Admins moderate offers and campaigns through /admin.
+    return user is not None and b.owner_id == user.id
 
 
 def _business(db: Session, business_id: int) -> BusinessProfile:
@@ -109,6 +111,7 @@ def create_offer(
     _check_offer(b, offer, today)
     db.add(offer)
     db.flush()
+    rules.check_offer(db, offer)
     job = ps.offer_notice(db, offer, today, now)
     db.commit()
     db.refresh(offer)
@@ -136,6 +139,7 @@ def update_offer(
         setattr(offer, field, value.strip() if field == "deal_text" else value)
     _check_offer(b, offer, today)
     offer.updated_at = now
+    rules.check_offer(db, offer)
     job = ps.offer_notice(db, offer, today, now)
     db.commit()
     db.refresh(offer)
@@ -290,6 +294,7 @@ def create_campaign(
     _check_campaign(db, c, today)
     db.add(c)
     db.flush()
+    rules.check_campaign(db, c)
     job = ps.campaign_notice(db, c, today, now)
     db.commit()
     db.refresh(c)
@@ -326,6 +331,7 @@ def update_campaign(
     c.updated_at = now
     db.flush()
     delete_if_unused(db, unused)
+    rules.check_campaign(db, c)
     job = ps.campaign_notice(db, c, today, now)
     db.commit()
     db.refresh(c)

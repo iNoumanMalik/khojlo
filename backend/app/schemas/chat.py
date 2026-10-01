@@ -74,6 +74,13 @@ class ConversationDetail(ConversationSummary):
     # How far the other side has read: messages up to this id show "Seen".
     other_last_read_id: int | None = None
     my_last_read_id: int | None = None
+    # ── Module 8 ──
+    blocked_by_me: bool = False
+    blocked_by_them: bool = False
+    # Closed by Khojlo's moderators after a report.
+    closed: bool = False
+    # Whether the viewer can send a message now.
+    can_send: bool = True
 
 
 class MessagePage(BaseModel):

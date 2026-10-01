@@ -143,6 +143,8 @@ class _NotificationCard extends StatelessWidget {
         NotificationKind.review => (Icons.star_rounded, 'gold'),
         NotificationKind.reviewReply => (Icons.forum_rounded, 'emerald'),
         NotificationKind.message => (Icons.chat_bubble_rounded, 'emerald'),
+        NotificationKind.account => (Icons.shield_outlined, 'plum'),
+        NotificationKind.verification => (Icons.verified_rounded, 'emerald'),
       };
 
   @override

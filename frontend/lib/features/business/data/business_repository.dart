@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/analytics.dart';
 import '../../../core/models/business.dart';
+import '../../../core/models/moderation.dart';
 import '../../../core/models/photo.dart';
 import '../../../core/providers.dart';
 
@@ -120,6 +121,25 @@ class BusinessRepository {
       'hours': [for (final h in hours) h.toJson()],
     });
     return BusinessDetail.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  // ── Module 8: automatic verification (FR-14, UC-12) ──
+  Future<VerificationInfo> verification(int id) async {
+    final res = await _dio.get('/businesses/$id/verification');
+    return VerificationInfo.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// [photoKey] is an upload from POST /media, taken with the camera.
+  Future<VerificationInfo> setStorefront(int id, String photoKey) async {
+    final res =
+        await _dio.put('/businesses/$id/verification/storefront', data: {'photo': photoKey});
+    return VerificationInfo.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// After the admin asked for more (UC-12) or declined: ask for another look.
+  Future<VerificationInfo> requestReview(int id, {String note = ''}) async {
+    final res = await _dio.post('/businesses/$id/verification/review', data: {'note': note});
+    return VerificationInfo.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<BusinessAnalytics> analytics(int id) async {

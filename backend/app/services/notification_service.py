@@ -39,7 +39,9 @@ def preferences(user: User) -> NotificationPrefs:
 
 
 def wants(user: User, kind: NotificationKind) -> bool:
-    return getattr(preferences(user), PREF_FOR_KIND[kind])
+    """Kinds without a setting (Module 8's account and verification notices) always go."""
+    pref = PREF_FOR_KIND.get(kind)
+    return True if pref is None else getattr(preferences(user), pref)
 
 
 def snippet(text: str, limit: int = 90) -> str:

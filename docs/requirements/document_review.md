@@ -18,23 +18,20 @@ The documents describe the intended system, not necessarily what's built. Where 
 
 These can't be settled by editing text alone.
 
-1. ❓ **Verification rule (Module 8 owner).** Several places say only verified businesses appear or can be edited: SRS BR-3 (FR-5), UC-6, the UC-11 precondition, SEC-2 and SDD Algorithm 2. The app shows every published business, with a Verified badge and a "Verified only" filter (Module 4, decision D1), because admin verification doesn't exist yet. When Module 8 is built, choose one:
-   - **(a) Verify before publishing.** The documents stay as they are, but a new business stays hidden until an admin approves it.
-   - **(b) Publish immediately; verification adds a badge.** Reword BR-3 to "Verified businesses are marked with a badge", the UC-11 precondition to "Business registered", and SEC-2 to "Only a business's owner can modify its profile".
-
-   **Recommendation: (b).** Khojlo's purpose is fast visibility for new businesses (BR-6), and (b) is how the app already behaves. Option (a) also works if the committee expects strict verification; FR-14 ("verify business profiles before publication") currently reads that way.
+1. ✅ **Answered (30 Sep 2026): verification rule.** Businesses are listed as soon as they're published, and the **system** gives the Verified badge automatically when a business passes every check: the owner's email is verified, the listing is complete, the owner took a storefront photo in the app, and there's no open report or flag. Admins review only the businesses the checks refer to them, and can revoke a badge or suspend a listing. This is option (b), without making an admin approve every business by hand. SRS v1.2 rewords FR-14, BR-3, BR-9, UC-12 and SEC-2 to match; the UC-11 precondition "Business verified" stays, because owners can now meet it without waiting. Still to do in the Word files: the same SRS changes, and the SDD's Algorithm 9 and business lifecycle diagram (ready-to-paste text in `development_roadmap/module8_admin_moderation_plan.md` → "SDD additions").
 2. ❓ **Work division (Feasibility Report, Table 4).** The table gives Module 8 to Kazim Shauket, along with Modules 7 and 10. The Module 4–6 records name Sayyam Tahir, and the team now plans for Sayyam to build Module 8 as well. Update the table to show who owns Modules 7, 8 and 10.
 3. ✅ **Answered (29 Sep 2026)** — campaigns are defined and built as described in `docs/development_roadmap/offers_campaigns_plan.md` (a campaign promotes one or more existing offers for a period). Still to do in the Word files: add Campaign to the SDD class and ER diagrams and extend FR-10 / UC-11. Original note: **"Offers and promotional campaigns" (60% slide).** No one is assigned to it. Offers exist from the 30% build, but they are thinner than the SDD describes. The `offers` table has a title, free-text start and end values, and a status. The SDD's description, discount and real start/end dates are missing, so UC-11's "invalid dates" exception and Algorithm 6's date validation can't be enforced. Decide who owns this item and what "campaigns" means. If it means telling users about new offers, it overlaps with push notifications (FR-21) and fits with that work.
 4. ❓ **Modules 7 and 10 at 60%.** The roadmap planned a basic chatbot and enhanced recommendations for 60%, but neither is on the 60% slide. The roadmap now lists them under 100%. Confirm this with their owner.
-5. ❓ **Use cases without tables.** The use case diagram shows Manage Preferences, Manage Favorites, View Analytics, Manage Content, Manage Users and Monitor System, but section 3.1 has no table for them. Either the owners of Modules 1, 2 and 8 add tables, or the use cases are removed from the diagram.
+5. ✅ **Partly answered (30 Sep 2026): use cases without tables.** Module 8 added tables for **Manage Content, Manage Users and Monitor System** (UC-16 to UC-18, SRS v1.2), and a **Report Content** use case to the diagram. Manage Preferences, Manage Favorites and View Analytics (Modules 1 and 2) still have no table: their owners add one, or they come off the diagram.
 6. ❓ **Chatbot provider.** The use case diagram names "Claude API" for the chatbot, but the Feasibility Report's tools table lists no language model. The Module 7 owner should confirm the provider, and the tools table should include it.
-7. ❓ **Trust Score (SDD Screen 3).** It's described as an "AI-generated trust indicator", but no algorithm or owning module is defined (also noted in the Module 5 record). Either assign it to a module or remove it from the Screen 3 table.
+7. ❓ **Trust Score (SDD Screen 3).** It's described as an "AI-generated trust indicator", but no algorithm or owning module is defined (also noted in the Module 5 record). Either assign it to a module or remove it from the Screen 3 table. Module 8's proposal: it owns the Trust Score at 100%, built from verification, account age, upheld reports, review signals and chat response rate.
+8. ✅ **Answered (30 Sep 2026): admin access to reported conversations.** Reporting a conversation shares it with Khojlo's moderators, and the report sheet says so. BR-15 and SEC-5 have the exception in SRS v1.2. Admins can't open any conversation nobody reported.
 
 ---
 
 ## SRS
 
-The corrected text is in [SRS.md](SRS.md) (version 1.1). Every item below is ✅ there and 📝 still needs applying to the Word file.
+The corrected text is in [SRS.md](SRS.md) (version 1.1, plus Module 8's version 1.2 changes, marked **(v1.2)**: see decisions 1, 5 and 8). Every item below is ✅ there and 📝 still needs applying to the Word file, as do the v1.2 changes.
 
 | # | Issue in v1.0 | Fix in v1.1 |
 |---|---|---|
@@ -75,10 +72,10 @@ The Module 5 record reported that the UC-7 table in `SRS.pdf` is misaligned. It 
 | D7 | 📝 The data dictionary misses implemented entities: Category, Service, OpeningHours, SavedList (named favourite lists), BusinessView (analytics), Media and BusinessPhoto, ReviewPhoto, ReviewVote, ReviewReport, SearchQuery and OtpCode. | Add them, or list them in an appendix. |
 | D8 | 📝 Offer: `discount` is Decimal in the dictionary and string in the ER diagram. The implementation has neither discount nor description, and stores dates as text. | Settle this with decision 3, then make the dictionary, the ER diagram and the code match. |
 | D9 | 📝 Section 4.3: the text describes LoggedOut and LoggedIn states, but Figure 4.3 shows LoginPage, DiscoveryFeed, ViewingBusiness and so on. The caption is also repeated as body text. | Describe the states the figure shows; remove the duplicate line. |
-| D10 | 📝 The traceability matrix (section 7) uses its own FR01–FR20 numbering, so its IDs mean different things from the SRS IDs; for example, SDD FR03 is Business Registration but SRS FR-3 is Search. It also cites a "Business Lifecycle" state diagram (Draft, Pending, Verified, Rejected, Suspended, Archived) that the SDD doesn't contain. | Replace it with the table below. Add the business lifecycle diagram with Module 8, or cite Algorithm 9 instead. |
+| D10 | 📝 The traceability matrix (section 7) uses its own FR01–FR20 numbering, so its IDs mean different things from the SRS IDs; for example, SDD FR03 is Business Registration but SRS FR-3 is Search. It also cites a "Business Lifecycle" state diagram (Draft, Pending, Verified, Rejected, Suspended, Archived) that the SDD doesn't contain. | Replace it with the table below. The business lifecycle diagram (as built by Module 8) is ready to paste in the Module 8 record → "SDD additions". |
 | D11 | 📝 Screens (8.1 and 8.2) show a 4-tab bar (Home, Discover, Chat, Saved); the app has 5 tabs (Home, Explore, Map, Chat, Business). Screen 4 lists a Voice Input Button, which the app doesn't have. | Replace the screenshots with the current app and update the tables. Confirm voice input with the Module 7 owner. |
 | D12 | 📝 Section 8 calls onboarding "AI-powered"; it is interest selection. | "Guided onboarding". |
-| D13 | ❓ Algorithm 2 retrieves "all verified businesses"; the Screen 3 Trust Score has no definition. | Decisions 1 and 7. |
+| D13 | 📝 Algorithm 2 retrieves "all verified businesses"; the Screen 3 Trust Score has no definition. | Decision 1 is answered: Algorithm 2 should retrieve all listed (published, not suspended) businesses. The Trust Score is still decision 7. |
 
 ### Corrected traceability matrix (for D10)
 
@@ -99,18 +96,23 @@ Uses the SRS v1.1 IDs. "Not yet designed" marks requirements whose design the SD
 | FR-11 | Discovery Feed | Sequence diagram | Business discovery process |
 | FR-12 | Map Integration | MapService, GoogleMapsService | `displayLocation()`, Algorithm 12 |
 | FR-13 | AI Chatbot | Chatbot, RAGChatbot | `answerQuery()`, Algorithm 13 |
-| FR-14 | Admin Verification | Admin | `verifyBusiness()`, Algorithm 9 |
-| FR-15 | Content Moderation | Admin | `moderateContent()`, Algorithm 10 |
+| FR-14 | Business Verification | VerificationService, Admin | `refresh()`, `verifyBusiness()`, Algorithm 9 (revised), business lifecycle |
+| FR-15 | Content Moderation | Admin | `moderateContent()`, Algorithm 10 (revised) |
 | FR-16 | Manage Profile | User | `updateProfile()` |
 | FR-17 | Email Verification and Password Reset | Not yet designed | — |
 | FR-18 | Compare Businesses | Customer | `compareBusinesses()`, Algorithm 3 |
-| FR-19 | Report Content | Not yet designed (input to Algorithm 10) | — |
+| FR-19 | Report Content | Review, Conversation, Business reports | Input to Algorithm 10 |
 | FR-20 | Business Analytics | Not yet designed | — |
 | FR-21 | Push Notifications | NotificationService, PushSender (FcmSender) | `notify()`, `send()`, Algorithms 14 and 15 |
 | FR-22 | Personalized Recommendations | UserPreference | `getRecommendations()` |
 | FR-23 | Send Message to Business | Customer, Conversation, Message | `openConversation()`, `sendMessage()`, Algorithm 8 |
 | FR-24 | Respond to Customer Messages | BusinessOwner, Message | `replyMessage()` |
 | FR-25 | Manage Conversations | Conversation | `markRead()` |
+| FR-26 | Account Moderation | Admin | `actOnAccount()` |
+| FR-27 | Automatic Flagging | ModerationRules, ModerationFlag | `scanText()`, `checkBusiness()`, `checkReview()` |
+| FR-28 | Block a Conversation | Conversation | `block()`, `unblock()` |
+| FR-29 | Community Guidelines and Notices | NotificationService | `notify()` |
+| FR-30 | Moderation Audit Log | ModerationAction | — |
 
 ---
 

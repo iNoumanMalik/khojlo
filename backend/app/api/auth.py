@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import ensure_active, get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
@@ -34,12 +34,13 @@ from app.schemas.auth import (
     VerifyResetOtpRequest,
 )
 from app.schemas.user import UserOut
-from app.services import otp_service
+from app.services import otp_service, verification_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _tokens_for(user: User) -> TokenPair:
+    ensure_active(user)  # Module 8: no new sessions for suspended or banned accounts
     return TokenPair(
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
@@ -164,14 +165,19 @@ def send_verification_email(
 @router.post("/email/verify", response_model=UserOut)
 def verify_email(
     payload: VerifyEmailRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> User:
     if not user.is_verified:
         otp_service.verify_code(db, user, OtpPurpose.verify_email, payload.code)
         user.is_verified = True
+        # Module 8: a verified email is one of the automatic verification checks.
+        jobs = [job for b in user.businesses for job in verification_service.refresh(db, b)]
         db.commit()
         db.refresh(user)
+        for job in jobs:
+            background_tasks.add_task(job)
     return user
 
 

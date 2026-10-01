@@ -11,6 +11,7 @@ import '../../../core/widgets/photo_viewer.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../chat/chat_providers.dart';
+import 'report_business_sheet.dart';
 import '../../maps/map_providers.dart';
 import '../../promotions/presentation/widgets/promo_widgets.dart';
 import '../../reviews/presentation/business_reviews_section.dart';
@@ -104,6 +105,18 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         content: Text(message, style: AppType.sans(size: 13, color: Colors.white)),
       ));
+  }
+
+  /// Module 8: report the listing. It stays up until an admin decides (BR-13).
+  Future<void> _report(BusinessDetail b) async {
+    final result = await showReportBusinessSheet(context, b.name);
+    if (result == null || !mounted) return;
+    try {
+      await ref.read(discoveryRepositoryProvider).report(b.id, result.$1, note: result.$2);
+      _snack('Thanks for letting us know. Our team will take a look.');
+    } catch (e) {
+      if (mounted) _snack(describeApiError(e));
+    }
   }
 
   Future<void> _call(BusinessDetail b) async {
@@ -353,6 +366,22 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               size: 13, weight: FontWeight.w700, color: AppColors.emerald)),
                     ],
                   ),
+                ),
+              ),
+            if (!b.isOwner)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
+                child: GestureDetector(
+                  onTap: () => _report(b),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(children: [
+                    Icon(Icons.flag_outlined, size: 16, color: AppColors.inkA(0.45)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Something wrong with this listing? Report it',
+                          style: AppType.sans(size: 12.5, color: AppColors.inkA(0.55))),
+                    ),
+                  ]),
                 ),
               ),
             const SizedBox(height: 140),

@@ -299,7 +299,7 @@ class OfferFilter(SearchStrategy):
 
 
 class VerifiedFilter(SearchStrategy):
-    """Only admin-verified businesses (SRS BR-3, optional until Module 8 ships)."""
+    """Only businesses with the Verified badge (SRS BR-3, FR-14; Module 8 verifies them)."""
 
     def apply(self, stmt: Select) -> Select:
         return stmt.where(BusinessProfile.is_verified.is_(True))

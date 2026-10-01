@@ -95,6 +95,40 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     }
   }
 
+  /// Module 8: block or unblock the other person in this conversation.
+  Future<void> _toggleBlock(ConversationDetail detail) async {
+    final blocking = !detail.blockedByMe;
+    if (blocking) {
+      final other = detail.title;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.cream,
+          title: Text('Block $other?', style: AppType.serif(size: 20)),
+          content: Text(
+              'Neither of you will be able to send messages here until you unblock. '
+              'If they broke the rules, report the conversation too.',
+              style: AppType.sans(size: 13.5, color: AppColors.inkA(0.7))),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Block', style: AppType.sans(weight: FontWeight.w700, color: AppColors.plum))),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    try {
+      final updated =
+          await ref.read(chatRepositoryProvider).setBlocked(widget.conversationId, blocking);
+      _controller.setDetail(updated);
+      _snack(blocking ? 'Blocked. You can unblock from the menu.' : 'Unblocked.');
+    } catch (e) {
+      _snack(describeApiError(e));
+    }
+  }
+
   Future<void> _call(ChatBusiness b) async {
     final phone = b.phone;
     if (phone == null) {
@@ -128,6 +162,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 detail: detail,
                 typing: state.otherTyping,
                 onReport: _report,
+                onBlock: () => _toggleBlock(detail),
                 onViewBusiness: () => context.push('/business/${detail.business.id}'),
               ),
               if (!detail.iAmTheBusiness)
@@ -143,16 +178,19 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   business: detail.business,
                   onAsk: (title) => _controller.send('Is the “$title” offer still on?'),
                 ),
-              ChatComposer(
-                onSend: _controller.send,
-                onTyping: _controller.typing,
-                onPhoto: _sendPhoto,
-                suggestions: detail.iAmTheBusiness
-                    ? ownerReplies
-                    : state.messages.isEmpty
-                        ? customerStarters
-                        : customerFollowUps,
-              ),
+              if (detail.canSend)
+                ChatComposer(
+                  onSend: _controller.send,
+                  onTyping: _controller.typing,
+                  onPhoto: _sendPhoto,
+                  suggestions: detail.iAmTheBusiness
+                      ? ownerReplies
+                      : state.messages.isEmpty
+                          ? customerStarters
+                          : customerFollowUps,
+                )
+              else
+                _CantSend(detail: detail, onUnblock: () => _toggleBlock(detail)),
             ],
           ),
         ChatLoad.error => _Problem(
@@ -230,12 +268,14 @@ class _Header extends StatelessWidget {
     required this.detail,
     required this.typing,
     required this.onReport,
+    required this.onBlock,
     required this.onViewBusiness,
   });
 
   final ConversationDetail detail;
   final bool typing;
   final VoidCallback onReport;
+  final VoidCallback onBlock;
   final VoidCallback onViewBusiness;
 
   @override
@@ -297,13 +337,61 @@ class _Header extends StatelessWidget {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: AppColors.inkA(0.6)),
             color: AppColors.cream,
-            onSelected: (v) => v == 'report' ? onReport() : onViewBusiness(),
+            onSelected: (v) => switch (v) {
+              'report' => onReport(),
+              'block' => onBlock(),
+              _ => onViewBusiness(),
+            },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'business', child: Text('View ${b.name}')),
               const PopupMenuItem(value: 'report', child: Text('Report conversation')),
+              if (!detail.closed && !detail.blockedByThem)
+                PopupMenuItem(
+                    value: 'block',
+                    child: Text(detail.blockedByMe
+                        ? 'Unblock'
+                        : ownerView
+                            ? 'Block this customer'
+                            : 'Block ${b.name}')),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// In place of the composer when the viewer can't send (Module 8).
+class _CantSend extends StatelessWidget {
+  const _CantSend({required this.detail, required this.onUnblock});
+  final ConversationDetail detail;
+  final VoidCallback onUnblock;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = detail.closed
+        ? 'Khojlo’s moderators closed this conversation after a report. You can still read it.'
+        : detail.blockedByMe
+            ? 'You blocked this conversation.'
+            : 'You can’t reply to this conversation.';
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 6, 20, 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.inkA(0.05),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(children: [
+          Icon(detail.closed ? Icons.gavel_rounded : Icons.block_rounded,
+              size: 18, color: AppColors.inkA(0.55)),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Text(message, style: AppType.sans(size: 13, color: AppColors.inkA(0.7)))),
+          if (detail.blockedByMe && !detail.closed)
+            GhostButton(label: 'Unblock', small: true, expand: false, onTap: onUnblock),
+        ]),
       ),
     );
   }

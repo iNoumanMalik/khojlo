@@ -52,14 +52,16 @@ class HomeScreen extends ConsumerWidget {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              _Header(
-                greeting: feed.greeting,
-                headline: feed.headline,
-                initials: user?.initials ?? '?',
-                tone: user?.avatarTone ?? 'gold',
-                photo: user?.avatar,
+              _HeaderWithSearch(
+                header: _Header(
+                  greeting: feed.greeting,
+                  headline: feed.headline,
+                  initials: user?.initials ?? '?',
+                  tone: user?.avatarTone ?? 'gold',
+                  photo: user?.avatar,
+                ),
               ),
-              _SearchRow(),
+              const SizedBox(height: _HeaderWithSearch.overlap),
               if (feed.campaigns.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 _CampaignCarousel(campaigns: feed.campaigns),
@@ -207,31 +209,57 @@ class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
   }
 }
 
+/// The header with the search row overlapping its bottom edge.
+///
+/// A Stack rather than `Transform.translate`: a translated widget only receives
+/// taps inside its original, untranslated box, which left most of the search bar
+/// and the bell dead.
+class _HeaderWithSearch extends StatelessWidget {
+  const _HeaderWithSearch({required this.header});
+  final Widget header;
+
+  /// How far the search row reaches up into the header.
+  static const overlap = 30.0;
+  static const _rowHeight = 48.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: _rowHeight - overlap),
+          child: header,
+        ),
+        const Positioned(left: 0, right: 0, bottom: 0, child: _SearchRow()),
+      ],
+    );
+  }
+}
+
 class _SearchRow extends ConsumerWidget {
+  const _SearchRow();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Transform.translate(
-      offset: const Offset(0, -30),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        child: Row(
-          children: [
-            Expanded(
-              // One tap to the Explore tab with the keyboard up (SRS USE-1).
-              child: SearchPill(onTap: () {
-                context.go('/explore');
-                ref.read(searchFocusRequestProvider.notifier).state++;
-              }),
-            ),
-            const SizedBox(width: 10),
-            GlassIconButton(
-              icon: Icons.notifications_none_rounded,
-              size: 48,
-              showDot: ref.watch(unreadNotificationsProvider) > 0,
-              onTap: () => context.push('/notifications'),
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Row(
+        children: [
+          Expanded(
+            // One tap to the Explore tab with the keyboard up (SRS USE-1).
+            child: SearchPill(onTap: () {
+              context.go('/explore');
+              ref.read(searchFocusRequestProvider.notifier).state++;
+            }),
+          ),
+          const SizedBox(width: 10),
+          GlassIconButton(
+            icon: Icons.notifications_none_rounded,
+            size: 48,
+            showDot: ref.watch(unreadNotificationsProvider) > 0,
+            onTap: () => context.push('/notifications'),
+          ),
+        ],
       ),
     );
   }
@@ -328,7 +356,10 @@ class _HorizontalSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 172,
+            // Cards with a "Promotion" badge are taller; size the row to fit them.
+            height: section.businesses.any((b) => b.activeCampaign != null)
+                ? BusinessMiniCard.heightWithBadge
+                : BusinessMiniCard.height,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),

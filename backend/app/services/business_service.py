@@ -126,6 +126,7 @@ def to_card(
         category_label=b.category_label,
         latitude=b.latitude,
         longitude=b.longitude,
+        is_suspended=b.suspended_at is not None,
     )
 
 

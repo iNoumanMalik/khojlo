@@ -29,6 +29,7 @@ from app.schemas.review import (
     ReviewSort,
     ReviewUpdate,
 )
+from app.services import moderation_rules as rules
 from app.services import notification_service as ns
 from app.services import review_service as rs
 from app.services.media_service import UnknownPhotos, delete_if_unused, resolve_keys
@@ -213,6 +214,7 @@ def create_review(
                             detail=f"You've already reviewed {b.name}. Edit your review instead.") from None
     _set_photos(db, review, media)
     rs.refresh_rating(db, b)
+    rules.check_review(db, review)  # Module 8: flags for an admin, nothing hidden (BR-13)
     stars = "★" * review.rating
     job = ns.notify(
         db, [b.owner], NotificationKind.review,
@@ -253,6 +255,7 @@ def update_review(
     if changed:
         review.updated_at = _now()
         rs.refresh_rating(db, review.business)
+        rules.check_review(db, review)
         db.commit()
         db.refresh(review)
     return _out(db, review, user)

@@ -19,7 +19,10 @@ save, or a business that isn't one of the demo owner's catalogue businesses. It:
 * recalculates every business's rating and review count from its real reviews (SDD
   Algorithm 7), so no made-up totals remain;
 * adds demo chat conversations between the demo customer and three catalogue businesses
-  (Module 9), and a few Notifications-list entries for the demo customer, where none exist.
+  (Module 9), and a few Notifications-list entries for the demo customer, where none exist;
+* gives Module 8's admin panel something to moderate, once (only while there are no
+  reports or flags yet): a spam review caught by the automatic rules and reported twice,
+  a fake "Khojlo support" chat reported by the owner, and a report about a listing.
 
 The catalogue is deliberately varied so Module 4 search, filters and comparison have
 something to work with: several Islamabad areas plus Abbottabad (the four tailors mirror
@@ -48,13 +51,26 @@ from app.models.business import (
     OpeningHours,
     Service,
 )
-from app.models.chat import Conversation, ConversationReport, Message
+from app.models.chat import (
+    Conversation,
+    ConversationReport,
+    ConversationReportReason,
+    Message,
+)
 from app.models.campaign import Campaign, CampaignOffer, CampaignService, sync_links
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
+from app.models.moderation import (
+    BusinessReport,
+    BusinessReportReason,
+    ModerationAction,
+    ModerationFlag,
+    VerificationStatus,
+)
 from app.models.notification import DeviceToken, Notification, NotificationKind
-from app.models.review import Review, ReviewPhoto, ReviewReport, ReviewVote
+from app.models.review import ReportReason, Review, ReviewPhoto, ReviewReport, ReviewVote
 from app.models.search import SearchQuery
 from app.models.user import User, UserRole
+from app.services import moderation_rules
 from app.services.promotion_service import local_today
 from app.services.review_service import refresh_rating
 
@@ -67,7 +83,11 @@ DEMO_USERS = [
     dict(email=CUSTOMER_EMAIL, full_name="Ali Customer", role=UserRole.customer,
          avatar_tone="gold", interests=["cafes", "restaurants"]),
     dict(email="admin@khojlo.app", full_name="Admin", role=UserRole.admin),
+    # Module 8 demo: the account behind the spam review and the fake "support" chat.
+    dict(email="promo.demo@khojlo.app", full_name="Promo Deals", role=UserRole.customer,
+         avatar_tone="ink"),
 ]
+SPAMMER_EMAIL = "promo.demo@khojlo.app"
 
 # (slug, name, emoji, group, tone, sort order, search keywords). The migration
 # b7d3f1a9c2e4 installs the same catalogue; `--reset` recreates it from here.
@@ -474,6 +494,17 @@ CUSTOMER_NOTIFICATIONS = [
 ]
 
 
+# Module 8 demo content. The phone number is not a real line (the subscriber part is 0s).
+SPAM_REVIEW = ("Brew & Bloom",
+               "Best cafe!!! Get 1000 Instagram followers cheap at www.fastfollowers.pk or "
+               "WhatsApp 0300 0000000")
+FAKE_SUPPORT_CHAT = ("Glow Studio",
+                     "Hello, this is Khojlo support. Your listing will be removed today unless "
+                     "you pay a Rs 5,000 verification fee in advance by JazzCash to "
+                     "0300 0000000.")
+LISTING_REPORT = (BusinessReportReason.wrong_info, "The map pin is on the wrong street.")
+
+
 @dataclass
 class SeedReport:
     categories_added: int = 0
@@ -486,6 +517,7 @@ class SeedReport:
     searches_added: int = 0
     conversations_added: int = 0
     notifications_added: int = 0
+    moderation_added: int = 0
 
     def __str__(self) -> str:
         return (
@@ -494,13 +526,15 @@ class SeedReport:
             f"{self.offers_added} offers, {self.campaigns_added} campaigns, "
             f"{self.reviews_added} reviews, "
             f"{self.searches_added} searches, {self.conversations_added} conversations, "
-            f"{self.notifications_added} notifications."
+            f"{self.notifications_added} notifications, "
+            f"{self.moderation_added} items for the admin panel."
         )
 
 
 def reset(db: Session) -> None:
     """Delete every user, business and search. Never run this on a shared database."""
     for model in (
+        ModerationAction, ModerationFlag, BusinessReport,
         Notification, DeviceToken, ConversationReport, Message, Conversation,
         SearchQuery, BusinessView, SavedBusiness, SavedList, ReviewReport, ReviewVote,
         ReviewPhoto, Review, CampaignService, CampaignOffer, Campaign, Offer, Service,
@@ -562,6 +596,11 @@ def _apply_catalogue(
     b.longitude = spec["lng"]
     b.is_verified = spec["verified"]
     b.created_at = now - timedelta(days=spec["age"])
+    # Module 8: the badge and the verification status agree.
+    if spec["verified"] and b.verification_status != VerificationStatus.verified:
+        b.verification_status, b.verified_at = VerificationStatus.verified, b.created_at
+    elif not spec["verified"] and b.verification_status == VerificationStatus.verified:
+        b.verification_status = VerificationStatus.unverified
     for day in range(7):
         if day in spec["hours"]:
             opens, closes = spec["hours"][day]
@@ -834,6 +873,55 @@ def _add_notifications(db: Session, customer: User, biz: dict[str, BusinessProfi
         report.notifications_added += 1
 
 
+def _add_moderation_demo(db: Session, users: dict[str, User], reviewers: list[User],
+                         biz: dict[str, BusinessProfile], now: datetime,
+                         report: SeedReport) -> None:
+    """Module 8: something in each admin queue. Added once, only while nothing has been
+    reported or flagged yet, so real moderation data is never mixed with it."""
+    if db.scalar(select(func.count()).select_from(ModerationFlag)) or db.scalar(
+            select(func.count()).select_from(BusinessReport)):
+        return
+    spammer = users[SPAMMER_EMAIL]
+
+    # A spam review the automatic rules catch (link, phone number, WhatsApp), reported twice.
+    name, text = SPAM_REVIEW
+    review = Review(business_id=biz[name].id, user_id=spammer.id, rating=5, comment=text,
+                    created_at=now - timedelta(hours=20))
+    db.add(review)
+    db.flush()
+    moderation_rules.check_review(db, review, now=now)
+    for i, reporter in enumerate(reviewers[:2]):
+        db.add(ReviewReport(review_id=review.id, reporter_id=reporter.id,
+                            reason=ReportReason.spam,
+                            created_at=now - timedelta(hours=18 - i * 5)))
+    report.reviews_added += 1
+    report.moderation_added += 1
+
+    # A fake "Khojlo support" message, reported by the business owner.
+    name, text = FAKE_SUPPORT_CHAT
+    b = biz[name]
+    sent = now - timedelta(hours=6)
+    conversation = Conversation(customer_id=spammer.id, business_id=b.id, created_at=sent,
+                                last_message_at=sent)
+    db.add(conversation)
+    db.flush()
+    db.add(Message(conversation_id=conversation.id, sender_id=spammer.id, from_business=False,
+                   body=text, created_at=sent))
+    db.add(ConversationReport(conversation_id=conversation.id, reporter_id=b.owner_id,
+                              reason=ConversationReportReason.scam,
+                              note="Pretending to be Khojlo and asking for money.",
+                              created_at=sent + timedelta(minutes=30)))
+    report.moderation_added += 1
+
+    # A customer's report about a listing (the first unverified catalogue business).
+    target = next(biz[spec["name"]] for spec in BUSINESSES if not spec["verified"])
+    reason, note = LISTING_REPORT
+    db.add(BusinessReport(business_id=target.id, reporter_id=users[CUSTOMER_EMAIL].id,
+                          reason=reason, note=note, created_at=now - timedelta(hours=3)))
+    report.moderation_added += 1
+    db.flush()
+
+
 def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     """Add and refresh the demo data in one transaction (see the module docstring)."""
     now = now or datetime.now(timezone.utc)
@@ -845,6 +933,7 @@ def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     offers = _sync_offers(db, biz, now, report)
     _sync_campaigns(db, biz, offers, now, report)
     _add_reviews(db, biz, reviewers, users[CUSTOMER_EMAIL], now, report)
+    _add_moderation_demo(db, users, reviewers, biz, now, report)
     _refresh_ratings(db)
     _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)
     db.flush()

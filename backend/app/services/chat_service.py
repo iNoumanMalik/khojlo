@@ -166,12 +166,28 @@ def detail_out(db: Session, conversation: Conversation, side: Side) -> Conversat
         else (conversation.business_last_read_id, conversation.customer_last_read_id)
     )
     summary = summary_out(conversation, side, last, unread)
+    blocked = conversation.blocked_by
     return ConversationDetail(
         **summary.model_dump(exclude={"business"}),
         business=business_header(conversation.business),
         other_last_read_id=theirs,
         my_last_read_id=mine,
+        blocked_by_me=blocked == side,
+        blocked_by_them=blocked is not None and blocked != side,
+        closed=conversation.closed_at is not None,
+        can_send=send_problem(conversation, side) is None,
     )
+
+
+def send_problem(conversation: Conversation, side: Side) -> str | None:
+    """Why the viewer can't send in this conversation (Module 8), or None."""
+    if conversation.closed_at is not None:
+        return "Khojlo’s moderators closed this conversation after a report."
+    if conversation.blocked_by == side:
+        return "You blocked this conversation. Unblock it to send messages."
+    if conversation.blocked_by is not None:
+        return "You can’t reply to this conversation."
+    return None
 
 
 def business_message_counts(db: Session, business_id: int, now: datetime | None = None

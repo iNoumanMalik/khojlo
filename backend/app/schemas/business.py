@@ -308,6 +308,8 @@ class BusinessCard(BaseModel):
     # ── Module 6: where to put the map pin (None: no location set) ──
     latitude: float | None = None
     longitude: float | None = None
+    # ── Module 8: taken down by a moderator (only its owner still sees it) ──
+    is_suspended: bool = False
 
 
 class BusinessDetail(BusinessCard):

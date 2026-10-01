@@ -212,6 +212,9 @@ class ConversationController extends StateNotifier<ConversationState> {
     }
   }
 
+  /// Module 8: the header changed (blocked or unblocked).
+  void setDetail(ConversationDetail detail) => state = state.copyWith(detail: detail);
+
   Future<void> loadOlder() async {
     final first = state.messages.where((m) => m.id > 0).firstOrNull;
     if (state.loadingOlder || !state.hasMore || first == null) return;
