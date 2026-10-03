@@ -5,7 +5,7 @@
     <!-- Module 9 / push notifications: Android 13+ asks the user before showing them. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="khojlo"
+        android:label="Khojlo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
