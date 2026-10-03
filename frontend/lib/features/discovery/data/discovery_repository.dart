@@ -14,10 +14,11 @@ class DiscoveryRepository {
   DiscoveryRepository(this._dio);
   final Dio _dio;
 
-  Future<Feed> feed({double? lat, double? lng}) async {
+  Future<Feed> feed({double? lat, double? lng, int? seed}) async {
     final res = await _dio.get('/feed', queryParameters: {
       if (lat != null) 'lat': lat,
       if (lng != null) 'lng': lng,
+      if (seed != null) 'seed': seed,
     });
     return Feed.fromJson(res.data as Map<String, dynamic>);
   }

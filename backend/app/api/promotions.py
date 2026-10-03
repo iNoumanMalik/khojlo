@@ -5,6 +5,7 @@ live campaigns as Home banners, an "Active promotion" badge on cards, and campai
 Activating an offer or publishing a campaign needs a verified business (UC-11
 precondition); drafts don't.
 """
+import random
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
@@ -176,11 +177,18 @@ def campaign_banner(c: Campaign, today) -> CampaignBanner:
     )
 
 
-def feed_banners(db: Session, now: datetime, *, limit: int = 8) -> list[CampaignBanner]:
-    """Live campaigns for Home. New businesses first (SRS BR-6), then the soonest ending."""
+def feed_banners(db: Session, now: datetime, *, limit: int = 8,
+                 rng: random.Random | None = None) -> list[CampaignBanner]:
+    """Live campaigns for Home. New businesses first (SRS BR-6), then the soonest ending,
+    or in `rng`'s order within each group so refreshing Home rotates them."""
     today = ps.local_today(now)
     campaigns = ps.campaigns_for_feed(db, today)
-    campaigns.sort(key=lambda c: (not is_new_business(c.business, now), c.end_date, c.id))
+    if rng is None:
+        campaigns.sort(key=lambda c: (not is_new_business(c.business, now), c.end_date, c.id))
+    else:
+        campaigns.sort(key=lambda c: (c.end_date, c.id))  # a stable base for the shuffle
+        rng.shuffle(campaigns)
+        campaigns.sort(key=lambda c: not is_new_business(c.business, now))
     return [campaign_banner(c, today) for c in campaigns[:limit]]
 
 

@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
@@ -13,18 +14,50 @@ from app.api.promotions import feed_banners
 from app.schemas.feed import FeedResponse, FeedSection
 from app.services import promotion_service as ps
 from app.services.business_service import card_load_options, to_card
+from app.services.hours import to_local
 from app.services.review_service import ranking_score
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
 
-def _greeting() -> tuple[str, str]:
-    hour = datetime.now(timezone.utc).hour
+# Pull-to-refresh rotates the discovery rows by picking from a pool, not just the top few.
+# Trending and Nearby stay ranked: they're claims about the data, so they don't shuffle.
+FEATURED_POOL = 8  # the newest businesses that take turns as the "Featured find"
+ROW_POOL = 20  # candidates sampled for the "Because you like" / "Worth exploring" row
+ROW_SIZE = 6
+
+
+def _greeting(now: datetime) -> str:
+    hour = to_local(now).hour
     if hour < 12:
-        return "Good morning, explorer", "12 hidden gems\nopened this week"
-    if hour < 18:
-        return "Good afternoon, explorer", "12 hidden gems\nopened this week"
-    return "Good night, explorer", "12 hidden gems\nopened this week"
+        return "Good morning, explorer"
+    if hour < 17:
+        return "Good afternoon, explorer"
+    return "Good evening, explorer"
+
+
+def _headline(businesses: list[BusinessProfile], now: datetime) -> str:
+    week_ago = now - timedelta(days=7)
+    opened = sum(
+        1 for b in businesses
+        if b.created_at is not None
+        and (b.created_at if b.created_at.tzinfo else b.created_at.replace(tzinfo=timezone.utc))
+        >= week_ago
+    )
+    if not opened:
+        return "Discover what’s\nnew nearby"
+    return f"{opened} hidden gem{'s' if opened != 1 else ''}\nopened this week"
+
+
+def _featured(by_new: list[BusinessProfile], rng: random.Random) -> BusinessProfile:
+    """One of the newest businesses, weighted toward the newest (SRS BR-6)."""
+    pool = by_new[:FEATURED_POOL]
+    return rng.choices(pool, weights=[1 / (i + 1) for i in range(len(pool))])[0]
+
+
+def _sample(pool: list[BusinessProfile], rng: random.Random) -> list[BusinessProfile]:
+    pool = pool[:ROW_POOL]
+    return rng.sample(pool, min(ROW_SIZE, len(pool)))
 
 
 @router.get("", response_model=FeedResponse)
@@ -32,6 +65,9 @@ def get_feed(
     background_tasks: BackgroundTasks,
     lat: float | None = Query(default=None),
     lng: float | None = Query(default=None),
+    # The app sends a new seed on each pull-to-refresh, so the rotating rows change then
+    # and stay put when the user just comes back to Home. Without one, every call varies.
+    seed: int | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User | None = Depends(get_optional_user),
 ) -> FeedResponse:
@@ -46,6 +82,7 @@ def get_feed(
             background_tasks.add_task(job)
 
     origin = (lat, lng) if lat is not None and lng is not None else None
+    rng = random.Random(seed)
 
     published = (
         select(BusinessProfile)
@@ -62,15 +99,18 @@ def get_feed(
     # Home's chips: only categories with published businesses, so none leads nowhere.
     categories = [c for c in categories_with_counts(db) if c.business_count]
 
-    # personalize the "because you liked" row from the user's interest slugs
+    # Personalize the "because you like" row, rotating through the user's interests.
     liked_title = "Worth exploring"
     liked_pool = by_saves
     if user and user.interests:
-        interest = user.interests[0]
-        match = [b for b in businesses if b.category and b.category.slug == interest]
-        if match:
-            liked_pool = match
-            liked_title = f"Because you like {match[0].category.name.lower()}"
+        matches = {
+            interest: [b for b in by_saves if b.category and b.category.slug == interest]
+            for interest in user.interests
+        }
+        options = [interest for interest, match in matches.items() if match]
+        if options:
+            liked_pool = matches[rng.choice(options)]
+            liked_title = f"Because you like {liked_pool[0].category.name.lower()}"
 
     sections: list[FeedSection] = []
     if by_new:
@@ -79,7 +119,7 @@ def get_feed(
                 key="featured",
                 title="Featured find",
                 layout="hero",
-                businesses=[to_card(by_new[0], origin=origin)],
+                businesses=[to_card(_featured(by_new, rng), origin=origin)],
             )
         )
     sections.append(
@@ -87,7 +127,7 @@ def get_feed(
             key="because_you_like",
             title=liked_title,
             layout="horizontal",
-            businesses=[to_card(b, origin=origin) for b in liked_pool[:6]],
+            businesses=[to_card(b, origin=origin) for b in _sample(liked_pool, rng)],
         )
     )
     sections.append(
@@ -112,13 +152,12 @@ def get_feed(
             )
         )
 
-    greeting, headline = _greeting()
     return FeedResponse(
-        greeting=greeting,
-        headline=headline,
+        greeting=_greeting(now),
+        headline=_headline(businesses, now),
         categories=categories,
         sections=sections,
-        campaigns=feed_banners(db, now),
+        campaigns=feed_banners(db, now, rng=rng),
     )
 
 
@@ -126,8 +165,6 @@ def get_feed(
 def surprise(db: Session = Depends(get_db)) -> list[dict]:
     """Shuffle stack for the "Surprise Me" screen: every listed business, in a new random
     order each time (suspended ones are unpublished, so they never appear)."""
-    import random
-
     businesses = list(db.execute(
         select(BusinessProfile)
         .options(*card_load_options())

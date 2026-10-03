@@ -144,3 +144,43 @@ def test_surprise_deals_every_listed_business_shuffled(client):
     decks = [[b["id"] for b in client.get(f"{PREFIX}/feed/surprise").json()] for _ in range(4)]
     assert all(sorted(d) == sorted(ids) for d in decks)  # all of them, more than the old 12
     assert len({tuple(d) for d in decks}) > 1  # and shuffled
+
+
+def test_feed_seed_rotates_discovery_rows_only(client):
+    register(client, "rotate@khojlo.app", role="business_owner")
+    token = login(client, "rotate@khojlo.app")
+    for i in range(15):
+        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Spot {i}"})
+
+    def feed(seed):
+        sections = client.get(f"{PREFIX}/feed", params={"seed": seed}).json()["sections"]
+        return {s["key"]: [b["id"] for b in s["businesses"]] for s in sections}
+
+    # The same seed gives the same feed, so coming back to Home doesn't reshuffle it.
+    assert feed(7) == feed(7)
+    feeds = [feed(seed) for seed in range(12)]
+    # A new seed (a pull-to-refresh) rotates the featured pick and the explore row...
+    assert len({tuple(f["featured"]) for f in feeds}) > 1
+    assert len({tuple(f["because_you_like"]) for f in feeds}) > 1
+    # ...but Trending stays a ranking.
+    assert len({tuple(f["trending"]) for f in feeds}) == 1
+
+
+def test_feed_headline_counts_this_weeks_businesses(client):
+    assert client.get(f"{PREFIX}/feed").json()["headline"] == "Discover what’s\nnew nearby"
+    register(client, "gems@khojlo.app", role="business_owner")
+    token = login(client, "gems@khojlo.app")
+    for i in range(3):
+        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Gem {i}"})
+    assert client.get(f"{PREFIX}/feed").json()["headline"] == "3 hidden gems\nopened this week"
+
+
+def test_feed_greeting_uses_local_time():
+    from datetime import datetime, timezone
+
+    from app.api.feed import _greeting
+
+    # Karachi is UTC+5: 15:00 UTC is 8pm there.
+    assert _greeting(datetime(2026, 1, 1, 15, tzinfo=timezone.utc)) == "Good evening, explorer"
+    assert _greeting(datetime(2026, 1, 1, 4, tzinfo=timezone.utc)) == "Good morning, explorer"
+    assert _greeting(datetime(2026, 1, 1, 9, tzinfo=timezone.utc)) == "Good afternoon, explorer"
