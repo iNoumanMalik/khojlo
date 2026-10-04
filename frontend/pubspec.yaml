@@ -59,6 +59,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
+# Regenerate with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-cream-square-1024.png"
+  android: "ic_launcher"
+  adaptive_icon_background: "#FBF6EE"
+  adaptive_icon_foreground: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-cream-square-1024.png"
+  ios: true
+  remove_alpha_ios: true

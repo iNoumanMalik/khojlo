@@ -146,6 +146,27 @@ def test_surprise_deals_every_listed_business_shuffled(client):
     assert len({tuple(d) for d in decks}) > 1  # and shuffled
 
 
+def test_feed_seed_rotates_discovery_rows_only(client):
+    register(client, "rotate@khojlo.app", role="business_owner")
+    token = login(client, "rotate@khojlo.app")
+    for i in range(15):
+        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Spot {i}"})
+
+    def feed(seed):
+        sections = client.get(f"{PREFIX}/feed", params={"seed": seed}).json()["sections"]
+        return {s["key"]: [b["id"] for b in s["businesses"]] for s in sections}
+
+    # The same seed gives the same feed, so coming back to Home doesn't reshuffle it.
+    assert feed(7) == feed(7)
+    feeds = [feed(seed) for seed in range(12)]
+    # A new seed (a pull-to-refresh) rotates the featured pick and the explore row...
+    assert len({tuple(f["featured"]) for f in feeds}) > 1
+    assert len({tuple(f["because_you_like"]) for f in feeds}) > 1
+    # ...but Trending stays a ranking.
+    assert len({tuple(f["trending"]) for f in feeds}) == 1
+
+
+
 def test_feed_greets_by_name_and_counts_this_weeks_businesses(client):
     register(client, "sana@khojlo.app", role="business_owner", full_name="Sana Malik")
     token = login(client, "sana@khojlo.app")

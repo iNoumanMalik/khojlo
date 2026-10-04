@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
         data: (feed) => _HeaderColorOverscroll(
           child: RefreshIndicator(
             color: AppColors.emerald,
-            onRefresh: () async => ref.refresh(feedProvider.future),
+            onRefresh: () => refreshFeed(ref),
             child: ListView(
               padding: EdgeInsets.zero,
               children: [

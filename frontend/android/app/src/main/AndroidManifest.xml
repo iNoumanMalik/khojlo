@@ -7,7 +7,7 @@
     <!-- Release builds need it to reach the Khojlo API (debug builds add it themselves). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="khojlo"
+        android:label="Khojlo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
