@@ -107,9 +107,12 @@ class SearchResultRow extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
+                  // A plain curve for the decoration: an overshooting one (easeOutBack)
+                  // pushed the shadow's blur below zero on unselect, which threw and
+                  // flashed an error frame. The bounce lives on the check mark instead.
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutBack,
+                    curve: Curves.easeOutCubic,
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
@@ -119,19 +122,20 @@ class SearchResultRow extends StatelessWidget {
                         color: selected ? AppColors.emerald : AppColors.inkA(0.22),
                         width: 1.6,
                       ),
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: AppColors.emerald.withValues(alpha: 0.35),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.emerald.withValues(alpha: selected ? 0.35 : 0),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: selected
-                        ? const Icon(Icons.check_rounded, size: 17, color: Colors.white)
-                        : null,
+                    child: AnimatedScale(
+                      scale: selected ? 1 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutBack,
+                      child: const Icon(Icons.check_rounded, size: 17, color: Colors.white),
+                    ),
                   ),
                 ),
               ),

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
@@ -13,18 +13,37 @@ from app.api.promotions import feed_banners
 from app.schemas.feed import FeedResponse, FeedSection
 from app.services import promotion_service as ps
 from app.services.business_service import card_load_options, to_card
+from app.services.hours import to_local
 from app.services.review_service import ranking_score
 
 router = APIRouter(prefix="/feed", tags=["feed"])
 
 
-def _greeting() -> tuple[str, str]:
-    hour = datetime.now(timezone.utc).hour
-    if hour < 12:
-        return "Good morning, explorer", "12 hidden gems\nopened this week"
-    if hour < 18:
-        return "Good afternoon, explorer", "12 hidden gems\nopened this week"
-    return "Good night, explorer", "12 hidden gems\nopened this week"
+NEW_THIS_WEEK = timedelta(days=7)
+
+
+def _greeting(user: User | None, businesses, now: datetime) -> tuple[str, str]:
+    """The greeting ("Good evening, Ali") and a headline from real data: how many businesses joined
+    Khojlo in the last 7 days. The hour is the businesses' local time, not UTC."""
+    hour = to_local(now).hour
+    part = ("morning" if 5 <= hour < 12 else "afternoon" if 12 <= hour < 17
+            else "evening" if 17 <= hour < 21 else "night")
+    first = (user.full_name.split() or ["explorer"])[0] if user else "explorer"
+    greeting = f"Good {part}, {first}" if part != "night" else f"Hello, {first}"
+
+    week_ago = now - NEW_THIS_WEEK
+    new = sum(1 for b in businesses
+              if b.created_at and (b.created_at if b.created_at.tzinfo
+                                   else b.created_at.replace(tzinfo=timezone.utc)) >= week_ago)
+    if new == 1:
+        headline = "1 hidden gem\nopened this week"
+    elif new > 1:
+        headline = f"{new} hidden gems\nopened this week"
+    else:
+        total = len(businesses)
+        headline = (f"{total} local {'gem' if total == 1 else 'gems'}\nwaiting to be found"
+                    if total else "Discover what’s\nnew nearby")
+    return greeting, headline
 
 
 @router.get("", response_model=FeedResponse)
@@ -112,7 +131,7 @@ def get_feed(
             )
         )
 
-    greeting, headline = _greeting()
+    greeting, headline = _greeting(user, businesses, now)
     return FeedResponse(
         greeting=greeting,
         headline=headline,

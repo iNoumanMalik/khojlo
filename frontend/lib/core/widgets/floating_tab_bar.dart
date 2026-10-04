@@ -36,12 +36,13 @@ class FloatingTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+    // Clear of the system gesture bar (the home swipe-up handle) on any phone.
+    final inset = MediaQuery.viewPaddingOf(context).bottom;
+    return RepaintBoundary(
+      child: Padding(
+      padding: EdgeInsets.fromLTRB(14, 0, 14, inset + 10),
       child: GlassSurface(
         radius: 26,
-        opacity: 0.6,
-        blur: 20,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
@@ -49,6 +50,7 @@ class FloatingTabBar extends StatelessWidget {
               Expanded(child: _tab(i)),
           ],
         ),
+      ),
       ),
     );
   }

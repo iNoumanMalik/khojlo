@@ -1,0 +1,133 @@
+{
+  "businesses": {
+    "Brew & Bloom": [
+      "brew-and-bloom-1.jpg",
+      "brew-and-bloom-2.jpg"
+    ],
+    "The Reading Room": [
+      "the-reading-room-1.jpg",
+      "the-reading-room-2.jpg"
+    ],
+    "Scoops & Swirls": [
+      "scoops-and-swirls-1.jpg",
+      "scoops-and-swirls-2.jpg"
+    ],
+    "Forno Italiano": [
+      "forno-italiano-1.jpg",
+      "forno-italiano-2.jpg"
+    ],
+    "Ramen no Michi": [
+      "ramen-no-michi-1.jpg",
+      "ramen-no-michi-2.jpg"
+    ],
+    "Ember & Oak": [
+      "ember-and-oak-1.jpg",
+      "ember-and-oak-2.jpg"
+    ],
+    "The Dumpling Cart": [
+      "the-dumpling-cart-1.jpg",
+      "the-dumpling-cart-2.jpg"
+    ],
+    "Mornings Café": [
+      "mornings-caf-1.jpg",
+      "mornings-caf-2.jpg"
+    ],
+    "Iron & Ash Gym": [
+      "iron-and-ash-gym-1.jpg",
+      "iron-and-ash-gym-2.jpg"
+    ],
+    "Glow Studio": [
+      "glow-studio-1.jpg",
+      "glow-studio-2.jpg"
+    ],
+    "Pixel Arena": [
+      "pixel-arena-1.jpg",
+      "pixel-arena-2.jpg"
+    ],
+    "Northlight Clinic": [
+      "northlight-clinic-1.jpg",
+      "northlight-clinic-2.jpg"
+    ],
+    "CarePoint Pharmacy": [
+      "carepoint-pharmacy-1.jpg",
+      "carepoint-pharmacy-2.jpg"
+    ],
+    "Verse Bookshop": [
+      "verse-bookshop-1.jpg",
+      "verse-bookshop-2.jpg"
+    ],
+    "Zilli Tailors": [
+      "zilli-tailors-1.jpg",
+      "zilli-tailors-2.jpg"
+    ],
+    "Al-Rehman Cloth House": [
+      "al-rehman-cloth-house-1.jpg",
+      "al-rehman-cloth-house-2.jpg"
+    ],
+    "Threadwork Studio": [
+      "threadwork-studio-1.jpg",
+      "threadwork-studio-2.jpg"
+    ],
+    "Heritage Textiles": [
+      "heritage-textiles-1.jpg",
+      "heritage-textiles-2.jpg"
+    ],
+    "Smash & Stack": [
+      "smash-and-stack-1.jpg",
+      "smash-and-stack-2.jpg"
+    ],
+    "Resham Boutique": [
+      "resham-boutique-1.jpg",
+      "resham-boutique-2.jpg"
+    ],
+    "Daily Basket Mart": [
+      "daily-basket-mart-1.jpg",
+      "daily-basket-mart-2.jpg"
+    ],
+    "Fix-It Mobile Lab": [
+      "fix-it-mobile-lab-1.jpg",
+      "fix-it-mobile-lab-2.jpg"
+    ],
+    "The Gentleman's Chair": [
+      "the-gentleman-s-chair-1.jpg",
+      "the-gentleman-s-chair-2.jpg"
+    ],
+    "HandyFix Home Services": [
+      "handyfix-home-services-1.jpg",
+      "handyfix-home-services-2.jpg"
+    ],
+    "Shine Auto Care": [
+      "shine-auto-care-1.jpg",
+      "shine-auto-care-2.jpg"
+    ],
+    "Fresh Fold Laundry": [
+      "fresh-fold-laundry-1.jpg",
+      "fresh-fold-laundry-2.jpg"
+    ],
+    "Frame & Flower Studio": [
+      "frame-and-flower-studio-1.jpg",
+      "frame-and-flower-studio-2.jpg"
+    ],
+    "Paws & Whiskers": [
+      "paws-and-whiskers-1.jpg",
+      "paws-and-whiskers-2.jpg"
+    ],
+    "Margalla View Guest House": [
+      "margalla-view-guest-house-1.jpg",
+      "margalla-view-guest-house-2.jpg"
+    ],
+    "Qalam Calligraphy Studio": [
+      "qalam-calligraphy-studio-1.jpg",
+      "qalam-calligraphy-studio-2.jpg"
+    ],
+    "Mountain Chai Dhaba": [
+      "mountain-chai-dhaba-1.jpg",
+      "mountain-chai-dhaba-2.jpg"
+    ]
+  },
+  "campaigns": {
+    "Weekend Food Festival": "banner-weekend-food-festival.jpg",
+    "Grand Opening": "banner-grand-opening.jpg",
+    "Winter Special": "banner-winter-special.jpg"
+  }
+}

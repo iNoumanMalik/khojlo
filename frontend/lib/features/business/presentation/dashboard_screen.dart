@@ -106,11 +106,13 @@ class DashboardScreen extends ConsumerWidget {
                 child: StatCard(
                     label: 'Profile views',
                     value: _fmt(a.profileViews),
-                    trend: '+18% this week')),
+                    trend: a.viewsTrend)),
             const SizedBox(width: 10),
             Expanded(
                 child: StatCard(
-                    label: 'Saves', value: '${a.saves}', trend: 'this week')),
+                    label: 'Saves',
+                    value: '${a.saves}',
+                    trend: a.savesThisWeek > 0 ? '+${a.savesThisWeek} this week' : 'none this week')),
           ]),
           const SizedBox(height: 10),
           Row(children: [
@@ -131,7 +133,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: _RatingStat(businessId: business.id, fallback: a))),
           ]),
           const SizedBox(height: 26),
-          Text('PROFILE VIEWS THIS WEEK', style: AppType.label()),
+          Text('PROFILE VIEWS · LAST 7 DAYS', style: AppType.label()),
           const SizedBox(height: 14),
           _WeeklyChart(points: a.weeklyViews),
           const SizedBox(height: 26),
@@ -208,17 +210,17 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+/// Real profile views per day for the last 7 days; today is the last bar.
 class _WeeklyChart extends StatelessWidget {
   const _WeeklyChart({required this.points});
   final List<WeeklyPoint> points;
 
   @override
   Widget build(BuildContext context) {
-    final max = points.fold<int>(1, (m, p) => p.value > m ? p.value : m);
-    final peak = points.indexOf(
-        points.reduce((a, b) => a.value >= b.value ? a : b));
+    final max = points.fold<int>(0, (m, p) => p.value > m ? p.value : m);
+    final peak = max == 0 ? -1 : points.lastIndexWhere((p) => p.value == max);
     return SizedBox(
-      height: 110,
+      height: 132,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -229,12 +231,18 @@ class _WeeklyChart extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    Text('${points[i].value}',
+                        style: AppType.mono(
+                            size: 10,
+                            weight: i == peak ? FontWeight.w700 : FontWeight.w400,
+                            color: AppColors.inkA(points[i].value == 0 ? 0.3 : 0.6))),
+                    const SizedBox(height: 4),
                     TweenAnimationBuilder<double>(
                       duration: Duration(milliseconds: 400 + i * 60),
                       curve: Curves.easeOutCubic,
-                      tween: Tween(begin: 0, end: (points[i].value / max)),
+                      tween: Tween(begin: 0, end: max == 0 ? 0 : points[i].value / max),
                       builder: (_, v, __) => Container(
-                        height: 80 * v.clamp(0.05, 1),
+                        height: 80 * v.clamp(0.04, 1.0),
                         decoration: BoxDecoration(
                           color: i == peak
                               ? AppColors.gold
@@ -244,9 +252,12 @@ class _WeeklyChart extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(points[i].label,
+                    Text(i == points.length - 1 ? 'Today' : points[i].label,
+                        maxLines: 1,
                         style: AppType.mono(
-                            size: 9.5, color: AppColors.inkA(0.4))),
+                            size: 9.5,
+                            weight: i == points.length - 1 ? FontWeight.w700 : FontWeight.w400,
+                            color: AppColors.inkA(0.45))),
                   ],
                 ),
               ),

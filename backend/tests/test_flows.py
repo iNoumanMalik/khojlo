@@ -144,3 +144,27 @@ def test_surprise_deals_every_listed_business_shuffled(client):
     decks = [[b["id"] for b in client.get(f"{PREFIX}/feed/surprise").json()] for _ in range(4)]
     assert all(sorted(d) == sorted(ids) for d in decks)  # all of them, more than the old 12
     assert len({tuple(d) for d in decks}) > 1  # and shuffled
+
+
+def test_feed_greets_by_name_and_counts_this_weeks_businesses(client):
+    register(client, "sana@khojlo.app", role="business_owner", full_name="Sana Malik")
+    token = login(client, "sana@khojlo.app")
+    for i in range(3):
+        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Spot {i}"})
+    signed_in = client.get(f"{PREFIX}/feed", headers=auth(token)).json()
+    assert signed_in["greeting"].endswith(", Sana")
+    assert signed_in["headline"] == "3 hidden gems\nopened this week"
+    assert client.get(f"{PREFIX}/feed").json()["greeting"].endswith(", explorer")
+
+
+def test_analytics_counts_real_views_per_day(client):
+    register(client, "views@khojlo.app", role="business_owner")
+    owner = auth(login(client, "views@khojlo.app"))
+    bid = client.post(f"{PREFIX}/businesses", headers=owner, json={"name": "Counted"}).json()["id"]
+    for _ in range(3):
+        client.get(f"{PREFIX}/businesses/{bid}")  # three visitors
+    client.get(f"{PREFIX}/businesses/{bid}", params={"track": False})  # owner's editor: not a view
+    a = client.get(f"{PREFIX}/businesses/{bid}/analytics", headers=owner).json()
+    assert [p["value"] for p in a["weekly_views"]][-1] == 3  # today is the last bar
+    assert sum(p["value"] for p in a["weekly_views"][:-1]) == 0  # nothing invented
+    assert (a["views_this_week"], a["views_last_week"], a["profile_views"]) == (3, 0, 3)

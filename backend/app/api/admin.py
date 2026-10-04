@@ -20,8 +20,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, literal, or_, select, union_all
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import get_current_admin
 from app.core.database import get_db
@@ -187,9 +187,43 @@ def _open_business_reports(db: Session, business_id: int) -> int:
 
 
 def business_row(db: Session, b: BusinessProfile) -> AdminBusinessRow:
-    return AdminBusinessRow(**business_brief(b).model_dump(),
-                            open_reports=_open_business_reports(db, b.id),
-                            open_flags=vs.open_flag_count(db, b))
+    return business_rows(db, [b])[0]
+
+
+def _grouped(db: Session, key, *where) -> dict[int, int]:
+    """{key: count} in one grouped query."""
+    return dict(db.execute(select(key, func.count()).where(*where).group_by(key)).all())
+
+
+def business_rows(db: Session, businesses: list[BusinessProfile]) -> list[AdminBusinessRow]:
+    """Rows for a page of businesses, with their open reports and flags counted in a
+    few grouped queries (not a few per row: each query is a round trip to the database)."""
+    if not businesses:
+        return []
+    ids = [b.id for b in businesses]
+    owners = {b.owner_id for b in businesses}
+    reports = _grouped(db, BusinessReport.business_id, BusinessReport.business_id.in_(ids),
+                       BusinessReport.status == BusinessReportStatus.open)
+    listing_flags = _grouped(
+        db, ModerationFlag.business_id, ModerationFlag.business_id.in_(ids),
+        ModerationFlag.status == FlagStatus.open,
+        ModerationFlag.target_type.in_([FlagTarget.business, FlagTarget.offer,
+                                        FlagTarget.campaign]))
+    owner_flags = _grouped(
+        db, ModerationFlag.target_id, ModerationFlag.target_type == FlagTarget.user,
+        ModerationFlag.target_id.in_(owners), ModerationFlag.status == FlagStatus.open)
+    return [
+        AdminBusinessRow(**business_brief(b).model_dump(),
+                         open_reports=reports.get(b.id, 0),
+                         open_flags=listing_flags.get(b.id, 0) + owner_flags.get(b.owner_id, 0))
+        for b in businesses
+    ]
+
+
+def _admin_list_options() -> tuple:
+    """What a business row shows, loaded with the page instead of row by row."""
+    return (joinedload(BusinessProfile.owner), joinedload(BusinessProfile.category),
+            selectinload(BusinessProfile.photos))
 
 
 class _Titles:
@@ -271,33 +305,65 @@ def overview(db: Session = Depends(get_db)) -> OverviewOut:
     today_utc = start_of_day.astimezone(timezone.utc)
     week_ago = now - timedelta(days=RECENT_DAYS)
 
-    def count(model, *where) -> int:
-        return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
+    # Every number on the overview in ONE query (scalar subqueries), and the 14-day
+    # chart in one more: against a remote database, each query is a round trip.
+    def count(model, *where):
+        return select(func.count()).select_from(model).where(*where).scalar_subquery()
 
-    def items(column, *where) -> int:
+    def items(column, *where):
         """Reported items, not report rows: two reports of one review are one to look at."""
-        return db.scalar(select(func.count(func.distinct(column))).where(*where)) or 0
+        return select(func.count(func.distinct(column))).where(*where).scalar_subquery()
 
-    open_review = items(ReviewReport.review_id, ReviewReport.status == ReportStatus.open)
-    open_conversation = items(ConversationReport.conversation_id,
-                              ConversationReport.status == ConversationReportStatus.open)
-    open_business = items(BusinessReport.business_id,
-                          BusinessReport.status == BusinessReportStatus.open)
+    numbers = {
+        "open_review": items(ReviewReport.review_id, ReviewReport.status == ReportStatus.open),
+        "open_conversation": items(ConversationReport.conversation_id,
+                                   ConversationReport.status == ConversationReportStatus.open),
+        "open_business": items(BusinessReport.business_id,
+                               BusinessReport.status == BusinessReportStatus.open),
+        "pending_review": count(BusinessProfile,
+                                BusinessProfile.verification_status == VerificationStatus.pending_review,
+                                BusinessProfile.suspended_at.is_(None)),
+        "needs_info": count(BusinessProfile,
+                            BusinessProfile.verification_status == VerificationStatus.needs_info),
+        "open_flags": count(ModerationFlag, ModerationFlag.status == FlagStatus.open),
+        "suspended_accounts": count(User, User.is_banned.is_(False), User.suspended_until > now),
+        "banned_accounts": count(User, User.is_banned.is_(True)),
+        "suspended_businesses": count(BusinessProfile, BusinessProfile.suspended_at.is_not(None)),
+        "users_total": count(User),
+        "businesses_total": count(BusinessProfile),
+        "verified_total": count(BusinessProfile, BusinessProfile.is_verified.is_(True)),
+        "new_users_today": count(User, User.created_at >= today_utc),
+        "new_businesses_today": count(BusinessProfile, BusinessProfile.created_at >= today_utc),
+        "reviews_today": count(Review, Review.created_at >= today_utc),
+        "messages_today": count(Message, Message.created_at >= today_utc),
+        "auto_verified_week": count(ModerationAction,
+                                    ModerationAction.action == ActionKind.auto_verify,
+                                    ModerationAction.created_at >= week_ago),
+    }
+    row = db.execute(select(*(v.label(k) for k, v in numbers.items()))).one()
+    n = {k: getattr(row, k) or 0 for k in numbers}
+    open_review, open_conversation, open_business = (
+        n["open_review"], n["open_conversation"], n["open_business"])
 
     chart_start = (start_of_day - timedelta(days=CHART_DAYS - 1)).astimezone(timezone.utc)
     buckets: dict[str, Counter] = {k: Counter() for k in ("users", "businesses", "reports",
                                                            "flags")}
 
-    def bucket(name: str, column) -> None:
-        for (created,) in db.execute(select(column).where(column >= chart_start)):
-            buckets[name][to_local(ms.aware(created)).date()] += 1
+    def since(name: str, column):
+        return select(literal(name).label("kind"), column.label("at")).where(column >= chart_start)
 
-    bucket("users", User.created_at)
-    bucket("businesses", BusinessProfile.created_at)
-    bucket("reports", ReviewReport.created_at)
-    bucket("reports", ConversationReport.created_at)
-    bucket("reports", BusinessReport.created_at)
-    bucket("flags", ModerationFlag.created_at)
+    chart = union_all(
+        since("users", User.created_at),
+        since("businesses", BusinessProfile.created_at),
+        since("reports", ReviewReport.created_at),
+        since("reports", ConversationReport.created_at),
+        since("reports", BusinessReport.created_at),
+        since("flags", ModerationFlag.created_at),
+    )
+    for kind, created in db.execute(chart):
+        if isinstance(created, str):  # SQLite returns text from a UNION
+            created = datetime.fromisoformat(created)
+        buckets[kind][to_local(ms.aware(created)).date()] += 1
     daily = []
     for i in range(CHART_DAYS - 1, -1, -1):
         day = (start_of_day - timedelta(days=i)).date()
@@ -308,29 +374,15 @@ def overview(db: Session = Depends(get_db)) -> OverviewOut:
     recent = db.scalars(select(ModerationAction).order_by(
         ModerationAction.created_at.desc(), ModerationAction.id.desc()).limit(10))
     return OverviewOut(
-        pending_review=count(BusinessProfile,
-                             BusinessProfile.verification_status == VerificationStatus.pending_review,
-                             BusinessProfile.suspended_at.is_(None)),
-        needs_info=count(BusinessProfile,
-                         BusinessProfile.verification_status == VerificationStatus.needs_info),
+        **{k: n[k] for k in ("pending_review", "needs_info", "open_flags", "suspended_accounts",
+                             "banned_accounts", "suspended_businesses", "users_total",
+                             "businesses_total", "verified_total", "new_users_today",
+                             "new_businesses_today", "reviews_today", "messages_today",
+                             "auto_verified_week")},
         open_reports=open_review + open_conversation + open_business,
         open_review_reports=open_review,
         open_conversation_reports=open_conversation,
         open_business_reports=open_business,
-        open_flags=count(ModerationFlag, ModerationFlag.status == FlagStatus.open),
-        suspended_accounts=count(User, User.is_banned.is_(False), User.suspended_until > now),
-        banned_accounts=count(User, User.is_banned.is_(True)),
-        suspended_businesses=count(BusinessProfile, BusinessProfile.suspended_at.is_not(None)),
-        users_total=count(User),
-        businesses_total=count(BusinessProfile),
-        verified_total=count(BusinessProfile, BusinessProfile.is_verified.is_(True)),
-        new_users_today=count(User, User.created_at >= today_utc),
-        new_businesses_today=count(BusinessProfile, BusinessProfile.created_at >= today_utc),
-        reviews_today=count(Review, Review.created_at >= today_utc),
-        messages_today=count(Message, Message.created_at >= today_utc),
-        auto_verified_week=count(ModerationAction,
-                                 ModerationAction.action == ActionKind.auto_verify,
-                                 ModerationAction.created_at >= week_ago),
         daily=daily,
         recent=[action_out(a, titles) for a in recent],
     )
@@ -368,8 +420,9 @@ def list_businesses(
     if q.strip():
         query = query.where(BusinessProfile.name.ilike(f"%{q.strip()}%"))
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = db.scalars(query.order_by(*order).limit(limit).offset(offset))
-    return BusinessPage(items=[business_row(db, b) for b in rows], total=total)
+    rows = list(db.scalars(query.options(*_admin_list_options())
+                           .order_by(*order).limit(limit).offset(offset)).unique())
+    return BusinessPage(items=business_rows(db, rows), total=total)
 
 
 def _business(db: Session, business_id: int) -> BusinessProfile:
@@ -865,6 +918,41 @@ def user_row(db: Session, user: User) -> AdminUserRow:
     return AdminUserRow(**person_out(user).model_dump(), **_user_counts(db, user))
 
 
+def user_rows(db: Session, users: list[User]) -> list[AdminUserRow]:
+    """Rows for a page of accounts: every count comes from one grouped query for the
+    whole page (the per-row version took minutes against a remote database)."""
+    if not users:
+        return []
+    ids = [u.id for u in users]
+    businesses = _grouped(db, BusinessProfile.owner_id, BusinessProfile.owner_id.in_(ids))
+    reviews = _grouped(db, Review.user_id, Review.user_id.in_(ids), Review.deleted_at.is_(None))
+    review_reports = dict(db.execute(
+        select(Review.user_id, func.count(ReviewReport.id))
+        .join(Review, Review.id == ReviewReport.review_id)
+        .where(Review.user_id.in_(ids), ReviewReport.status == ReportStatus.open)
+        .group_by(Review.user_id)).all())
+    business_reports = dict(db.execute(
+        select(BusinessProfile.owner_id, func.count(BusinessReport.id))
+        .join(BusinessProfile, BusinessProfile.id == BusinessReport.business_id)
+        .where(BusinessProfile.owner_id.in_(ids),
+               BusinessReport.status == BusinessReportStatus.open)
+        .group_by(BusinessProfile.owner_id)).all())
+    flags = _grouped(db, ModerationFlag.user_id, ModerationFlag.user_id.in_(ids),
+                     ModerationFlag.status == FlagStatus.open)
+    warnings = _grouped(db, ModerationAction.subject_user_id,
+                        ModerationAction.subject_user_id.in_(ids),
+                        ModerationAction.action == ActionKind.warn_user)
+    return [
+        AdminUserRow(
+            **person_out(u).model_dump(),
+            businesses=businesses.get(u.id, 0), reviews=reviews.get(u.id, 0),
+            reports_against=review_reports.get(u.id, 0) + business_reports.get(u.id, 0),
+            open_flags=flags.get(u.id, 0), warnings=warnings.get(u.id, 0),
+        )
+        for u in users
+    ]
+
+
 @router.get("/users", response_model=UserPage, summary="Find accounts")
 def list_users(
     q: str = Query(default="", max_length=100),
@@ -889,9 +977,9 @@ def list_users(
         query = query.where(User.is_banned.is_(False),
                             or_(User.suspended_until.is_(None), User.suspended_until <= now))
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = db.scalars(query.order_by(User.created_at.desc(), User.id.desc())
-                      .limit(limit).offset(offset))
-    return UserPage(items=[user_row(db, u) for u in rows], total=total)
+    rows = list(db.scalars(query.order_by(User.created_at.desc(), User.id.desc())
+                           .limit(limit).offset(offset)))
+    return UserPage(items=user_rows(db, rows), total=total)
 
 
 def user_detail(db: Session, user: User) -> AdminUserDetail:

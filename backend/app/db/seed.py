@@ -32,10 +32,13 @@ search history for "Popular searches".
 """
 from __future__ import annotations
 
+import json
 import random
+import secrets
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -59,6 +62,7 @@ from app.models.chat import (
 )
 from app.models.campaign import Campaign, CampaignOffer, CampaignService, sync_links
 from app.models.engagement import BusinessView, SavedBusiness, SavedList
+from app.models.media import BusinessPhoto, Media
 from app.models.moderation import (
     BusinessReport,
     BusinessReportReason,
@@ -71,6 +75,7 @@ from app.models.review import ReportReason, Review, ReviewPhoto, ReviewReport, R
 from app.models.search import SearchQuery
 from app.models.user import User, UserRole
 from app.services import moderation_rules
+from app.services.media_service import process_image
 from app.services.promotion_service import local_today
 from app.services.review_service import refresh_rating
 
@@ -518,6 +523,8 @@ class SeedReport:
     conversations_added: int = 0
     notifications_added: int = 0
     moderation_added: int = 0
+    views_added: int = 0
+    photos_added: int = 0
 
     def __str__(self) -> str:
         return (
@@ -527,7 +534,8 @@ class SeedReport:
             f"{self.reviews_added} reviews, "
             f"{self.searches_added} searches, {self.conversations_added} conversations, "
             f"{self.notifications_added} notifications, "
-            f"{self.moderation_added} items for the admin panel."
+            f"{self.moderation_added} items for the admin panel, "
+            f"{self.views_added} profile views, {self.photos_added} photos."
         )
 
 
@@ -873,6 +881,83 @@ def _add_notifications(db: Session, customer: User, biz: dict[str, BusinessProfi
         report.notifications_added += 1
 
 
+def _add_view_history(db: Session, biz: dict[str, BusinessProfile], now: datetime,
+                      report: SeedReport) -> None:
+    """Two weeks of profile views for each catalogue business that has none, so the
+    owner's chart has real rows to count (busier businesses get more views)."""
+    has_views = set(db.scalars(select(BusinessView.business_id).distinct()))
+    for spec in BUSINESSES:
+        b = biz[spec["name"]]
+        if b.id in has_views:
+            continue
+        rng = random.Random(f"views:{spec['name']}")
+        daily = max(2, min(18, spec["reviews"] // 12))
+        added = 0
+        for day in range(14):
+            for _ in range(rng.randint(daily // 2, daily + 3)):
+                db.add(BusinessView(business_id=b.id, created_at=now - timedelta(
+                    days=day, hours=rng.uniform(0, 23))))
+                added += 1
+        b.view_count = max(b.view_count or 0, added)
+        report.views_added += added
+    db.flush()
+
+
+# Openly licensed demo photos (Openverse: CC0, public domain, CC BY, CC BY-SA), stored with
+# the code so seeding works offline. Credits: demo_photos/CREDITS.md.
+DEMO_PHOTOS_DIR = Path(__file__).with_name("demo_photos")
+# Tests switch this off: processing ~65 photos would slow every seeded test.
+INCLUDE_PHOTOS = True
+
+
+def _demo_manifest() -> dict:
+    path = DEMO_PHOTOS_DIR / "manifest.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def _demo_media(db: Session, owner_id: int, filename: str) -> Media | None:
+    path = DEMO_PHOTOS_DIR / filename
+    if not path.exists():
+        return None
+    processed = process_image(path.read_bytes())
+    media = Media(
+        key=secrets.token_hex(16), owner_id=owner_id, content_type="image/jpeg",
+        width=processed.width, height=processed.height, focal_x=processed.focal_x,
+        focal_y=processed.focal_y, size_bytes=len(processed.data) + len(processed.thumb),
+        data=processed.data, thumb=processed.thumb,
+    )
+    db.add(media)
+    db.flush()
+    return media
+
+
+def _add_demo_photos(db: Session, biz: dict[str, BusinessProfile], report: SeedReport) -> None:
+    """Photos for catalogue businesses that have none yet, and banners for catalogue
+    campaigns without one. Never replaces a photo someone added."""
+    if not INCLUDE_PHOTOS:
+        return
+    manifest = _demo_manifest()
+    for name, files in manifest.get("businesses", {}).items():
+        b = biz.get(name)
+        if b is None or b.photos:
+            continue
+        for position, filename in enumerate(files):
+            media = _demo_media(db, b.owner_id, filename)
+            if media is not None:
+                b.photos.append(BusinessPhoto(media=media, position=position))
+                report.photos_added += 1
+    banners = manifest.get("campaigns", {})
+    for c in db.scalars(select(Campaign).where(Campaign.deleted_at.is_(None),
+                                                Campaign.banner_media_id.is_(None))):
+        filename = banners.get(c.name)
+        if filename and c.business and c.business.name in biz:
+            media = _demo_media(db, c.business.owner_id, filename)
+            if media is not None:
+                c.banner_media_id = media.id
+                report.photos_added += 1
+    db.flush()
+
+
 def _add_moderation_demo(db: Session, users: dict[str, User], reviewers: list[User],
                          biz: dict[str, BusinessProfile], now: datetime,
                          report: SeedReport) -> None:
@@ -932,8 +1017,10 @@ def seed(db: Session, *, now: datetime | None = None) -> SeedReport:
     biz = _sync_businesses(db, users[OWNER_EMAIL], cats, now, report)
     offers = _sync_offers(db, biz, now, report)
     _sync_campaigns(db, biz, offers, now, report)
+    _add_demo_photos(db, biz, report)
     _add_reviews(db, biz, reviewers, users[CUSTOMER_EMAIL], now, report)
     _add_moderation_demo(db, users, reviewers, biz, now, report)
+    _add_view_history(db, biz, now, report)
     _refresh_ratings(db)
     _add_saved_lists(db, users[CUSTOMER_EMAIL], biz)
     db.flush()

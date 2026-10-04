@@ -183,7 +183,10 @@ class BusinessCard {
         null => '',
       };
 
-  factory BusinessCard.fromJson(Map<String, dynamic> j) => BusinessCard(
+  factory BusinessCard.fromJson(Map<String, dynamic> j) =>
+      RecentCards.remember(_cardFromJson(j));
+
+  static BusinessCard _cardFromJson(Map<String, dynamic> j) => BusinessCard(
         id: j['id'] as int,
         name: j['name'] as String,
         tagline: j['tagline'] as String? ?? '',
@@ -513,4 +516,22 @@ class BusinessDetail extends BusinessCard {
           const [],
     );
   }
+}
+
+
+/// The last cards the app received (feed, search, map…), by id. A business page
+/// shows the tapped card's photo and name immediately while its full profile loads.
+class RecentCards {
+  RecentCards._();
+  static const _max = 300;
+  static final _cards = <int, BusinessCard>{};
+
+  static BusinessCard remember(BusinessCard card) {
+    _cards.remove(card.id);
+    _cards[card.id] = card;
+    if (_cards.length > _max) _cards.remove(_cards.keys.first);
+    return card;
+  }
+
+  static BusinessCard? get(int id) => _cards[id];
 }

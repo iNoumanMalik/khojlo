@@ -35,9 +35,10 @@ from app.schemas.saved import SaveToListRequest
 from app.services.business_service import (
     build_analytics,
     card_load_options,
+    detail_load_options,
     is_saved_by,
     photo_out,
-    record_view,
+    record_view_later,
     set_business_photos,
     to_card,
 )
@@ -268,6 +269,15 @@ def business_analytics(
 
 
 # ─────────────── public detail + save ───────────────
+def _reload(db: Session, business_id: int) -> BusinessProfile:
+    """The business with everything its page shows, in three queries (after a commit
+    the old object would reload each part separately, a round trip apiece)."""
+    return db.execute(
+        select(BusinessProfile).options(*detail_load_options())
+        .where(BusinessProfile.id == business_id)
+    ).unique().scalar_one()
+
+
 def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDetail:
     card = to_card(b)
     today = local_today()
@@ -291,6 +301,7 @@ def _detail(db: Session, b: BusinessProfile, viewer: User | None) -> BusinessDet
 @router.get("/{business_id}", response_model=BusinessDetail)
 def business_detail(
     business_id: int,
+    background_tasks: BackgroundTasks,
     track: bool = Query(
         default=True,
         description="Count this as a profile view. The owner's edit screens send false.",
@@ -298,14 +309,20 @@ def business_detail(
     db: Session = Depends(get_db),
     viewer: User | None = Depends(get_optional_user),
 ) -> BusinessDetail:
-    b = db.get(BusinessProfile, business_id)
+    b = db.execute(
+        select(BusinessProfile).options(*detail_load_options())
+        .where(BusinessProfile.id == business_id)
+    ).unique().scalar_one_or_none()
     is_owner = viewer is not None and b is not None and b.owner_id == viewer.id
     # A suspended listing is gone for everyone but its owner (Module 8).
     if b is None or (b.suspended_at is not None and not is_owner):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found")
+    out = _detail(db, b, viewer)
     if track:
-        record_view(db, b, viewer.id if viewer else None)
-    return _detail(db, b, viewer)
+        # Counted after the response is sent; this response already includes the view.
+        out.view_count += 1
+        background_tasks.add_task(record_view_later, b.id, viewer.id if viewer else None)
+    return out
 
 
 @router.post("/{business_id}/save", response_model=BusinessDetail)
@@ -341,7 +358,7 @@ def save_business(
         db.add(SavedBusiness(list_id=target.id, business_id=b.id))
         b.save_count = (b.save_count or 0) + 1
         db.commit()
-    return _detail(db, b, user)
+    return _detail(db, _reload(db, b.id), user)
 
 
 @router.delete("/{business_id}/save", response_model=BusinessDetail)
@@ -363,7 +380,7 @@ def unsave_business(
     if rows:
         b.save_count = max(0, (b.save_count or 0) - 1)
         db.commit()
-    return _detail(db, b, user)
+    return _detail(db, _reload(db, b.id), user)
 
 
 # ─────────────── Module 8: reporting a business (FR-19, extended) ───────────────

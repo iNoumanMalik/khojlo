@@ -343,4 +343,8 @@ class BusinessAnalytics(BaseModel):
     unread_messages: int = 0
     rating: float
     review_count: int
+    # Profile views per day for the last 7 days, oldest first (today is last).
     weekly_views: list[WeeklyPoint]
+    views_this_week: int = 0
+    views_last_week: int = 0
+    saves_this_week: int = 0

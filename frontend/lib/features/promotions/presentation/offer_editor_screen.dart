@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/business.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/ui/messenger.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../business/business_providers.dart';
@@ -17,6 +18,7 @@ Future<bool> openOfferEditor(BuildContext context, {required int businessId, Off
   final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
     builder: (_) => OfferEditorScreen(businessId: businessId, existing: existing),
   ));
+  if (saved == true) showToast(existing == null ? 'Offer created' : 'Offer saved');
   return saved ?? false;
 }
 

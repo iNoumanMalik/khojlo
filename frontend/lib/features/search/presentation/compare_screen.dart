@@ -226,13 +226,6 @@ class _CompareBody extends ConsumerWidget {
           const SizedBox(height: 14),
           _LocationHint(),
         ],
-        const SizedBox(height: 22),
-        GhostButton(
-          label: 'View on map · coming soon',
-          icon: Icons.map_outlined,
-          tone: AppColors.inkA(0.45),
-          onTap: null,
-        ),
       ],
     );
   }

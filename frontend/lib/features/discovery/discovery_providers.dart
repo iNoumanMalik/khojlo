@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/location/location_service.dart';
@@ -14,10 +16,15 @@ final feedProvider = FutureProvider.autoDispose<Feed>((ref) async {
       .feed(lat: fix?.latitude, lng: fix?.longitude);
 });
 
-/// Business detail (records a view server-side on each fetch).
+/// Business detail (records a view server-side on each fetch). Kept for a minute
+/// after the page closes, so reopening it is instant.
 final businessDetailProvider =
     FutureProvider.autoDispose.family<BusinessDetail, int>((ref, id) async {
-  return ref.watch(discoveryRepositoryProvider).detail(id);
+  final detail = await ref.watch(discoveryRepositoryProvider).detail(id);
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 1), link.close);
+  ref.onDispose(timer.cancel);
+  return detail;
 });
 
 /// Shuffle stack for "Surprise Me".

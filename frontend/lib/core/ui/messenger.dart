@@ -38,3 +38,27 @@ void showInAppBanner(String title, String body, {VoidCallback? onOpen}) {
           : SnackBarAction(label: 'Open', textColor: AppColors.gold, onPressed: onOpen),
     ));
 }
+
+/// A short confirmation ("Offer saved") above the dock, from anywhere in the app.
+void showToast(String message, {String? actionLabel, VoidCallback? onAction}) {
+  final messenger = rootMessengerKey.currentState;
+  if (messenger == null) return;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 104),
+      backgroundColor: AppColors.ink,
+      duration: const Duration(seconds: 3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      content: Row(children: [
+        const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.gold),
+        const SizedBox(width: 10),
+        Expanded(
+            child: Text(message, style: AppType.sans(size: 13, color: Colors.white))),
+      ]),
+      action: actionLabel == null || onAction == null
+          ? null
+          : SnackBarAction(label: actionLabel, textColor: AppColors.gold, onPressed: onAction),
+    ));
+}

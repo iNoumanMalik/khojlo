@@ -130,3 +130,33 @@ def test_seeded_reviews_are_real_and_follow_br4():
     customer = db.scalar(select(User).where(User.email == seed_module.CUSTOMER_EMAIL))
     assert count(db, Review, Review.user_id == customer.id) == 1
     db.close()
+
+
+def test_seed_adds_demo_photos_and_banners_once(monkeypatch):
+    from app.models.campaign import Campaign
+    from app.models.media import BusinessPhoto
+
+    monkeypatch.setattr(seed_module, "INCLUDE_PHOTOS", True)
+    db = TestingSessionLocal()
+    report = seed_module.seed(db, now=FROZEN_NOW)
+    assert report.photos_added == 2 * len(seed_module.BUSINESSES) + len(seed_module.CAMPAIGNS)
+    for b in db.scalars(select(BusinessProfile)):
+        assert len(b.photos) == 2, b.name  # a cover and one more, from demo_photos/
+    assert all(c.banner_media_id for c in db.scalars(select(Campaign)))
+    again = seed_module.seed(db, now=FROZEN_NOW)
+    assert again.photos_added == 0  # never replaces or duplicates photos
+    assert count(db, BusinessPhoto) == 2 * len(seed_module.BUSINESSES)
+    db.close()
+
+
+def test_every_demo_photo_is_credited():
+    import json
+
+    folder = seed_module.DEMO_PHOTOS_DIR
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    credits = (folder / "CREDITS.md").read_text(encoding="utf-8")
+    files = [f for fs in manifest["businesses"].values() for f in fs] + list(
+        manifest["campaigns"].values())
+    for f in files:
+        assert (folder / f).exists(), f
+        assert f"| {f} |" in credits, f

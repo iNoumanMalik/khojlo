@@ -79,7 +79,7 @@ class _ExploreSearchFieldState extends State<ExploreSearchField> {
       curve: Curves.easeOutCubic,
       child: GlassSurface(
         radius: 999,
-        opacity: focused ? 0.85 : 0.65,
+        opacity: focused ? 0.85 : GlassSurface.standardOpacity,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Row(
           children: [
