@@ -5,25 +5,28 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'google_map_view.dart';
 import 'map_types.dart';
+import 'maplibre_map_view.dart';
 import 'maps_config.dart';
 import 'sketch_map.dart';
 
 /// SDD `MapService` (class diagram §4.1): the app talks to this interface, so the
-/// map provider can change without touching screens. [GoogleMapsService] is the SDD's
-/// `GoogleMapsService`; [SketchMapService] stands in when no Google key is configured
-/// (and in tests), so the app keeps working either way.
+/// map provider can change without touching screens.
+/// - [MapLibreService] (default): OpenStreetMap vector maps, no API key needed.
+/// - [GoogleMapsService]: the SDD's `GoogleMapsService`, opt-in with `MAP_PROVIDER=google`.
+/// - [SketchMapService]: a drawn stand-in on platforms without a real map (and in tests).
 abstract class MapService {
   const MapService();
 
   /// Whether this service draws real Google maps.
   bool get isGoogle;
 
-  /// An interactive map.
+  /// An interactive map. [route] is drawn as a line under the pins (a route preview).
   Widget buildMap({
     Key? key,
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -56,15 +59,21 @@ abstract class MapService {
   }
 
   /// UC-9 alternative flow "get directions": Google Maps navigation to [destination]
-  /// (the Google Maps app on Android when installed, the website otherwise).
-  Uri directionsUri(GeoPoint destination) => Uri.https('www.google.com', '/maps/dir/', {
-    'api': '1',
-    'destination': '${destination.latitude},${destination.longitude}',
-  });
+  /// (the Google Maps app on Android when installed, the website otherwise). [walking]
+  /// asks for walking directions instead of Google's default.
+  Uri directionsUri(GeoPoint destination, {bool? walking}) =>
+      Uri.https('www.google.com', '/maps/dir/', {
+        'api': '1',
+        'destination': '${destination.latitude},${destination.longitude}',
+        if (walking != null) 'travelmode': walking ? 'walking' : 'driving',
+      });
 
-  Future<bool> openDirections(GeoPoint destination) async {
+  Future<bool> openDirections(GeoPoint destination, {bool? walking}) async {
     try {
-      return await launchUrl(directionsUri(destination), mode: LaunchMode.externalApplication);
+      return await launchUrl(
+        directionsUri(destination, walking: walking),
+        mode: LaunchMode.externalApplication,
+      );
     } catch (_) {
       return false;
     }
@@ -84,6 +93,7 @@ class GoogleMapsService extends MapService {
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -96,9 +106,43 @@ class GoogleMapsService extends MapService {
     center: center,
     zoom: zoom,
     pins: pins,
+    route: route,
     interactive: interactive,
     onPinTap: onPinTap,
     onInfoTap: onInfoTap,
+    onCameraIdle: onCameraIdle,
+    onCreated: onCreated,
+    onMapTap: onMapTap,
+  );
+}
+
+class MapLibreService extends MapService {
+  const MapLibreService();
+
+  @override
+  bool get isGoogle => false;
+
+  @override
+  Widget buildMap({
+    Key? key,
+    required GeoPoint center,
+    double zoom = defaultMapZoom,
+    List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
+    bool interactive = true,
+    ValueChanged<String>? onPinTap,
+    ValueChanged<String>? onInfoTap,
+    ValueChanged<MapCamera>? onCameraIdle,
+    ValueChanged<KhojloMapController>? onCreated,
+    VoidCallback? onMapTap,
+  }) => MapLibreMapView(
+    key: key,
+    center: center,
+    zoom: zoom,
+    pins: pins,
+    route: route,
+    interactive: interactive,
+    onPinTap: onPinTap,
     onCameraIdle: onCameraIdle,
     onCreated: onCreated,
     onMapTap: onMapTap,
@@ -120,6 +164,7 @@ class SketchMapService extends MapService {
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -131,6 +176,7 @@ class SketchMapService extends MapService {
     center: center,
     zoom: zoom,
     pins: pins,
+    route: route,
     interactive: interactive,
     notice: interactive ? notice : null,
     onPinTap: onPinTap,
@@ -142,6 +188,10 @@ class SketchMapService extends MapService {
 }
 
 final mapServiceProvider = Provider<MapService>((ref) {
-  if (MapsConfig.isConfigured) return GoogleMapsService(MapsConfig.currentKey);
-  return const SketchMapService(notice: 'Map preview · add a Google Maps key to see real maps');
+  if (MapsConfig.useGoogle) {
+    if (MapsConfig.isConfigured) return GoogleMapsService(MapsConfig.currentKey);
+    return const SketchMapService(notice: 'Map preview · add a Google Maps key to see real maps');
+  }
+  if (MapsConfig.mapLibreSupported) return const MapLibreService();
+  return const SketchMapService(notice: 'Map preview · real maps run on Android, iOS and web');
 });

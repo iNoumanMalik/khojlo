@@ -15,6 +15,7 @@ import 'package:khojlo/features/discovery/presentation/business_detail_screen.da
 import 'package:khojlo/features/maps/map_providers.dart';
 import 'package:khojlo/features/maps/presentation/location_picker_screen.dart';
 import 'package:khojlo/features/maps/presentation/map_screen.dart';
+import 'package:khojlo/features/maps/presentation/route_screen.dart';
 import 'package:khojlo/features/reviews/data/reviews_repository.dart';
 import 'package:khojlo/features/search/data/search_repository.dart';
 import 'package:khojlo/features/search/search_providers.dart';
@@ -43,9 +44,12 @@ final unpinned = place(3, 'Night Owl Ramen');
 class FakeSearch extends SearchRepository {
   FakeSearch() : super(Dio());
 
-  final calls = <({SearchFilters filters, GeoBounds? bounds, int limit})>[];
+  final calls = <({SearchFilters filters, GeoBounds? bounds, int limit, double? lat})>[];
   List<BusinessCard> items = [brew, reading, unpinned];
   int? total;
+
+  /// Like the server: a map-area search only returns places inside the area.
+  bool respectBounds = false;
 
   @override
   Future<SearchPage> search(SearchFilters filters,
@@ -55,8 +59,11 @@ class FakeSearch extends SearchRepository {
       int offset = 0,
       bool record = false,
       GeoBounds? bounds}) async {
-    calls.add((filters: filters, bounds: bounds, limit: limit));
-    return SearchPage(items: items, total: total ?? items.length, summary: '');
+    calls.add((filters: filters, bounds: bounds, limit: limit, lat: lat));
+    final found = respectBounds && bounds != null
+        ? items.where((b) => b.location != null && bounds.contains(b.location!)).toList()
+        : items;
+    return SearchPage(items: found, total: total ?? found.length, summary: '');
   }
 
   @override
@@ -64,9 +71,23 @@ class FakeSearch extends SearchRepository {
 }
 
 class FakeGeo extends GeoRepository {
-  FakeGeo({this.available = true}) : super(Dio());
+  FakeGeo({this.available = true, this.routeFailure}) : super(Dio());
   final bool available;
+  final GeoLookupFailure? routeFailure;
   int reverseCalls = 0;
+  final routeModes = <TravelMode>[];
+
+  @override
+  Future<RouteResult> route(GeoPoint from, GeoPoint to, TravelMode mode) async {
+    routeModes.add(mode);
+    if (routeFailure != null) throw GeoLookupException(routeFailure!);
+    return RouteResult(
+      mode: mode,
+      distanceMeters: 4321,
+      duration: Duration(minutes: mode == TravelMode.car ? 11 : 58),
+      points: [from, const GeoPoint(33.71, 73.06), to],
+    );
+  }
 
   @override
   Future<GeoPlace> reverse(GeoPoint p) async {
@@ -80,7 +101,7 @@ class FakeGeo extends GeoRepository {
   }
 
   @override
-  Future<List<GeoPlace>> search(String query) async => const [];
+  Future<List<GeoPlace>> search(String query, {GeoPoint? near}) async => const [];
 }
 
 /// The business page now shows reviews (Module 5); these tests don't need any.
@@ -229,6 +250,64 @@ void main() {
       expect(state.items.map((b) => b.name), ['Brew & Bloom', 'The Reading Room']);
     });
 
+    group('a search with nothing in view', () {
+      // G-11, west of the F-7 cafés.
+      const elsewhere = GeoBounds(south: 33.66, west: 72.98, north: 33.68, east: 73.00);
+      final farther = place(4, 'Brew Kiosk', lat: 33.80, lng: 73.10); // ~18 km away
+      final lahore = place(5, 'Brew Lahore', lat: 31.52, lng: 74.35);
+
+      Future<ProviderContainer> searchFrom(GeoBounds area, List<BusinessCard> items) async {
+        final search = FakeSearch()
+          ..items = items
+          ..respectBounds = true;
+        final c = container(search: search);
+        c.read(mapResultsProvider.notifier).onCameraIdle(area);
+        await mapLoaded(c);
+        await c.read(searchControllerProvider.notifier).submit('brew');
+        for (var i = 0; i < 50 && c.read(mapResultsProvider).status != MapStatus.ready; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        return c;
+      }
+
+      test('moves the map to the nearest matches and says so', () async {
+        final c = await searchFrom(elsewhere, [brew, farther, lahore]);
+        final search = c.read(searchRepositoryProvider) as FakeSearch;
+        // (The other calls are the area search and Explore's own list.)
+        final everywhere = search.calls.singleWhere((call) => call.filters.sort == SearchSort.distance);
+        expect(everywhere.bounds, isNull);
+        expect(everywhere.lat, elsewhere.center.latitude); // nearest to the view
+
+        final state = c.read(mapResultsProvider);
+        expect(state.showingNearest, isTrue);
+        expect(state.items.map((b) => b.name), ['Brew & Bloom']); // the far ones aren't framed
+        expect(state.fit!.bounds.contains(brew.location!), isTrue);
+        expect(state.fit!.bounds.contains(lahore.location!), isFalse);
+
+        // The move itself keeps the note; the user's next move clears it.
+        final notifier = c.read(mapResultsProvider.notifier);
+        notifier.onCameraIdle(state.fit!.bounds);
+        expect(c.read(mapResultsProvider).showingNearest, isTrue);
+        notifier.onCameraIdle(area);
+        expect(c.read(mapResultsProvider).showingNearest, isFalse);
+      });
+
+      test('says when nothing matches anywhere', () async {
+        final c = await searchFrom(elsewhere, []);
+        final state = c.read(mapResultsProvider);
+        expect(state.searchedEverywhere, isTrue);
+        expect(state.fit, isNull);
+      });
+
+      test('stays put when something matches in view', () async {
+        final c = await searchFrom(area, [brew, lahore]);
+        final search = c.read(searchRepositoryProvider) as FakeSearch;
+        expect(search.calls.where((call) => call.filters.sort == SearchSort.distance), isEmpty);
+        expect(c.read(mapResultsProvider).items.map((b) => b.name), ['Brew & Bloom']);
+        expect(c.read(mapResultsProvider).showingNearest, isFalse);
+      });
+    });
+
     test('new filters reload the same area; the selection survives if still shown', () async {
       final search = FakeSearch();
       final c = container(search: search);
@@ -346,6 +425,18 @@ void main() {
       expect(find.text('Directions'), findsWidgets);
     });
 
+    testWidgets('Directions opens the route preview', (tester) async {
+      await open(tester, detail(lat: 33.7206, lng: 73.0551));
+      final directions = find.text('Directions').first;
+      await tester.ensureVisible(directions);
+      await tester.tap(directions);
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 400));
+      }
+      expect(find.byType(RouteScreen), findsOneWidget);
+      expect(find.text('Route to Brew & Bloom'), findsOneWidget);
+    });
+
     testWidgets('without a pin says “Location unavailable” (UC-9)', (tester) async {
       await open(tester, detail());
       expect(find.text('Location unavailable', skipOffstage: false), findsOneWidget);
@@ -390,6 +481,87 @@ void main() {
       expect(find.text('Drag the map to put the pin on your business'), findsOneWidget);
       expect(find.text('Search an address or area'), findsNothing);
       expect(find.text('Confirm pin'), findsOneWidget);
+    });
+  });
+
+  group('route preview (UC-9 get directions)', () {
+    const here = LocationFix(33.6938, 73.0652);
+    const f7 = GeoPoint(33.7206, 73.0551);
+
+    Future<void> openRoute(WidgetTester tester, ProviderContainer c) =>
+        pump(tester, c, const RouteScreen(destination: f7, name: 'Brew & Bloom'),
+            size: const Size(1440, 2340));
+
+    testWidgets('draws the route with the time and distance, by car or on foot', (tester) async {
+      final geo = FakeGeo();
+      final c = container(search: FakeSearch(), geo: geo, fix: here);
+      await openRoute(tester, c);
+      expect(find.text('Route to Brew & Bloom'), findsOneWidget);
+      expect(find.text('~11 min'), findsOneWidget);
+      expect(find.text('4.3 km'), findsOneWidget);
+      expect(find.byKey(const ValueKey('pin-me')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pin-destination')), findsOneWidget);
+
+      await tester.tap(find.text('Walk'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('~58 min'), findsOneWidget);
+      expect(geo.routeModes, [TravelMode.car, TravelMode.walk]);
+
+      await tester.tap(find.text('Car'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('~11 min'), findsOneWidget);
+      expect(geo.routeModes, hasLength(2)); // the car route is reused
+      expect(find.text('Start in Google Maps'), findsOneWidget);
+    });
+
+    testWidgets('without routing on the server it shows the straight-line distance',
+        (tester) async {
+      final c = container(
+        search: FakeSearch(),
+        geo: FakeGeo(routeFailure: GeoLookupFailure.unavailable),
+        fix: here,
+      );
+      await openRoute(tester, c);
+      expect(find.text('3.1 km away'), findsOneWidget);
+      expect(find.text('in a straight line'), findsOneWidget);
+      expect(find.text('Start in Google Maps'), findsOneWidget);
+    });
+
+    testWidgets('without the user\'s location it asks for it and still offers Start',
+        (tester) async {
+      final c = container(search: FakeSearch(), geo: FakeGeo());
+      await openRoute(tester, c);
+      expect(find.text('Turn on location to see the route from where you are.'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.byKey(const ValueKey('pin-destination')), findsOneWidget);
+      expect(find.text('Start in Google Maps'), findsOneWidget);
+    });
+
+    testWidgets('a failed route can be retried', (tester) async {
+      final geo = FakeGeo(routeFailure: GeoLookupFailure.failed);
+      final c = container(search: FakeSearch(), geo: geo, fix: here);
+      await openRoute(tester, c);
+      expect(find.text('Couldn’t load the route.'), findsOneWidget);
+      await tester.tap(find.text('Try again'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(geo.routeModes, hasLength(2));
+    });
+
+    test('Start asks Google Maps for the same travel mode', () {
+      const maps = SketchMapService();
+      expect(maps.directionsUri(f7, walking: true).queryParameters['travelmode'], 'walking');
+      expect(maps.directionsUri(f7, walking: false).queryParameters['travelmode'], 'driving');
+    });
+
+    test('times and distances read naturally', () {
+      expect(formatDistance(437), '440 m');
+      expect(formatDistance(4321), '4.3 km');
+      expect(formatDistance(27400), '27 km');
+      expect(formatDuration(const Duration(seconds: 20)), '1 min');
+      expect(formatDuration(const Duration(minutes: 45)), '45 min');
+      expect(formatDuration(const Duration(minutes: 65)), '1 h 5 min');
+      expect(formatDuration(const Duration(minutes: 120)), '2 h');
+      expect(distanceMeters(const GeoPoint(33.6938, 73.0652), f7), closeTo(3100, 60));
     });
   });
 }

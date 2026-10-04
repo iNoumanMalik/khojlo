@@ -13,7 +13,7 @@ Cloning the repository gives a teammate all the code, but not the private settin
 | `backend/.env` | No (gitignored) | **Yes, privately:** the values in the table below | The backend's settings and secrets: database, email, keys. |
 | `backend/.env.example` | Yes | No need | Template for `backend/.env`. Placeholders only, never real values. |
 | `backend/secrets/firebase-service-account.json` | No (gitignored) | **Yes, privately** | Lets the backend **send** push notifications through Firebase. |
-| `frontend/dart_defines.json` | No (gitignored) | **Yes, privately** (or they build it from the example) | The app's build-time settings: Firebase web settings, Web Push key, Maps keys. |
+| `frontend/dart_defines.json` | No (gitignored) | **Yes, privately** (or they build it from the example) | The app's build-time settings: Firebase web settings, Web Push key, map provider and Maps keys. |
 | `frontend/dart_defines.example.json` | Yes | No need | Template for `frontend/dart_defines.json`. |
 | `frontend/android/app/google-services.json` | Yes | No need | The Android app's Firebase and Google Sign-In settings. Public by design. |
 
@@ -29,7 +29,8 @@ Tell them to copy the template first (`cp backend/.env.example backend/.env`), t
 | `SECRET_KEY` | Optional | Signs login tokens. Each person's backend can have its own; generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
 | `GOOGLE_WEB_CLIENT_ID` | Yes | Needed for "Continue with Google". Not secret, but it has to be the right one. |
 | `SMTP_*` | Yes, if they need real emails | The Gmail app password for verification and reset codes. Without it, no emails are sent. |
-| `GOOGLE_MAPS_SERVER_KEY` | Yes, if they need address lookup | Without it, address lookup is hidden and typed addresses still work. |
+| `OPENROUTESERVICE_API_KEY` | Yes, if they work on Directions | The in-app route preview. Free key from account.heigit.org (see the Module 6 plan). Without it, Directions shows the straight-line distance and opens Google Maps. |
+| `GOOGLE_MAPS_SERVER_KEY` | Only with `GEOCODING_PROVIDER=google` | Address lookup uses free OpenStreetMap services by default and needs no key. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | No: the default path is already right | Points to the Firebase key file below. |
 | Everything else | No | Safe defaults are already in the template. |
 
@@ -43,7 +44,8 @@ Tell them to copy the template first (`cp backend/.env.example backend/.env`), t
 
 - Copy yours, or let them build it from `frontend/dart_defines.example.json`.
 - `FIREBASE_*` and `FIREBASE_WEB_VAPID_KEY`: push notifications on the **web**. The values come from Firebase Console → Project settings → Your apps → Khojlo Web. They aren't secret (every browser receives them), but they're kept out of git so keys are handled one way throughout the project.
-- `MAPS_API_KEY_WEB` and `MAPS_API_KEY_ANDROID`: real Google Maps. Without them the app shows a drawn preview map.
+- `MAP_PROVIDER`: leave it as `maplibre` (OpenStreetMap maps, no key needed). `google` switches to Google Maps.
+- `MAPS_API_KEY_WEB` and `MAPS_API_KEY_ANDROID`: only used with `MAP_PROVIDER=google`. Without them that mode shows a drawn preview map.
 - Leave `KHOJLO_API` empty unless they run the backend on another machine (see the README for phones).
 - Run the app with it: `flutter run --dart-define-from-file=dart_defines.json` (add `-d chrome` for the web).
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -17,6 +18,7 @@ class SketchMap extends StatefulWidget {
     required this.center,
     required this.zoom,
     required this.pins,
+    this.route = const [],
     this.interactive = true,
     this.notice,
     this.onPinTap,
@@ -29,6 +31,7 @@ class SketchMap extends StatefulWidget {
   final GeoPoint center;
   final double zoom;
   final List<MapPin> pins;
+  final List<GeoPoint> route;
   final bool interactive;
   final String? notice;
   final ValueChanged<String>? onPinTap;
@@ -152,6 +155,12 @@ class _SketchMapState extends State<SketchMap> implements KhojloMapController {
             child: Stack(
               children: [
                 Positioned.fill(child: CustomPaint(painter: _SketchPainter(_center, _zoom))),
+                if (widget.route.length >= 2)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _RoutePainter([for (final p in widget.route) _toScreen(p)]),
+                    ),
+                  ),
                 for (final pin in pins) _pin(pin),
                 if (info != null) _infoWindow(info),
                 if (widget.notice != null)
@@ -258,6 +267,29 @@ class _PinPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PinPainter old) => old.kind != kind;
+}
+
+/// The route preview: an emerald line with a white casing, under the pins.
+class _RoutePainter extends CustomPainter {
+  _RoutePainter(this.points);
+  final List<Offset> points;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()..addPolygon(points, false);
+    Paint stroke(Color color, double width) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas
+      ..drawPath(path, stroke(Colors.white, 9))
+      ..drawPath(path, stroke(AppColors.emerald, 5));
+  }
+
+  @override
+  bool shouldRepaint(_RoutePainter old) => !listEquals(old.points, points);
 }
 
 /// Cream land, a soft grid of "streets" that moves with the camera, and a river.

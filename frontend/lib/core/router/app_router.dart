@@ -269,16 +269,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
+/// Where the router waits while the session is restored. Plain cream: the launch
+/// animation (`SplashOverlay`) plays above it.
 class _Splash extends StatelessWidget {
   const _Splash();
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.cream,
-      body: Center(
-        child: CircularProgressIndicator(color: AppColors.emerald),
-      ),
-    );
+    return const Scaffold(backgroundColor: AppColors.cream);
   }
 }

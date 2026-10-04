@@ -84,7 +84,7 @@ The repository is on GitHub, so keys are never committed. See [Setup steps](#set
 | Map-area search | `app/services/search/strategies.py` (`AreaSearch`), `criteria.py` (`MapBounds`), `app/api/search.py` | `GET /search` takes `north`, `south`, `east`, `west`. All four are required together, and south must be below north. Areas crossing the 180° meridian are rejected. The strategy combines with every Module 4 filter and sort order, and excludes businesses without coordinates. `limit` goes up to 100 for map pins. |
 | Pin coordinates on cards | `app/schemas/business.py`, `app/services/business_service.py` | `latitude` and `longitude` moved from the detail schema up to `BusinessCard`, so search results can be drawn as pins. The change is additive. |
 | BR-7 | `app/schemas/business.py`, `app/api/businesses.py` | (0, 0) is rejected on create and update, alongside the existing range and both-or-neither checks. |
-| Geocoding | `app/services/geocoding.py` (`Geocoder`, `GoogleGeocoder`), `app/api/geo.py` | `GET /geo/reverse?lat&lng` and `GET /geo/search?q`. Signed-in users only, and rate-limited to 60 lookups per 10 minutes per user. Results are cached for 24 hours, with reverse lookups on an ~11 m grid. Without `GOOGLE_MAPS_SERVER_KEY` the endpoints return 503, and the app hides lookup features. Provider errors are logged but never shown to users. |
+| Geocoding | `app/services/geocoding.py` (`Geocoder`, `GoogleGeocoder`), `app/api/geo.py` | `GET /geo/reverse?lat&lng` and `GET /geo/search?q`. Signed-in users only, and rate-limited to 60 lookups per 10 minutes per user. Results are cached for 24 hours, with reverse lookups on an ~11 m grid. The provider is OpenStreetMap by default (see below); with `GEOCODING_PROVIDER=google` and no `GOOGLE_MAPS_SERVER_KEY` the endpoints return 503, and the app hides lookup features. Provider errors are logged but never shown to users. |
 | Tests | `tests/test_maps.py` | Map area, filters, validation, BR-7, the geocoding API with a fake provider, and the Google client with a fake HTTP session. |
 
 ### Flutter
@@ -104,9 +104,44 @@ The repository is on GitHub, so keys are never committed. See [Setup steps](#set
 
 * **iOS** has no Google Maps key wiring yet, so it shows the sketch map. Adding it needs a Maps SDK for iOS key and a line in `AppDelegate.swift`.
 * **No "Search this area" button.** Results refresh on their own when the map stops moving, as the design asks ("cards update as the map is dragged").
+* **A search with nothing in view looks further.** A new keyword or filter first searches the visible area, so the map stays put when something nearby matches. If nothing in view matches, it searches everywhere (nearest to the view first), moves the map to the closest matches and says "No matches in that area · showing the nearest". Panning and zooming still search only the visible area.
 * **Keys** live in the existing gitignored `frontend/dart_defines.json`, not in `local.properties`, so web and Android read the same file.
 
+## Map provider: MapLibre + OpenStreetMap (October 2026)
+
+Google Maps couldn't be set up for this iteration (it needs a billing account), so the default map is now open source. The SRS/SDD name Google Maps; `MapService` was built so the provider could change without touching screens, and Google stays available for a later iteration.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Provider choice | `maps_config.dart`, `mapServiceProvider` in `map_service.dart` | `MAP_PROVIDER` in `dart_defines.json`: `maplibre` (default) or `google`. MapLibre runs on Android, iOS and web; desktop gets the sketch map. |
+| MapLibre map | `maplibre_map_view.dart` (`MapLibreService`) | `maplibre_gl` renders vector tiles, so zooming is smooth and the style is ours. Pins are a GeoJSON source drawn by one symbol layer, using the same painter as before (`pin_icons.dart`). Rotation and tilt are off, because map-area search uses north-up bounds. If the style hasn't loaded after 20 s (offline, no WebGL), the sketch map is shown instead. |
+| Style | `assets/maps/khojlo_style.json`, built by `tool/build_map_style.py` | OpenFreeMap's "Positron" style (no points of interest, so Khojlo's pins stand out) recoloured with the old Google style's palette. Labels are Latin-only, and transit and road shields are hidden. Re-run the script after changing a colour. |
+| Tiles | OpenFreeMap (`tiles.openfreemap.org`) | Free, no key and no registration. Attribution ("OpenFreeMap © OpenMapTiles Data from OpenStreetMap") is shown by MapLibre and must stay visible. Before a public launch, consider self-hosting a Pakistan extract (Protomaps/PMTiles) so we don't depend on a donation-funded service. |
+| Directions | `MapService.openDirections` | Unchanged: a Google Maps navigation link, which needs no API key. |
+
+| Address lookup | `OsmGeocoder` in `app/services/geocoding.py` | Default provider (`GEOCODING_PROVIDER=osm`), no key. **Photon** answers typed searches: results are limited to Pakistan (`GEOCODING_REGION`) and ranked near the map centre the app sends as `lat`/`lng`. **Nominatim** names the spot under a pin and the Home location ("F-7/2, Islamabad"); its usage policy allows one request per second per server, so calls are paced and cached on an ~11 m grid. Both send `GEOCODING_USER_AGENT`, and `PHOTON_URL`/`NOMINATIM_URL` can point at self-hosted instances. `GoogleGeocoder` remains for `GEOCODING_PROVIDER=google`. |
+
+## Route preview (October 2026)
+
+Directions (business page, the Map tab's preview card, and chat) now opens a route screen instead of going straight to Google Maps.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Routing | `app/services/routing.py` (`Router`, `OrsRouter`), `GET /geo/route` in `app/api/geo.py` | openrouteservice (`driving-car`, `foot-walking`), behind the server so the key stays private. Signed-in users, 30 routes per 10 minutes each; routes cached for 6 hours with the start on a ~110 m grid. 503 without `OPENROUTESERVICE_API_KEY`, 404 when no road connects the points, 502 on provider errors (details only in the log). |
+| Route screen | `lib/features/maps/presentation/route_screen.dart` | Our map with the route as an emerald line, the user's dot and the business pin, a Car / Walk switch, "~11 min · 4.3 km", and **Start in Google Maps** (same travel mode) for turn-by-turn navigation. Without a key or a location it still opens: it shows the straight-line distance, or asks for the location. |
+| Route line | `MapService.buildMap(route: …)` | Drawn by all three maps: a MapLibre line layer under the pins, a Google polyline, and a painted line on the sketch map. |
+
+Times have no live traffic (free routing), so they're shown as approximate ("~11 min").
+
+### Getting the openrouteservice key
+
+1. Sign up at <https://account.heigit.org> and confirm your email.
+2. In the dashboard, request a token on the free **Standard** plan (2,000 directions requests a day, 40 a minute).
+3. Copy the key into `backend/.env` as `OPENROUTESERVICE_API_KEY=…`, then restart the backend. Don't commit it or paste it in chat.
+
 ## Setup steps
+
+These steps are only needed for `MAP_PROVIDER=google` and `GEOCODING_PROVIDER=google`; the default MapLibre map and OpenStreetMap address lookup need no setup.
 
 1. In Google Cloud (the project already used for Google Sign-In), attach a **billing account**. Maps Platform requires one even within the free monthly usage.
 2. Enable **Maps JavaScript API** (web), **Maps SDK for Android**, and **Geocoding API** (backend).
@@ -119,4 +154,4 @@ The repository is on GitHub, so keys are never committed. See [Setup steps](#set
    * `backend/.env`: `GOOGLE_MAPS_SERVER_KEY`.
 5. Run the app with `flutter run --dart-define-from-file=dart_defines.json`. The Android build reads its key from the same file.
 
-Without keys everything still works: the app shows the sketch map, and address lookup is hidden.
+Without keys everything still works: the app shows the MapLibre map and looks up addresses with OpenStreetMap. Only the Google modes fall back (sketch map, lookup hidden).

@@ -5,7 +5,7 @@ import '../location/location_service.dart';
 import '../providers.dart';
 import 'map_types.dart';
 
-/// An address from the backend's `/geo/*` lookup (Google Geocoding behind our server).
+/// An address from the backend's `/geo/*` lookup (OpenStreetMap or Google, behind our server).
 class GeoPlace {
   const GeoPlace({
     required this.address,
@@ -32,9 +32,36 @@ class GeoPlace {
   );
 }
 
+enum TravelMode { car, walk }
+
+/// A route preview from the backend's `/geo/route` (openrouteservice behind our server).
+class RouteResult {
+  const RouteResult({
+    required this.mode,
+    required this.distanceMeters,
+    required this.duration,
+    required this.points,
+  });
+
+  final TravelMode mode;
+  final double distanceMeters;
+  final Duration duration;
+  final List<GeoPoint> points;
+
+  factory RouteResult.fromJson(Map<String, dynamic> j) => RouteResult(
+    mode: TravelMode.values.byName(j['mode'] as String),
+    distanceMeters: (j['distance_m'] as num).toDouble(),
+    duration: Duration(seconds: (j['duration_s'] as num).round()),
+    points: [
+      for (final p in j['points'] as List)
+        GeoPoint(((p as List)[0] as num).toDouble(), (p[1] as num).toDouble()),
+    ],
+  );
+}
+
 /// Why an address lookup gave nothing.
 enum GeoLookupFailure {
-  /// The server has no geocoding key (503): the app hides lookup features.
+  /// Address lookup is off on the server (503): the app hides lookup features.
   unavailable,
   notFound,
   failed,
@@ -61,10 +88,37 @@ class GeoRepository {
     }
   }
 
-  Future<List<GeoPlace>> search(String query) async {
+  /// Places matching [query]; [near] ranks places close to it first.
+  Future<List<GeoPlace>> search(String query, {GeoPoint? near}) async {
     try {
-      final res = await _dio.get('/geo/search', queryParameters: {'q': query});
+      final res = await _dio.get(
+        '/geo/search',
+        queryParameters: {
+          'q': query,
+          if (near != null && near.isValid) ...{'lat': near.latitude, 'lng': near.longitude},
+        },
+      );
       return (res.data as List).map((e) => GeoPlace.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw GeoLookupException(_reason(e));
+    }
+  }
+
+  /// The route from [from] to [to]. Fails with [GeoLookupFailure.unavailable] when the
+  /// server has no routing key, and [GeoLookupFailure.notFound] when no road connects them.
+  Future<RouteResult> route(GeoPoint from, GeoPoint to, TravelMode mode) async {
+    try {
+      final res = await _dio.get(
+        '/geo/route',
+        queryParameters: {
+          'from_lat': from.latitude,
+          'from_lng': from.longitude,
+          'to_lat': to.latitude,
+          'to_lng': to.longitude,
+          'mode': mode.name,
+        },
+      );
+      return RouteResult.fromJson(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw GeoLookupException(_reason(e));
     }

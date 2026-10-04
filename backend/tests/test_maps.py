@@ -8,7 +8,10 @@ from app.services.geocoding import (
     Geocoder,
     GeocodingError,
     GoogleGeocoder,
+    OsmGeocoder,
     Place,
+    parse_nominatim,
+    parse_photon,
     parse_result,
 )
 from tests.conftest import auth, login, register
@@ -104,6 +107,7 @@ F7_RESULT = {
 class FakeGeocoder(Geocoder):
     def __init__(self, fail=False):
         self.fail = fail
+        self.near = None
 
     def reverse(self, latitude, longitude):
         if self.fail:
@@ -112,7 +116,8 @@ class FakeGeocoder(Geocoder):
             return None
         return parse_result(F7_RESULT)
 
-    def search(self, query):
+    def search(self, query, near=None):
+        self.near = near
         return [parse_result(F7_RESULT)] if "f-7" in query.lower() else []
 
 
@@ -156,6 +161,15 @@ def test_place_search(client, user):
     assert client.get("/api/v1/geo/search", params={"q": "zzz"}, headers=user).json() == []
 
 
+def test_place_search_can_rank_places_near_the_user(client, user):
+    fake = FakeGeocoder()
+    use(fake)
+    client.get("/api/v1/geo/search", params={"q": "F-7", "lat": 33.7, "lng": 73.0}, headers=user)
+    assert fake.near == (33.7, 73.0)
+    client.get("/api/v1/geo/search", params={"q": "F-7", "lat": 33.7}, headers=user)
+    assert fake.near is None  # both or neither
+
+
 def test_lookup_needs_an_account_and_a_configured_key(client, user):
     use(FakeGeocoder())
     assert client.get("/api/v1/geo/reverse", params={"lat": 33.7, "lng": 73.0}).status_code == 401
@@ -181,18 +195,24 @@ def test_lookups_are_rate_limited(client, user, monkeypatch):
 
 
 class FakeSession:
-    def __init__(self, payload):
+    def __init__(self, payload, status_code=200):
         self.payload = payload
+        self.status_code = status_code
         self.calls: list[dict] = []
+        self.urls: list[str] = []
+        self.headers: list[dict | None] = []
 
-    def get(self, url, params, timeout):
+    def get(self, url, params, timeout, headers=None):
         self.calls.append(params)
-        payload = self.payload
+        self.urls.append(url)
+        self.headers.append(headers)
+        payload, status_code = self.payload, self.status_code
 
         class Response:
             def json(self):
                 return payload
 
+        Response.status_code = status_code
         return Response()
 
 
@@ -212,3 +232,104 @@ def test_google_geocoder_errors_and_empty_results():
         {"status": "REQUEST_DENIED", "error_message": "API not enabled"}))
     with pytest.raises(GeocodingError, match="REQUEST_DENIED"):
         denied.search("anything")
+
+
+# ── OpenStreetMap provider (Photon + Nominatim) ──
+
+NOMINATIM_F7 = {
+    "lat": "33.7208196", "lon": "73.0549836", "name": "College Road",
+    "address": {"road": "College Road", "neighbourhood": "F-7/2", "suburb": "F-7",
+                "city": "Islamabad", "municipality": "Zone 1", "postcode": "44000",
+                "country": "Pakistan", "country_code": "pk"},
+}
+
+
+def photon_hit(name, lon, lat, **props):
+    return {"geometry": {"coordinates": [lon, lat]},
+            "properties": {"name": name, "countrycode": "PK", **props}}
+
+
+PHOTON_RESULTS = {"features": [
+    photon_hit("F-7 Markaz Park", 73.0612, 33.7232, district="F-7", city="Islamabad"),
+    photon_hit("Jinnah Super Market, Jhenidah", 89.15, 23.54, city="Jhenaidah",
+               countrycode="BD"),
+    photon_hit("Post Office G-7 Markaz", 73.0683, 33.7044, street="Sachal Sarmast Road",
+               district="G-7", city="Islamabad"),
+    photon_hit("F-7", 73.05, 33.72, district="F-7", city="Islamabad"),
+    photon_hit("F-7", 73.0501, 33.7201, district="F-7", city="Islamabad"),  # mapped twice
+]}
+
+
+def test_nominatim_addresses_read_like_local_ones():
+    place = parse_nominatim(NOMINATIM_F7)
+    assert place.address == "College Road, F-7/2, F-7, Islamabad"
+    assert place.label == "F-7/2, Islamabad"
+    assert (place.latitude, place.longitude) == (33.7208196, 73.0549836)
+    assert parse_nominatim({"error": "Unable to geocode"}) is None
+    highway = parse_nominatim({"lat": "33.69", "lon": "73.06", "name": "Srinagar Highway",
+                               "address": {"road": "Srinagar Highway",
+                                           "state": "Islamabad Capital Territory"}})
+    assert highway.label == "Srinagar Highway, Islamabad"
+
+
+def test_photon_hits_keep_their_name_and_stay_in_the_country():
+    g = OsmGeocoder(user_agent="Khojlo-test", session=FakeSession(PHOTON_RESULTS))
+    places = g.search("markaz", near=(33.71, 73.06))
+    assert [p.label for p in places] == [
+        "F-7 Markaz Park, F-7, Islamabad",
+        "Post Office G-7 Markaz, G-7, Islamabad",
+        "F-7, Islamabad",  # the sector itself: no separate name
+    ]
+    assert places[1].address == "Post Office G-7 Markaz, Sachal Sarmast Road, G-7, Islamabad"
+    assert parse_photon({"properties": {}}) is None
+
+
+def test_osm_geocoder_identifies_itself_biases_and_caches():
+    session = FakeSession(PHOTON_RESULTS)
+    g = OsmGeocoder(user_agent="Khojlo-test", region="pk", session=session)
+    g.search("Markaz", near=(33.712, 73.061))
+    g.search("  markaz ", near=(33.708, 73.058))  # same query, same ~10 km area
+    assert len(session.calls) == 1
+    params = session.calls[0]
+    assert (params["lat"], params["lon"]) == (33.7, 73.1)
+    assert params["bbox"] == "60.87,23.63,77.84,37.1"
+    assert session.urls[0] == "https://photon.komoot.io/api"
+    assert session.headers[0] == {"User-Agent": "Khojlo-test"}
+
+
+def test_nominatim_reverse_is_cached_and_paced(monkeypatch):
+    from app.services import geocoding
+    sleeps = []
+    monkeypatch.setattr(geocoding.time, "sleep", sleeps.append)
+    session = FakeSession(NOMINATIM_F7)
+    g = OsmGeocoder(user_agent="Khojlo-test", nominatim_url="https://nominatim.example/",
+                    session=session)
+    first = g.reverse(33.72061, 73.05512)
+    assert g.reverse(33.72064, 73.05509) == first  # same ~11 m cell: cached
+    assert len(session.calls) == 1 and sleeps == []
+    g.reverse(33.80, 73.10)  # straight after: waits out Nominatim's 1 request/second
+    assert len(sleeps) == 1 and 0 < sleeps[0] <= 1
+    assert session.urls[0] == "https://nominatim.example/reverse"
+    assert session.calls[0]["accept-language"] == "en"
+
+
+def test_osm_provider_errors_are_geocoding_errors():
+    blocked = OsmGeocoder(user_agent="x", session=FakeSession({}, status_code=429))
+    with pytest.raises(GeocodingError, match="HTTP 429"):
+        blocked.search("anything")
+    nothing = OsmGeocoder(user_agent="x", session=FakeSession({"error": "Unable to geocode"}))
+    assert nothing.reverse(10, 10) is None
+
+
+def test_osm_is_the_default_provider_and_needs_no_key(monkeypatch):
+    from app.services import geocoding
+    from app.core.config import Settings
+    monkeypatch.setattr(geocoding, "_geocoder", None)
+    s = Settings(GOOGLE_MAPS_SERVER_KEY=None)
+    assert s.geocoding_enabled
+    assert isinstance(geocoding.configured_geocoder(s), OsmGeocoder)
+
+    monkeypatch.setattr(geocoding, "_geocoder", None)
+    google = Settings(GEOCODING_PROVIDER="google", GOOGLE_MAPS_SERVER_KEY=None)
+    assert not google.geocoding_enabled
+    assert geocoding.configured_geocoder(google) is None

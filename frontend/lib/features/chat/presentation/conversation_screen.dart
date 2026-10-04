@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/maps/map_service.dart';
 import '../../../core/media/photo_source.dart';
 import '../../../core/models/chat.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../maps/presentation/route_screen.dart';
 import '../chat_providers.dart';
 import '../data/chat_repository.dart';
 import 'widgets/chat_composer.dart';
@@ -139,14 +139,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (!opened && mounted) _snack('Couldn’t open the dialer. The number is $phone.');
   }
 
-  Future<void> _directions(ChatBusiness b) async {
+  void _directions(ChatBusiness b) {
     final point = b.location;
     if (point == null) {
       _snack('${b.name} hasn’t pinned its location yet.');
       return;
     }
-    final opened = await ref.read(mapServiceProvider).openDirections(point);
-    if (!opened && mounted) _snack('Couldn’t open Google Maps on this device.');
+    showRoute(context, destination: point, name: b.name);
   }
 
   @override

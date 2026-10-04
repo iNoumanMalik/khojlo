@@ -5,17 +5,70 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/push/firebase_setup.dart';
 import 'core/router/app_router.dart';
 import 'core/router/session_services.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'core/ui/messenger.dart';
+import 'core/ui/splash_overlay.dart';
+import 'features/auth/auth_controller.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  warmUpSplashFonts();
   // Push notifications need Firebase; the app works without it (push stays off).
-  final firebaseReady = await initFirebase();
-  runApp(ProviderScope(
-    overrides: [firebaseReadyProvider.overrideWithValue(firebaseReady)],
-    child: const KhojloApp(),
-  ));
+  // It starts while the launch animation plays, not before the first frame.
+  runApp(KhojloRoot(firebaseReady: initFirebase()));
+}
+
+/// The launch animation over the app. The app is built once Firebase has started
+/// (push needs to know whether it did) — the animation covers that wait, and the
+/// session restore after it.
+class KhojloRoot extends StatefulWidget {
+  const KhojloRoot({super.key, required this.firebaseReady});
+  final Future<bool> firebaseReady;
+
+  @override
+  State<KhojloRoot> createState() => _KhojloRootState();
+}
+
+class _KhojloRootState extends State<KhojloRoot> {
+  ProviderContainer? _container;
+  bool _sessionKnown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.firebaseReady.then((ready) {
+      if (!mounted) return;
+      final container = ProviderContainer(
+          overrides: [firebaseReadyProvider.overrideWithValue(ready)]);
+      container.listen(
+        authControllerProvider.select((s) => s.status != AuthStatus.unknown),
+        (_, known) => setState(() => _sessionKnown = known),
+        fireImmediately: true,
+      );
+      setState(() => _container = container);
+    });
+  }
+
+  @override
+  void dispose() {
+    _container?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final container = _container;
+    return MediaQuery.fromView(
+      view: View.of(context),
+      child: SplashOverlay(
+        ready: _sessionKnown,
+        child: container == null
+            ? const ColoredBox(color: AppColors.cream)
+            : UncontrolledProviderScope(container: container, child: const KhojloApp()),
+      ),
+    );
+  }
 }
 
 /// Smooth, consistent scrolling on every platform: bounce at the ends (no stretch or

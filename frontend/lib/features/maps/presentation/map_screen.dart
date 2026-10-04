@@ -17,6 +17,7 @@ import '../../search/presentation/filter_sheet.dart';
 import '../../search/presentation/widgets/explore_search_field.dart';
 import '../../search/search_providers.dart';
 import '../map_providers.dart';
+import 'route_screen.dart';
 import 'view_toggle.dart';
 
 /// Module 6 — the Map tab (SRS UC-9, FR-12; SDD `MapService`). Follows the design's
@@ -122,11 +123,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (result != null) ref.read(searchControllerProvider.notifier).applyFilters(result);
   }
 
-  Future<void> _directions(BusinessCard b) async {
+  /// UC-9 alternative flow: the route preview, then Google Maps for navigation.
+  void _directions(BusinessCard b) {
     final point = b.location;
     if (point == null) return;
-    final opened = await ref.read(mapServiceProvider).openDirections(point);
-    if (!opened && mounted) _snack('Couldn’t open Google Maps on this device.');
+    showRoute(context, destination: point, name: b.name, address: b.address);
   }
 
   void _onPinTap(String id) {
@@ -190,6 +191,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _syncCarousel(next);
       });
+    });
+    // A search with nothing in view: move to the nearest matches.
+    ref.listen(mapResultsProvider.select((s) => s.fit), (previous, next) {
+      if (next == null || identical(next, previous)) return;
+      _settled = true;
+      _map?.fitBounds(next.bounds);
     });
     ref.listen(searchControllerProvider.select((s) => s.input), (_, next) {
       if (_text.text != next) {
@@ -432,6 +439,11 @@ class _StatusChip extends StatelessWidget {
     final (String? text, bool busy, bool retry) = switch (state.status) {
       MapStatus.loading => ('Finding places…', true, false),
       MapStatus.error => ('Couldn’t load places · Retry', false, true),
+      MapStatus.ready when state.showingNearest => (
+        'No matches in that area · showing the nearest',
+        false,
+        false,
+      ),
       MapStatus.ready when state.capped => (
         'Showing ${state.items.length} of ${state.total} · zoom in for more',
         false,
@@ -677,6 +689,8 @@ class _CarouselHint extends StatelessWidget {
     final text = switch (state.status) {
       MapStatus.idle || MapStatus.loading => 'Looking around this area…',
       MapStatus.error => 'Places couldn’t load. Tap Retry on the map.',
+      MapStatus.ready when state.searchedEverywhere =>
+        'No places match your search yet. Try other words or fewer filters.',
       MapStatus.ready =>
         hasSearch
             ? 'Nothing here matches your search. Zoom out or change filters.'
