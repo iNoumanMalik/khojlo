@@ -17,6 +17,7 @@ import '../../search/presentation/filter_sheet.dart';
 import '../../search/presentation/widgets/explore_search_field.dart';
 import '../../search/search_providers.dart';
 import '../map_providers.dart';
+import 'route_screen.dart';
 import 'view_toggle.dart';
 
 /// Module 6 — the Map tab (SRS UC-9, FR-12; SDD `MapService`). Follows the design's
@@ -122,11 +123,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (result != null) ref.read(searchControllerProvider.notifier).applyFilters(result);
   }
 
-  Future<void> _directions(BusinessCard b) async {
+  /// UC-9 alternative flow: the route preview, then Google Maps for navigation.
+  void _directions(BusinessCard b) {
     final point = b.location;
     if (point == null) return;
-    final opened = await ref.read(mapServiceProvider).openDirections(point);
-    if (!opened && mounted) _snack('Couldn’t open Google Maps on this device.');
+    showRoute(context, destination: point, name: b.name, address: b.address);
   }
 
   void _onPinTap(String id) {

@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     # Keep results in this country (ccTLD) and return text in this language.
     GEOCODING_REGION: str = "pk"
     GEOCODING_LANGUAGE: str = "en"
+    # openrouteservice key for the in-app route preview (free plan: account.heigit.org).
+    # Without it, the route screen shows the straight-line distance only.
+    OPENROUTESERVICE_API_KEY: str | None = None
+    OPENROUTESERVICE_URL: str = "https://api.openrouteservice.org"
 
     # ── Push notifications: Firebase Cloud Messaging (optional; off when unset) ──
     GOOGLE_APPLICATION_CREDENTIALS: str | None = None

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../theme/app_colors.dart';
 import 'map_style.dart';
 import 'map_types.dart';
 import 'maps_loader_stub.dart' if (dart.library.js_interop) 'maps_loader_web.dart';
@@ -19,6 +20,7 @@ class GoogleMapView extends StatefulWidget {
     required this.zoom,
     required this.pins,
     required this.interactive,
+    this.route = const [],
     this.onPinTap,
     this.onInfoTap,
     this.onCameraIdle,
@@ -30,6 +32,7 @@ class GoogleMapView extends StatefulWidget {
   final GeoPoint center;
   final double zoom;
   final List<MapPin> pins;
+  final List<GeoPoint> route;
   final bool interactive;
   final ValueChanged<String>? onPinTap;
   final ValueChanged<String>? onInfoTap;
@@ -124,6 +127,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     center: widget.center,
     zoom: widget.zoom,
     pins: widget.pins,
+    route: widget.route,
     interactive: widget.interactive,
     notice: widget.interactive ? notice : null,
     onPinTap: widget.onPinTap,
@@ -160,6 +164,18 @@ class _GoogleMapViewState extends State<GoogleMapView> {
       initialCameraPosition: _camera,
       style: khojloMapStyle,
       markers: _markers(),
+      polylines: {
+        if (widget.route.length >= 2)
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: [for (final p in widget.route) _latLng(p)],
+            color: AppColors.emerald,
+            width: 5,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ),
+      },
       // The app draws its own "you are here" dot and locate button on every platform.
       myLocationEnabled: false,
       myLocationButtonEnabled: false,

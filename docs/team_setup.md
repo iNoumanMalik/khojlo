@@ -29,6 +29,7 @@ Tell them to copy the template first (`cp backend/.env.example backend/.env`), t
 | `SECRET_KEY` | Optional | Signs login tokens. Each person's backend can have its own; generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
 | `GOOGLE_WEB_CLIENT_ID` | Yes | Needed for "Continue with Google". Not secret, but it has to be the right one. |
 | `SMTP_*` | Yes, if they need real emails | The Gmail app password for verification and reset codes. Without it, no emails are sent. |
+| `OPENROUTESERVICE_API_KEY` | Yes, if they work on Directions | The in-app route preview. Free key from account.heigit.org (see the Module 6 plan). Without it, Directions shows the straight-line distance and opens Google Maps. |
 | `GOOGLE_MAPS_SERVER_KEY` | Only with `GEOCODING_PROVIDER=google` | Address lookup uses free OpenStreetMap services by default and needs no key. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | No: the default path is already right | Points to the Firebase key file below. |
 | Everything else | No | Safe defaults are already in the template. |

@@ -17,6 +17,7 @@ const khojloStyleAsset = 'assets/maps/khojlo_style.json';
 
 const _pinSource = 'khojlo-pins';
 const _pinLayer = 'khojlo-pins';
+const _routeSource = 'khojlo-route';
 
 /// A MapLibre vector map in Khojlo's style with the app's own pins. Pins are a GeoJSON
 /// source drawn by one symbol layer, so hundreds of them stay smooth. If the style can't
@@ -28,6 +29,7 @@ class MapLibreMapView extends StatefulWidget {
     required this.zoom,
     required this.pins,
     required this.interactive,
+    this.route = const [],
     this.onPinTap,
     this.onCameraIdle,
     this.onCreated,
@@ -37,6 +39,7 @@ class MapLibreMapView extends StatefulWidget {
   final GeoPoint center;
   final double zoom;
   final List<MapPin> pins;
+  final List<GeoPoint> route;
   final bool interactive;
   final ValueChanged<String>? onPinTap;
   final ValueChanged<MapCamera>? onCameraIdle;
@@ -76,6 +79,7 @@ class _MapLibreMapViewState extends State<MapLibreMapView> {
     super.didUpdateWidget(old);
     if (!_styleReady) return;
     if (!listEquals(old.pins, widget.pins)) _syncPins();
+    if (!listEquals(old.route, widget.route)) _syncRoute();
     // A still map (business page) follows its point; interactive maps are moved
     // explicitly through the controller.
     if (!widget.interactive && old.center != widget.center) {
@@ -116,6 +120,31 @@ class _MapLibreMapViewState extends State<MapLibreMapView> {
     ],
   };
 
+  Map<String, dynamic> _routeGeoJson() => {
+    'type': 'FeatureCollection',
+    'features': [
+      if (widget.route.length >= 2)
+        {
+          'type': 'Feature',
+          'properties': <String, dynamic>{},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': [
+              for (final p in widget.route) [p.longitude, p.latitude],
+            ],
+          },
+        },
+    ],
+  };
+
+  Future<void> _syncRoute() async {
+    try {
+      await _controller?.setGeoJsonSource(_routeSource, _routeGeoJson());
+    } catch (_) {
+      // The map was disposed mid-call.
+    }
+  }
+
   Future<void> _syncPins() async {
     try {
       await _controller?.setGeoJsonSource(_pinSource, _pinsGeoJson());
@@ -149,6 +178,31 @@ class _MapLibreMapViewState extends State<MapLibreMapView> {
     _loadTimeout?.cancel();
     try {
       await _addPinImages(controller);
+      // The route goes in first so the pins draw on top of it: a white casing under an
+      // emerald line (AppColors.emerald), like the selected pin.
+      await controller.addGeoJsonSource(_routeSource, _routeGeoJson());
+      await controller.addLineLayer(
+        _routeSource,
+        'khojlo-route-casing',
+        const LineLayerProperties(
+          lineColor: '#ffffff',
+          lineWidth: 9,
+          lineCap: 'round',
+          lineJoin: 'round',
+        ),
+        enableInteraction: false,
+      );
+      await controller.addLineLayer(
+        _routeSource,
+        'khojlo-route',
+        const LineLayerProperties(
+          lineColor: '#1D6D5A',
+          lineWidth: 5,
+          lineCap: 'round',
+          lineJoin: 'round',
+        ),
+        enableInteraction: false,
+      );
       await controller.addGeoJsonSource(_pinSource, _pinsGeoJson(), promoteId: 'id');
       await controller.addSymbolLayer(
         _pinSource,
@@ -188,8 +242,9 @@ class _MapLibreMapViewState extends State<MapLibreMapView> {
     }
     if (!mounted) return;
     setState(() => _styleReady = true);
-    // Pins may have changed while the style loaded.
+    // Pins and the route may have changed while the style loaded.
     unawaited(_syncPins());
+    unawaited(_syncRoute());
     // Report the first view too, so results load without the user touching the map.
     unawaited(_onIdle());
   }
@@ -230,6 +285,7 @@ class _MapLibreMapViewState extends State<MapLibreMapView> {
         center: widget.center,
         zoom: widget.zoom,
         pins: widget.pins,
+        route: widget.route,
         interactive: widget.interactive,
         notice: widget.interactive ? "Couldn't load the map · check your connection" : null,
         onPinTap: widget.onPinTap,

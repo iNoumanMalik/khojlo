@@ -120,6 +120,24 @@ Google Maps couldn't be set up for this iteration (it needs a billing account), 
 
 | Address lookup | `OsmGeocoder` in `app/services/geocoding.py` | Default provider (`GEOCODING_PROVIDER=osm`), no key. **Photon** answers typed searches: results are limited to Pakistan (`GEOCODING_REGION`) and ranked near the map centre the app sends as `lat`/`lng`. **Nominatim** names the spot under a pin and the Home location ("F-7/2, Islamabad"); its usage policy allows one request per second per server, so calls are paced and cached on an ~11 m grid. Both send `GEOCODING_USER_AGENT`, and `PHOTON_URL`/`NOMINATIM_URL` can point at self-hosted instances. `GoogleGeocoder` remains for `GEOCODING_PROVIDER=google`. |
 
+## Route preview (October 2026)
+
+Directions (business page, the Map tab's preview card, and chat) now opens a route screen instead of going straight to Google Maps.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Routing | `app/services/routing.py` (`Router`, `OrsRouter`), `GET /geo/route` in `app/api/geo.py` | openrouteservice (`driving-car`, `foot-walking`), behind the server so the key stays private. Signed-in users, 30 routes per 10 minutes each; routes cached for 6 hours with the start on a ~110 m grid. 503 without `OPENROUTESERVICE_API_KEY`, 404 when no road connects the points, 502 on provider errors (details only in the log). |
+| Route screen | `lib/features/maps/presentation/route_screen.dart` | Our map with the route as an emerald line, the user's dot and the business pin, a Car / Walk switch, "~11 min · 4.3 km", and **Start in Google Maps** (same travel mode) for turn-by-turn navigation. Without a key or a location it still opens: it shows the straight-line distance, or asks for the location. |
+| Route line | `MapService.buildMap(route: …)` | Drawn by all three maps: a MapLibre line layer under the pins, a Google polyline, and a painted line on the sketch map. |
+
+Times have no live traffic (free routing), so they're shown as approximate ("~11 min").
+
+### Getting the openrouteservice key
+
+1. Sign up at <https://account.heigit.org> and confirm your email.
+2. In the dashboard, request a token on the free **Standard** plan (2,000 directions requests a day, 40 a minute).
+3. Copy the key into `backend/.env` as `OPENROUTESERVICE_API_KEY=…`, then restart the backend. Don't commit it or paste it in chat.
+
 ## Setup steps
 
 These steps are only needed for `MAP_PROVIDER=google` and `GEOCODING_PROVIDER=google`; the default MapLibre map and OpenStreetMap address lookup need no setup.

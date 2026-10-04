@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.models.user import User
 from app.services.geocoding import Geocoder, GeocodingError, Place, configured_geocoder
+from app.services.routing import Router, RoutingError, TravelMode, configured_router
 
 router = APIRouter(prefix="/geo", tags=["maps"])
 log = logging.getLogger("uvicorn.error")
@@ -67,6 +68,8 @@ class _RateLimiter:
 
 
 limiter = _RateLimiter(RATE_LIMIT, RATE_WINDOW_SECONDS)
+# Routes: a few per business visit (car ↔ walk), inside openrouteservice's 40/minute.
+route_limiter = _RateLimiter(30, RATE_WINDOW_SECONDS)
 
 
 def _ready(user: User, geocoder: Geocoder | None) -> Geocoder:
@@ -116,3 +119,44 @@ def search_places(
         return [PlaceOut.of(p) for p in g.search(q.strip(), near)]
     except GeocodingError as exc:
         raise _failed(exc) from None
+
+
+class RouteOut(BaseModel):
+    mode: TravelMode
+    distance_m: float
+    duration_s: float
+    # [latitude, longitude] pairs, start to end.
+    points: list[tuple[float, float]]
+
+
+def get_router() -> Router | None:
+    """Overridable in tests; None when `OPENROUTESERVICE_API_KEY` isn't set."""
+    return configured_router(settings)
+
+
+@router.get("/route", response_model=RouteOut, summary="Route preview between two points")
+def route_between(
+    from_lat: float = Query(ge=-90, le=90),
+    from_lng: float = Query(ge=-180, le=180),
+    to_lat: float = Query(ge=-90, le=90),
+    to_lng: float = Query(ge=-180, le=180),
+    mode: TravelMode = TravelMode.car,
+    user: User = Depends(get_current_user),
+    routing: Router | None = Depends(get_router),
+) -> RouteOut:
+    if routing is None:
+        raise HTTPException(status_code=NOT_CONFIGURED,
+                            detail="Route previews aren't set up on this server.")
+    if not route_limiter.allow(user.id):
+        raise HTTPException(status_code=TOO_MANY,
+                            detail="Too many route requests. Please wait a few minutes.")
+    try:
+        found = routing.route((from_lat, from_lng), (to_lat, to_lng), mode)
+    except RoutingError as exc:
+        log.warning("Routing failed: %s", exc)
+        raise HTTPException(status_code=PROVIDER_FAILED,
+                            detail="Couldn't find a route right now. Please try again.") from None
+    if found is None:
+        raise HTTPException(status_code=404, detail="No route found between these places.")
+    return RouteOut(mode=mode, distance_m=found.distance_m, duration_s=found.duration_s,
+                    points=found.points)

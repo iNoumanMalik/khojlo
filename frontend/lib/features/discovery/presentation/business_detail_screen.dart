@@ -15,6 +15,7 @@ import '../../account/account_providers.dart';
 import '../../chat/chat_providers.dart';
 import 'report_business_sheet.dart';
 import '../../maps/map_providers.dart';
+import '../../maps/presentation/route_screen.dart';
 import '../../promotions/presentation/widgets/promo_widgets.dart';
 import '../../reviews/presentation/business_reviews_section.dart';
 import '../../reviews/reviews_providers.dart';
@@ -168,15 +169,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     if (!opened && mounted) _snack('Couldn’t open the dialer. The number is $phone.');
   }
 
-  /// UC-9 alternative flow: navigation in Google Maps.
-  Future<void> _directions(BusinessDetail b) async {
+  /// UC-9 alternative flow: the route preview, then Google Maps for navigation.
+  void _directions(BusinessDetail b) {
     final point = b.location;
     if (point == null) {
       _snack('${b.name} hasn’t pinned its location yet.');
       return;
     }
-    final opened = await ref.read(mapServiceProvider).openDirections(point);
-    if (!opened && mounted) _snack('Couldn’t open Google Maps on this device.');
+    showRoute(context, destination: point, name: b.name, address: b.address);
   }
 
   /// Open the Map tab centred on this business.

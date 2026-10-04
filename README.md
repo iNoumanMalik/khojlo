@@ -164,6 +164,8 @@ in Khojlo's colours (`frontend/assets/maps/khojlo_style.json`, built by
 is still available with `MAP_PROVIDER=google` plus its keys in the gitignored
 `frontend/dart_defines.json`. Address lookup uses free OpenStreetMap services (Photon and Nominatim)
 through the backend; `GEOCODING_PROVIDER=google` plus `GOOGLE_MAPS_SERVER_KEY` switches it to Google.
+Directions opens an in-app route preview (openrouteservice); it needs `OPENROUTESERVICE_API_KEY`
+in `backend/.env` (free key, steps in the Module 6 plan).
 Details are in `docs/development_roadmap/module6_maps_location_plan.md`.
 
 ## End‑to‑end demo path

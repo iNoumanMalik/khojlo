@@ -20,12 +20,13 @@ abstract class MapService {
   /// Whether this service draws real Google maps.
   bool get isGoogle;
 
-  /// An interactive map.
+  /// An interactive map. [route] is drawn as a line under the pins (a route preview).
   Widget buildMap({
     Key? key,
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -58,15 +59,21 @@ abstract class MapService {
   }
 
   /// UC-9 alternative flow "get directions": Google Maps navigation to [destination]
-  /// (the Google Maps app on Android when installed, the website otherwise).
-  Uri directionsUri(GeoPoint destination) => Uri.https('www.google.com', '/maps/dir/', {
-    'api': '1',
-    'destination': '${destination.latitude},${destination.longitude}',
-  });
+  /// (the Google Maps app on Android when installed, the website otherwise). [walking]
+  /// asks for walking directions instead of Google's default.
+  Uri directionsUri(GeoPoint destination, {bool? walking}) =>
+      Uri.https('www.google.com', '/maps/dir/', {
+        'api': '1',
+        'destination': '${destination.latitude},${destination.longitude}',
+        if (walking != null) 'travelmode': walking ? 'walking' : 'driving',
+      });
 
-  Future<bool> openDirections(GeoPoint destination) async {
+  Future<bool> openDirections(GeoPoint destination, {bool? walking}) async {
     try {
-      return await launchUrl(directionsUri(destination), mode: LaunchMode.externalApplication);
+      return await launchUrl(
+        directionsUri(destination, walking: walking),
+        mode: LaunchMode.externalApplication,
+      );
     } catch (_) {
       return false;
     }
@@ -86,6 +93,7 @@ class GoogleMapsService extends MapService {
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -98,6 +106,7 @@ class GoogleMapsService extends MapService {
     center: center,
     zoom: zoom,
     pins: pins,
+    route: route,
     interactive: interactive,
     onPinTap: onPinTap,
     onInfoTap: onInfoTap,
@@ -119,6 +128,7 @@ class MapLibreService extends MapService {
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -130,6 +140,7 @@ class MapLibreService extends MapService {
     center: center,
     zoom: zoom,
     pins: pins,
+    route: route,
     interactive: interactive,
     onPinTap: onPinTap,
     onCameraIdle: onCameraIdle,
@@ -153,6 +164,7 @@ class SketchMapService extends MapService {
     required GeoPoint center,
     double zoom = defaultMapZoom,
     List<MapPin> pins = const [],
+    List<GeoPoint> route = const [],
     bool interactive = true,
     ValueChanged<String>? onPinTap,
     ValueChanged<String>? onInfoTap,
@@ -164,6 +176,7 @@ class SketchMapService extends MapService {
     center: center,
     zoom: zoom,
     pins: pins,
+    route: route,
     interactive: interactive,
     notice: interactive ? notice : null,
     onPinTap: onPinTap,
