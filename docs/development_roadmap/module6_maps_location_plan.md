@@ -104,6 +104,7 @@ The repository is on GitHub, so keys are never committed. See [Setup steps](#set
 
 * **iOS** has no Google Maps key wiring yet, so it shows the sketch map. Adding it needs a Maps SDK for iOS key and a line in `AppDelegate.swift`.
 * **No "Search this area" button.** Results refresh on their own when the map stops moving, as the design asks ("cards update as the map is dragged").
+* **A search with nothing in view looks further.** A new keyword or filter first searches the visible area, so the map stays put when something nearby matches. If nothing in view matches, it searches everywhere (nearest to the view first), moves the map to the closest matches and says "No matches in that area · showing the nearest". Panning and zooming still search only the visible area.
 * **Keys** live in the existing gitignored `frontend/dart_defines.json`, not in `local.properties`, so web and Android read the same file.
 
 ## Map provider: MapLibre + OpenStreetMap (October 2026)
