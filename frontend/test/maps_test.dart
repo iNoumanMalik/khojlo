@@ -80,7 +80,7 @@ class FakeGeo extends GeoRepository {
   }
 
   @override
-  Future<List<GeoPlace>> search(String query) async => const [];
+  Future<List<GeoPlace>> search(String query, {GeoPoint? near}) async => const [];
 }
 
 /// The business page now shows reviews (Module 5); these tests don't need any.

@@ -52,10 +52,17 @@ class Settings(BaseSettings):
     SEARCH_MAX_RADIUS_KM: float = 50.0
 
     # ── Maps & location (Module 6) ──
-    # Server-only Google key with just the Geocoding API enabled. Without it, address
-    # lookup is switched off and the app falls back to typed addresses.
+    # Address lookup provider: "osm" (default, free: Photon search + Nominatim reverse,
+    # OpenStreetMap data) or "google" (needs GOOGLE_MAPS_SERVER_KEY).
+    GEOCODING_PROVIDER: str = "osm"
+    # Nominatim and Photon require an identifying User-Agent; add a contact for production.
+    GEOCODING_USER_AGENT: str = "Khojlo/1.0 (local business discovery app)"
+    # Public servers by default; point these at self-hosted instances for heavy use.
+    PHOTON_URL: str = "https://photon.komoot.io"
+    NOMINATIM_URL: str = "https://nominatim.openstreetmap.org"
+    # Server-only Google key with just the Geocoding API enabled (GEOCODING_PROVIDER=google).
     GOOGLE_MAPS_SERVER_KEY: str | None = None
-    # Bias results towards this country (ccTLD) and return text in this language.
+    # Keep results in this country (ccTLD) and return text in this language.
     GEOCODING_REGION: str = "pk"
     GEOCODING_LANGUAGE: str = "en"
 
@@ -71,7 +78,7 @@ class Settings(BaseSettings):
 
     @property
     def geocoding_enabled(self) -> bool:
-        return bool(self.GOOGLE_MAPS_SERVER_KEY)
+        return self.GEOCODING_PROVIDER != "google" or bool(self.GOOGLE_MAPS_SERVER_KEY)
 
     @property
     def email_enabled(self) -> bool:

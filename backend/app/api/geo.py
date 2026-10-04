@@ -2,7 +2,8 @@
 
 Used by the map pin picker (fill the address from the pin, jump to a typed address) and
 the Home location indicator ("Near F-7 Markaz, Islamabad"). Signed-in users only, and
-lightly rate-limited, because every uncached call is billed by Google.
+lightly rate-limited: the free OpenStreetMap services ask for light use, and Google bills
+every uncached call.
 """
 import logging
 import threading
@@ -43,9 +44,8 @@ class PlaceOut(BaseModel):
 
 
 def get_geocoder() -> Geocoder | None:
-    """Overridable in tests; None when `GOOGLE_MAPS_SERVER_KEY` isn't set."""
-    return configured_geocoder(settings.GOOGLE_MAPS_SERVER_KEY, settings.GEOCODING_REGION,
-                               settings.GEOCODING_LANGUAGE)
+    """Overridable in tests; None when Google is chosen without a key."""
+    return configured_geocoder(settings)
 
 
 class _RateLimiter:
@@ -105,11 +105,14 @@ def reverse_geocode(
 @router.get("/search", response_model=list[PlaceOut], summary="Find a typed address")
 def search_places(
     q: str = Query(min_length=2, max_length=120),
+    lat: float | None = Query(default=None, ge=-90, le=90, description="Rank places near here"),
+    lng: float | None = Query(default=None, ge=-180, le=180),
     user: User = Depends(get_current_user),
     geocoder: Geocoder | None = Depends(get_geocoder),
 ) -> list[PlaceOut]:
     g = _ready(user, geocoder)
+    near = (lat, lng) if lat is not None and lng is not None else None
     try:
-        return [PlaceOut.of(p) for p in g.search(q.strip())]
+        return [PlaceOut.of(p) for p in g.search(q.strip(), near)]
     except GeocodingError as exc:
         raise _failed(exc) from None

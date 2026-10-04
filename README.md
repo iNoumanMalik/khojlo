@@ -158,10 +158,13 @@ the Firebase web app settings and the Web Push key in `dart_defines.json` (see
 `dart_defines.example.json`); without them web push stays off. Setup:
 `docs/development_roadmap/module9_chat_and_push_plan.md` → "Your manual steps".
 
-**Maps (Module 6).** Google Maps keys are read from the gitignored `frontend/dart_defines.json`
-(copy `dart_defines.example.json`) via `flutter run --dart-define-from-file=dart_defines.json`.
-Address lookup uses `GOOGLE_MAPS_SERVER_KEY` in `backend/.env`. Without keys the app shows a
-built-in preview map. Setup steps are in `docs/development_roadmap/module6_maps_location_plan.md`.
+**Maps (Module 6).** The map is MapLibre with OpenStreetMap vector tiles from OpenFreeMap, styled
+in Khojlo's colours (`frontend/assets/maps/khojlo_style.json`, built by
+`frontend/tool/build_map_style.py`). It needs no key and runs on Android, iOS and web. Google Maps
+is still available with `MAP_PROVIDER=google` plus its keys in the gitignored
+`frontend/dart_defines.json`. Address lookup uses free OpenStreetMap services (Photon and Nominatim)
+through the backend; `GEOCODING_PROVIDER=google` plus `GOOGLE_MAPS_SERVER_KEY` switches it to Google.
+Details are in `docs/development_roadmap/module6_maps_location_plan.md`.
 
 ## End‑to‑end demo path
 

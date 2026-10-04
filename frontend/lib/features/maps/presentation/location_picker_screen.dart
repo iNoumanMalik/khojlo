@@ -121,7 +121,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
     }
     _searchDebounce = Timer(const Duration(milliseconds: 500), () async {
       try {
-        final results = await ref.read(geoRepositoryProvider).search(text.trim());
+        final results = await ref.read(geoRepositoryProvider).search(text.trim(), near: _point);
         if (mounted && _query.text == text) setState(() => _results = results);
       } on GeoLookupException catch (e) {
         if (!mounted) return;

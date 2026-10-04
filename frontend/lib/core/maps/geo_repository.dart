@@ -5,7 +5,7 @@ import '../location/location_service.dart';
 import '../providers.dart';
 import 'map_types.dart';
 
-/// An address from the backend's `/geo/*` lookup (Google Geocoding behind our server).
+/// An address from the backend's `/geo/*` lookup (OpenStreetMap or Google, behind our server).
 class GeoPlace {
   const GeoPlace({
     required this.address,
@@ -34,7 +34,7 @@ class GeoPlace {
 
 /// Why an address lookup gave nothing.
 enum GeoLookupFailure {
-  /// The server has no geocoding key (503): the app hides lookup features.
+  /// Address lookup is off on the server (503): the app hides lookup features.
   unavailable,
   notFound,
   failed,
@@ -61,9 +61,16 @@ class GeoRepository {
     }
   }
 
-  Future<List<GeoPlace>> search(String query) async {
+  /// Places matching [query]; [near] ranks places close to it first.
+  Future<List<GeoPlace>> search(String query, {GeoPoint? near}) async {
     try {
-      final res = await _dio.get('/geo/search', queryParameters: {'q': query});
+      final res = await _dio.get(
+        '/geo/search',
+        queryParameters: {
+          'q': query,
+          if (near != null && near.isValid) ...{'lat': near.latitude, 'lng': near.longitude},
+        },
+      );
       return (res.data as List).map((e) => GeoPlace.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       throw GeoLookupException(_reason(e));
