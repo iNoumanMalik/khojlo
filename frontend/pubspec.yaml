@@ -28,7 +28,8 @@ dependencies:
   shimmer: ^3.0.0
   flutter_animate: ^4.5.2
 
-  # maps (Module 6 prototype)
+  # maps (Module 6): MapLibre + OpenStreetMap by default; Google Maps opt-in (MAP_PROVIDER=google)
+  maplibre_gl: ^0.27.1
   google_maps_flutter: ^2.10.0
   google_sign_in: ^7.2.0
   # web-only: renders Google's sign-in button (authenticate() is unsupported on web)
@@ -63,12 +64,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # MapLibre map style (built by tool/build_map_style.py)
+    - assets/maps/
 
 # Regenerate with: dart run flutter_launcher_icons
 flutter_launcher_icons:
-  image_path: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-cream-square-1024.png"
+  image_path: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-wordmark-1024.png"
   android: "ic_launcher"
   adaptive_icon_background: "#FBF6EE"
-  adaptive_icon_foreground: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-cream-square-1024.png"
+  adaptive_icon_foreground: "../docs/brand/khojlo-logo-package/png/khojlo-app-icon-wordmark-1024.png"
   ios: true
   remove_alpha_ios: true

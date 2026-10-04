@@ -5,13 +5,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'google_map_view.dart';
 import 'map_types.dart';
+import 'maplibre_map_view.dart';
 import 'maps_config.dart';
 import 'sketch_map.dart';
 
 /// SDD `MapService` (class diagram §4.1): the app talks to this interface, so the
-/// map provider can change without touching screens. [GoogleMapsService] is the SDD's
-/// `GoogleMapsService`; [SketchMapService] stands in when no Google key is configured
-/// (and in tests), so the app keeps working either way.
+/// map provider can change without touching screens.
+/// - [MapLibreService] (default): OpenStreetMap vector maps, no API key needed.
+/// - [GoogleMapsService]: the SDD's `GoogleMapsService`, opt-in with `MAP_PROVIDER=google`.
+/// - [SketchMapService]: a drawn stand-in on platforms without a real map (and in tests).
 abstract class MapService {
   const MapService();
 
@@ -105,6 +107,37 @@ class GoogleMapsService extends MapService {
   );
 }
 
+class MapLibreService extends MapService {
+  const MapLibreService();
+
+  @override
+  bool get isGoogle => false;
+
+  @override
+  Widget buildMap({
+    Key? key,
+    required GeoPoint center,
+    double zoom = defaultMapZoom,
+    List<MapPin> pins = const [],
+    bool interactive = true,
+    ValueChanged<String>? onPinTap,
+    ValueChanged<String>? onInfoTap,
+    ValueChanged<MapCamera>? onCameraIdle,
+    ValueChanged<KhojloMapController>? onCreated,
+    VoidCallback? onMapTap,
+  }) => MapLibreMapView(
+    key: key,
+    center: center,
+    zoom: zoom,
+    pins: pins,
+    interactive: interactive,
+    onPinTap: onPinTap,
+    onCameraIdle: onCameraIdle,
+    onCreated: onCreated,
+    onMapTap: onMapTap,
+  );
+}
+
 class SketchMapService extends MapService {
   const SketchMapService({this.notice});
 
@@ -142,6 +175,10 @@ class SketchMapService extends MapService {
 }
 
 final mapServiceProvider = Provider<MapService>((ref) {
-  if (MapsConfig.isConfigured) return GoogleMapsService(MapsConfig.currentKey);
-  return const SketchMapService(notice: 'Map preview · add a Google Maps key to see real maps');
+  if (MapsConfig.useGoogle) {
+    if (MapsConfig.isConfigured) return GoogleMapsService(MapsConfig.currentKey);
+    return const SketchMapService(notice: 'Map preview · add a Google Maps key to see real maps');
+  }
+  if (MapsConfig.mapLibreSupported) return const MapLibreService();
+  return const SketchMapService(notice: 'Map preview · real maps run on Android, iOS and web');
 });
