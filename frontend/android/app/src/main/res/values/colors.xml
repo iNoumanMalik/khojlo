@@ -3,4 +3,6 @@
     <!-- Push notification accent (Khojlo emerald). -->
     <color name="notification_accent">#1D6D5A</color>
     <color name="ic_launcher_background">#FBF6EE</color>
+    <!-- Launch window: Khojlo cream, the first frame of the splash animation. -->
+    <color name="launch_background">#FBF6EE</color>
 </resources>
