@@ -68,6 +68,11 @@ class OfferCoupon extends StatelessWidget {
   final VoidCallback? onTap;
   final double? width;
 
+  /// Row height for a horizontal list of coupons: padding, badge, two title lines
+  /// and the dates, scaled with the phone's text size so nothing overflows.
+  static double height(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(100) + 40;
+
   @override
   Widget build(BuildContext context) {
     final live = offer.status == PromoStatus.active;
@@ -96,6 +101,8 @@ class OfferCoupon extends StatelessWidget {
                 style: AppType.sans(size: 13.5, weight: FontWeight.w700, height: 1.3)),
             const SizedBox(height: 4),
             Text(offer.rangeLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: AppType.mono(size: 10.5, color: AppColors.inkA(0.6))),
           ],
         ),

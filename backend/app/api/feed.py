@@ -26,27 +26,31 @@ FEATURED_POOL = 8  # the newest businesses that take turns as the "Featured find
 ROW_POOL = 20  # candidates sampled for the "Because you like" / "Worth exploring" row
 ROW_SIZE = 6
 
+NEW_THIS_WEEK = timedelta(days=7)
 
-def _greeting(now: datetime) -> str:
+
+def _greeting(user: User | None, businesses, now: datetime) -> tuple[str, str]:
+    """The greeting ("Good evening, Ali") and a headline from real data: how many businesses joined
+    Khojlo in the last 7 days. The hour is the businesses' local time, not UTC."""
     hour = to_local(now).hour
-    if hour < 12:
-        return "Good morning, explorer"
-    if hour < 17:
-        return "Good afternoon, explorer"
-    return "Good evening, explorer"
+    part = ("morning" if 5 <= hour < 12 else "afternoon" if 12 <= hour < 17
+            else "evening" if 17 <= hour < 21 else "night")
+    first = (user.full_name.split() or ["explorer"])[0] if user else "explorer"
+    greeting = f"Good {part}, {first}" if part != "night" else f"Hello, {first}"
 
-
-def _headline(businesses: list[BusinessProfile], now: datetime) -> str:
-    week_ago = now - timedelta(days=7)
-    opened = sum(
-        1 for b in businesses
-        if b.created_at is not None
-        and (b.created_at if b.created_at.tzinfo else b.created_at.replace(tzinfo=timezone.utc))
-        >= week_ago
-    )
-    if not opened:
-        return "Discover what’s\nnew nearby"
-    return f"{opened} hidden gem{'s' if opened != 1 else ''}\nopened this week"
+    week_ago = now - NEW_THIS_WEEK
+    new = sum(1 for b in businesses
+              if b.created_at and (b.created_at if b.created_at.tzinfo
+                                   else b.created_at.replace(tzinfo=timezone.utc)) >= week_ago)
+    if new == 1:
+        headline = "1 hidden gem\nopened this week"
+    elif new > 1:
+        headline = f"{new} hidden gems\nopened this week"
+    else:
+        total = len(businesses)
+        headline = (f"{total} local {'gem' if total == 1 else 'gems'}\nwaiting to be found"
+                    if total else "Discover what’s\nnew nearby")
+    return greeting, headline
 
 
 def _featured(by_new: list[BusinessProfile], rng: random.Random) -> BusinessProfile:
@@ -152,9 +156,10 @@ def get_feed(
             )
         )
 
+    greeting, headline = _greeting(user, businesses, now)
     return FeedResponse(
-        greeting=_greeting(now),
-        headline=_headline(businesses, now),
+        greeting=greeting,
+        headline=headline,
         categories=categories,
         sections=sections,
         campaigns=feed_banners(db, now, rng=rng),

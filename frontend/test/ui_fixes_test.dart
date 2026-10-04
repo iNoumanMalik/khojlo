@@ -8,6 +8,7 @@ import 'package:khojlo/core/models/business.dart';
 import 'package:khojlo/core/models/feed.dart';
 import 'package:khojlo/core/models/user.dart';
 import 'package:khojlo/core/theme/app_theme.dart';
+import 'package:khojlo/core/widgets/fields.dart';
 import 'package:khojlo/core/widgets/search_pill.dart';
 import 'package:khojlo/features/auth/auth_controller.dart';
 import 'package:khojlo/features/auth/data/auth_repository.dart';
@@ -131,5 +132,20 @@ void main() {
     await _settle(tester);
     expect(find.text('1 of 3'), findsOneWidget);
     expect(deals, 2);
+  });
+
+  testWidgets('password fields have an eye to show and hide the password', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: const Scaffold(body: AppField(label: 'Password', obscure: true)),
+    ));
+    EditableText field() => tester.widget<EditableText>(find.byType(EditableText));
+    expect(field().obscureText, isTrue);
+    await tester.tap(find.byTooltip('Show password'));
+    await tester.pump();
+    expect(field().obscureText, isFalse);
+    await tester.tap(find.byTooltip('Hide password'));
+    await tester.pump();
+    expect(field().obscureText, isTrue);
   });
 }

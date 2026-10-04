@@ -12,12 +12,17 @@ class GlassSurface extends StatelessWidget {
     super.key,
     required this.child,
     this.radius = 20,
-    this.blur = 18,
-    this.opacity = 0.65,
+    this.blur = GlassSurface.standardBlur,
+    this.opacity = GlassSurface.standardOpacity,
     this.padding,
     this.shadows,
     this.border = true,
   });
+
+  /// The app's one glass recipe. Floating controls (dock, search bars, icon buttons)
+  /// all use it so they look the same.
+  static const double standardBlur = 20;
+  static const double standardOpacity = 0.62;
 
   final Widget child;
   final double radius;
@@ -29,6 +34,15 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppColors.whiteA(opacity),
+        borderRadius: BorderRadius.circular(radius),
+        border: border ? Border.all(color: AppColors.whiteA(0.7), width: 1) : null,
+      ),
+      child: child,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
@@ -36,20 +50,14 @@ class GlassSurface extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: AppColors.whiteA(opacity),
-              borderRadius: BorderRadius.circular(radius),
-              border: border
-                  ? Border.all(color: AppColors.whiteA(0.7), width: 1)
-                  : null,
-            ),
-            child: child,
-          ),
-        ),
+        child: blur <= 0
+            ? surface
+            // Grouped: blurs on the same screen share one backdrop capture
+            // (see BackdropGroup in main.dart), which is much cheaper per frame.
+            : BackdropFilter.grouped(
+                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: surface,
+              ),
       ),
     );
   }
@@ -84,7 +92,7 @@ class GlassIconButton extends StatelessWidget {
           children: [
             GlassSurface(
               radius: size * 0.36,
-              opacity: dark ? 0.35 : 0.65,
+              opacity: dark ? 0.35 : GlassSurface.standardOpacity,
               child: Center(
                 child: Icon(icon,
                     size: size * 0.42,

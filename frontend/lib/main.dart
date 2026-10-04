@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +18,29 @@ Future<void> main() async {
   ));
 }
 
+/// Smooth, consistent scrolling on every platform: bounce at the ends (no stretch or
+/// glow), and mouse/trackpad drags on the web.
+class KhojloScrollBehavior extends MaterialScrollBehavior {
+  const KhojloScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+
+  @override
+  Widget buildOverscrollIndicator(
+          BuildContext context, Widget child, ScrollableDetails details) =>
+      child;
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+}
+
 class KhojloApp extends ConsumerWidget {
   const KhojloApp({super.key});
 
@@ -28,8 +52,10 @@ class KhojloApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
+      scrollBehavior: const KhojloScrollBehavior(),
       scaffoldMessengerKey: rootMessengerKey,
-      builder: (context, child) => SessionServices(child: child!),
+      // BackdropGroup: the glass blurs on a screen share one backdrop capture.
+      builder: (context, child) => BackdropGroup(child: SessionServices(child: child!)),
     );
   }
 }

@@ -2,8 +2,8 @@ import math
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, joinedload, noload, selectinload
 
 from app.core.config import settings
 from app.models.business import BusinessProfile
@@ -43,6 +43,23 @@ def card_load_options() -> tuple:
         # Campaigns and their linked offers, for the "Active promotion" badge.
         selectinload(BusinessProfile.campaigns).selectinload(Campaign.offer_links),
         selectinload(BusinessProfile.photos),  # media rows join in; their bytes stay deferred
+    )
+
+
+def detail_load_options() -> tuple:
+    """Everything a business page needs, in as few round trips as possible: the
+    category, hours, services and photos join into one query (they're small), and
+    offers and campaigns follow in two more. Each query to a remote database costs a
+    network round trip, so this is what makes the page open quickly."""
+    return (
+        joinedload(BusinessProfile.category),
+        joinedload(BusinessProfile.hours),
+        joinedload(BusinessProfile.services),
+        joinedload(BusinessProfile.photos),
+        selectinload(BusinessProfile.offers),
+        # Campaigns and their linked offers decide the "Active promotion" badge.
+        selectinload(BusinessProfile.campaigns).selectinload(Campaign.offer_links),
+        selectinload(BusinessProfile.campaigns).noload(Campaign.service_links),
     )
 
 
@@ -136,6 +153,20 @@ def record_view(db: Session, business: BusinessProfile, viewer_id: int | None) -
     db.commit()
 
 
+def record_view_later(business_id: int, viewer_id: int | None) -> None:
+    """Background task: count a profile view after the page has been sent, in its own
+    session, so viewing a business never waits for the write."""
+    from sqlalchemy import update
+
+    from app.core.database import session_scope
+
+    with session_scope() as db:
+        db.add(BusinessView(business_id=business_id, viewer_id=viewer_id))
+        db.execute(update(BusinessProfile).where(BusinessProfile.id == business_id)
+                   .values(view_count=BusinessProfile.view_count + 1))
+        db.commit()
+
+
 def is_saved_by(db: Session, business_id: int, user_id: int) -> bool:
     stmt = (
         select(SavedBusiness.id)
@@ -145,24 +176,37 @@ def is_saved_by(db: Session, business_id: int, user_id: int) -> bool:
     return db.execute(stmt).first() is not None
 
 
-def build_analytics(db: Session, business: BusinessProfile) -> BusinessAnalytics:
-    since = datetime.now(timezone.utc) - timedelta(days=6)
+def build_analytics(db: Session, business: BusinessProfile,
+                    now: datetime | None = None) -> BusinessAnalytics:
+    """Real numbers only: profile views per local day for the last 7 days (today last),
+    and this week against the week before."""
+    from app.services.hours import to_local  # avoids an import cycle
+
+    now = now or datetime.now(timezone.utc)
+    today = to_local(now).date()
+    start_local = to_local(now).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=13)
+    since = start_local.astimezone(timezone.utc)
     rows = db.execute(
         select(BusinessView.created_at).where(
             BusinessView.business_id == business.id, BusinessView.created_at >= since
         )
     ).all()
-
-    counts: Counter[int] = Counter()
+    per_day: Counter = Counter()
     for (created,) in rows:
-        counts[created.weekday()] += 1
+        if created.tzinfo is None:  # SQLite returns naive UTC datetimes
+            created = created.replace(tzinfo=timezone.utc)
+        per_day[to_local(created).date()] += 1
+    days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+    weekly = [WeeklyPoint(label=_DAY_LABELS[d.weekday()], value=per_day.get(d, 0)) for d in days]
+    views_week = sum(p.value for p in weekly)
+    views_last_week = sum(per_day.get(today - timedelta(days=i), 0) for i in range(7, 14))
 
-    # Fall back to the denormalized counter so the chart is never flat-empty in a demo.
-    weekly = [WeeklyPoint(label=_DAY_LABELS[d], value=counts.get(d, 0)) for d in range(7)]
-    if sum(c.value for c in weekly) == 0 and business.view_count:
-        base = max(1, business.view_count // 12)
-        pattern = [4, 5, 5, 7, 6, 9, 8]
-        weekly = [WeeklyPoint(label=_DAY_LABELS[d], value=base * pattern[d]) for d in range(7)]
+    week_start = (to_local(now).replace(hour=0, minute=0, second=0, microsecond=0)
+                  - timedelta(days=6)).astimezone(timezone.utc)
+    saves_week = db.scalar(
+        select(func.count(SavedBusiness.id)).where(
+            SavedBusiness.business_id == business.id, SavedBusiness.created_at >= week_start)
+    ) or 0
 
     from app.services.chat_service import business_message_counts  # avoids an import cycle
 
@@ -176,4 +220,7 @@ def build_analytics(db: Session, business: BusinessProfile) -> BusinessAnalytics
         rating=business.rating,
         review_count=business.review_count,
         weekly_views=weekly,
+        views_this_week=views_week,
+        views_last_week=views_last_week,
+        saves_this_week=saves_week,
     )

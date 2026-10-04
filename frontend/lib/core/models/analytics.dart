@@ -17,6 +17,9 @@ class BusinessAnalytics {
     required this.rating,
     required this.reviewCount,
     required this.weeklyViews,
+    this.viewsThisWeek = 0,
+    this.viewsLastWeek = 0,
+    this.savesThisWeek = 0,
   });
 
   final int businessId;
@@ -27,7 +30,19 @@ class BusinessAnalytics {
   final int unreadMessages;
   final double rating;
   final int reviewCount;
+  /// Views per day for the last 7 days, oldest first (today is last).
   final List<WeeklyPoint> weeklyViews;
+  final int viewsThisWeek;
+  final int viewsLastWeek;
+  final int savesThisWeek;
+
+  /// "+12% vs last week", "New this week", or "No views this week".
+  String get viewsTrend {
+    if (viewsThisWeek == 0) return 'No views this week';
+    if (viewsLastWeek == 0) return '$viewsThisWeek this week';
+    final change = ((viewsThisWeek - viewsLastWeek) / viewsLastWeek * 100).round();
+    return '${change >= 0 ? '+' : ''}$change% vs last week';
+  }
 
   factory BusinessAnalytics.fromJson(Map<String, dynamic> j) => BusinessAnalytics(
         businessId: j['business_id'] as int,
@@ -40,5 +55,8 @@ class BusinessAnalytics {
         weeklyViews: (j['weekly_views'] as List)
             .map((e) => WeeklyPoint.fromJson(e as Map<String, dynamic>))
             .toList(),
+        viewsThisWeek: j['views_this_week'] as int? ?? 0,
+        viewsLastWeek: j['views_last_week'] as int? ?? 0,
+        savesThisWeek: j['saves_this_week'] as int? ?? 0,
       );
 }

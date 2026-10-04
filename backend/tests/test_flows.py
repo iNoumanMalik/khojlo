@@ -166,21 +166,26 @@ def test_feed_seed_rotates_discovery_rows_only(client):
     assert len({tuple(f["trending"]) for f in feeds}) == 1
 
 
-def test_feed_headline_counts_this_weeks_businesses(client):
-    assert client.get(f"{PREFIX}/feed").json()["headline"] == "Discover what’s\nnew nearby"
-    register(client, "gems@khojlo.app", role="business_owner")
-    token = login(client, "gems@khojlo.app")
+
+def test_feed_greets_by_name_and_counts_this_weeks_businesses(client):
+    register(client, "sana@khojlo.app", role="business_owner", full_name="Sana Malik")
+    token = login(client, "sana@khojlo.app")
     for i in range(3):
-        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Gem {i}"})
-    assert client.get(f"{PREFIX}/feed").json()["headline"] == "3 hidden gems\nopened this week"
+        client.post(f"{PREFIX}/businesses", headers=auth(token), json={"name": f"Spot {i}"})
+    signed_in = client.get(f"{PREFIX}/feed", headers=auth(token)).json()
+    assert signed_in["greeting"].endswith(", Sana")
+    assert signed_in["headline"] == "3 hidden gems\nopened this week"
+    assert client.get(f"{PREFIX}/feed").json()["greeting"].endswith(", explorer")
 
 
-def test_feed_greeting_uses_local_time():
-    from datetime import datetime, timezone
-
-    from app.api.feed import _greeting
-
-    # Karachi is UTC+5: 15:00 UTC is 8pm there.
-    assert _greeting(datetime(2026, 1, 1, 15, tzinfo=timezone.utc)) == "Good evening, explorer"
-    assert _greeting(datetime(2026, 1, 1, 4, tzinfo=timezone.utc)) == "Good morning, explorer"
-    assert _greeting(datetime(2026, 1, 1, 9, tzinfo=timezone.utc)) == "Good afternoon, explorer"
+def test_analytics_counts_real_views_per_day(client):
+    register(client, "views@khojlo.app", role="business_owner")
+    owner = auth(login(client, "views@khojlo.app"))
+    bid = client.post(f"{PREFIX}/businesses", headers=owner, json={"name": "Counted"}).json()["id"]
+    for _ in range(3):
+        client.get(f"{PREFIX}/businesses/{bid}")  # three visitors
+    client.get(f"{PREFIX}/businesses/{bid}", params={"track": False})  # owner's editor: not a view
+    a = client.get(f"{PREFIX}/businesses/{bid}/analytics", headers=owner).json()
+    assert [p["value"] for p in a["weekly_views"]][-1] == 3  # today is the last bar
+    assert sum(p["value"] for p in a["weekly_views"][:-1]) == 0  # nothing invented
+    assert (a["views_this_week"], a["views_last_week"], a["profile_views"]) == (3, 0, 3)

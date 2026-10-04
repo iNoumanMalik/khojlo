@@ -7,6 +7,7 @@ import '../../../core/models/business.dart';
 import '../../../core/models/campaign.dart';
 import '../../../core/models/photo.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/ui/messenger.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
@@ -22,6 +23,7 @@ Future<bool> openCampaignEditor(BuildContext context,
   final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
     builder: (_) => CampaignEditorScreen(businessId: businessId, existing: existing),
   ));
+  if (saved == true) showToast(existing == null ? 'Campaign created' : 'Campaign saved');
   return saved ?? false;
 }
 

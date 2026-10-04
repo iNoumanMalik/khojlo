@@ -18,6 +18,7 @@ class SearchPill extends StatelessWidget {
   final VoidCallback? onTap;
   final bool active;
 
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(

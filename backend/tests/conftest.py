@@ -119,3 +119,9 @@ def login(client, email):
 
 def auth(token):
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def _no_demo_photos(monkeypatch):
+    """The seed's demo photos take a while to process; only the photo test turns them on."""
+    monkeypatch.setattr("app.db.seed.INCLUDE_PHOTOS", False)

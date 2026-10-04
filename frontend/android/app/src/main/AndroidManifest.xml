@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Module 9 / push notifications: Android 13+ asks the user before showing them. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Release builds need it to reach the Khojlo API (debug builds add it themselves). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Khojlo"
         android:name="${applicationName}"

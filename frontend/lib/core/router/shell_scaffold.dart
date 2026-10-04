@@ -26,7 +26,7 @@ class ShellScaffold extends ConsumerWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: index == 0
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 78),
+              padding: const EdgeInsets.only(bottom: 30),
               child: GestureDetector(
                 onTap: () => context.push('/surprise'),
                 child: Container(

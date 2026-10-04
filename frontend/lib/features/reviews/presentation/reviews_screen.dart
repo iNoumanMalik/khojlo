@@ -118,7 +118,7 @@ class _ReviewsScreenState extends ConsumerState<ReviewsScreen> {
                     summary: state.summary,
                     selected: state.stars,
                     onStarsTap: _controller.toggleStars,
-                  ).animate().fadeIn(duration: 300.ms),
+                  ),
                   const SizedBox(height: 14),
                   if (state.isOwner)
                     _OwnerBanner(unreplied: state.summary.unreplied ?? 0)

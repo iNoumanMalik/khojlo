@@ -147,9 +147,6 @@ class ProfileScreen extends ConsumerWidget {
                     label: 'My reviews',
                     onTap: () => context.push('/my-reviews')),
                 _Row(
-                    icon: Icons.emoji_events_outlined,
-                    label: 'Achievements'),
-                _Row(
                     icon: Icons.notifications_none_rounded,
                     label: 'Notification settings',
                     onTap: () => context.push('/notification-settings')),

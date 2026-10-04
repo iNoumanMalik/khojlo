@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -46,35 +45,87 @@ class HomeScreen extends ConsumerWidget {
             _FeedError(onRetry: () => ref.refresh(feedProvider)),
           ],
         ),
-        data: (feed) => RefreshIndicator(
-          color: AppColors.emerald,
-          onRefresh: () => refreshFeed(ref),
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              _HeaderWithSearch(
-                header: _Header(
-                  greeting: feed.greeting,
-                  headline: feed.headline,
-                  initials: user?.initials ?? '?',
-                  tone: user?.avatarTone ?? 'gold',
-                  photo: user?.avatar,
+        data: (feed) => _HeaderColorOverscroll(
+          child: RefreshIndicator(
+            color: AppColors.emerald,
+            onRefresh: () => refreshFeed(ref),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _HeaderWithSearch(
+                  header: _Header(
+                    greeting: feed.greeting,
+                    headline: feed.headline,
+                    initials: user?.initials ?? '?',
+                    tone: user?.avatarTone ?? 'gold',
+                    photo: user?.avatar,
+                  ),
                 ),
-              ),
-              const SizedBox(height: _HeaderWithSearch.overlap),
-              if (feed.campaigns.isNotEmpty) ...[
+                const SizedBox(height: _HeaderWithSearch.overlap),
+                if (feed.campaigns.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _CampaignCarousel(campaigns: feed.campaigns),
+                ],
                 const SizedBox(height: 18),
-                _CampaignCarousel(campaigns: feed.campaigns),
+                _Categories(categories: feed.categories),
+                const SizedBox(height: 8),
+                for (final section in feed.sections) _Section(section: section),
+                const SizedBox(height: 120),
               ],
-              const SizedBox(height: 18),
-              _Categories(categories: feed.categories),
-              const SizedBox(height: 8),
-              for (final section in feed.sections) _Section(section: section),
-              const SizedBox(height: 120),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// When the feed is pulled down past its top (the bounce), the gap above the
+/// header is filled with the header's plum instead of showing the cream page.
+class _HeaderColorOverscroll extends StatefulWidget {
+  const _HeaderColorOverscroll({required this.child});
+  final Widget child;
+
+  @override
+  State<_HeaderColorOverscroll> createState() => _HeaderColorOverscrollState();
+}
+
+class _HeaderColorOverscrollState extends State<_HeaderColorOverscroll> {
+  final _gap = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _gap.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+      final over = n.metrics.minScrollExtent - n.metrics.pixels;
+      _gap.value = over > 0 ? over : 0;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ValueListenableBuilder<double>(
+          valueListenable: _gap,
+          builder: (_, gap, __) => Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: gap + 2,
+            child: const ColoredBox(color: AppColors.plum),
+          ),
+        ),
+        NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: widget.child,
+        ),
+      ],
     );
   }
 }
@@ -110,30 +161,40 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(greeting.toUpperCase(),
-                    style: AppType.mono(
-                        size: 10.5,
-                        color: AppColors.coral.withValues(alpha: 0.8),
-                        letterSpacing: 1.6)),
+                child: Text(
+                  greeting.toUpperCase(),
+                  style: AppType.mono(
+                    size: 10.5,
+                    color: AppColors.coral.withValues(alpha: 0.8),
+                    letterSpacing: 1.6,
+                  ),
+                ),
               ),
               Semantics(
                 button: true,
                 label: 'Profile',
                 child: GestureDetector(
                   onTap: () => context.push('/profile'),
-                  child: KhojloAvatar(initials: initials, tone: tone, size: 40, photo: photo),
+                  child: KhojloAvatar(
+                    initials: initials,
+                    tone: tone,
+                    size: 40,
+                    photo: photo,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(headline,
-              style: AppType.serif(size: 34, color: Colors.white, height: 1.1)),
+          Text(
+            headline,
+            style: AppType.serif(size: 34, color: Colors.white, height: 1.1),
+          ),
           const SizedBox(height: 14),
           const _LocationIndicator(),
         ],
       ),
-    ).animate().fadeIn(duration: 350.ms);
+    );
   }
 }
 
@@ -151,7 +212,9 @@ class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(locationControllerProvider.notifier).ensureChecked();
+      if (mounted) {
+        ref.read(locationControllerProvider.notifier).ensureChecked();
+      }
     });
   }
 
@@ -160,10 +223,12 @@ class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
     final location = ref.watch(locationControllerProvider);
     final label = ref.watch(locationLabelProvider).valueOrNull;
     final text = !location.hasFix
-        ? (location.isLocating ? 'Finding your location…' : 'Turn on location for places near you')
+        ? (location.isLocating
+              ? 'Finding your location…'
+              : 'Turn on location for places near you')
         : (label == null || label.isEmpty)
-            ? 'Using your current location'
-            : 'Near $label';
+        ? 'Using your current location'
+        : 'Near $label';
     return Semantics(
       button: true,
       label: location.hasFix ? '$text. Open the map' : text,
@@ -187,19 +252,24 @@ class _LocationIndicatorState extends ConsumerState<_LocationIndicator> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                location.hasFix ? Icons.near_me_rounded : Icons.location_searching_rounded,
+                location.hasFix
+                    ? Icons.near_me_rounded
+                    : Icons.location_searching_rounded,
                 size: 14,
                 color: AppColors.coral,
               ),
               const SizedBox(width: 6),
               Flexible(
-                child: Text(text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppType.sans(
-                        size: 12.5,
-                        weight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.9))),
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppType.sans(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
               ),
             ],
           ),
@@ -247,10 +317,12 @@ class _SearchRow extends ConsumerWidget {
         children: [
           Expanded(
             // One tap to the Explore tab with the keyboard up (SRS USE-1).
-            child: SearchPill(onTap: () {
-              context.go('/explore');
-              ref.read(searchFocusRequestProvider.notifier).state++;
-            }),
+            child: SearchPill(
+              onTap: () {
+                context.go('/explore');
+                ref.read(searchFocusRequestProvider.notifier).state++;
+              },
+            ),
           ),
           const SizedBox(width: 10),
           GlassIconButton(
@@ -332,7 +404,10 @@ class _HeroSection extends StatelessWidget {
         children: [
           SectionEyebrow(label: section.title),
           const SizedBox(height: 12),
-          BusinessHeroCard(business: b, onTap: () => context.push('/business/${b.id}')),
+          BusinessHeroCard(
+            business: b,
+            onTap: () => context.push('/business/${b.id}'),
+          ),
         ],
       ),
     );
@@ -368,7 +443,9 @@ class _HorizontalSection extends StatelessWidget {
               itemBuilder: (_, i) {
                 final b = section.businesses[i];
                 return BusinessMiniCard(
-                    business: b, onTap: () => context.push('/business/${b.id}'));
+                  business: b,
+                  onTap: () => context.push('/business/${b.id}'),
+                );
               },
             ),
           ),
@@ -389,17 +466,21 @@ class _ListSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(section.title.toUpperCase(),
-              style: AppType.mono(
-                  size: 10.5,
-                  color: AppColors.inkA(0.47),
-                  letterSpacing: 1.0)),
+          Text(
+            section.title.toUpperCase(),
+            style: AppType.mono(
+              size: 10.5,
+              color: AppColors.inkA(0.47),
+              letterSpacing: 1.0,
+            ),
+          ),
           const SizedBox(height: 6),
           for (var i = 0; i < section.businesses.length; i++)
             BusinessListRow(
               business: section.businesses[i],
               showDivider: i != 0,
-              onTap: () => context.push('/business/${section.businesses[i].id}'),
+              onTap: () =>
+                  context.push('/business/${section.businesses[i].id}'),
             ),
         ],
       ),
@@ -419,27 +500,32 @@ class _FeedError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.explore_off_rounded, size: 40, color: AppColors.inkA(0.3)),
+            Icon(
+              Icons.explore_off_rounded,
+              size: 40,
+              color: AppColors.inkA(0.3),
+            ),
             const SizedBox(height: 16),
-            Text('Couldn’t load your feed',
-                style: AppType.serif(size: 20)),
+            Text('Couldn’t load your feed', style: AppType.serif(size: 20)),
             const SizedBox(height: 8),
-            Text('Make sure the backend is running, then try again.',
-                textAlign: TextAlign.center,
-                style: AppType.sans(size: 13, color: AppColors.inkA(0.5))),
+            Text(
+              'Make sure the backend is running, then try again.',
+              textAlign: TextAlign.center,
+              style: AppType.sans(size: 13, color: AppColors.inkA(0.5)),
+            ),
             const SizedBox(height: 20),
             PrimaryButton(
-                label: 'Retry',
-                expand: false,
-                small: true,
-                onTap: onRetry),
+              label: 'Retry',
+              expand: false,
+              small: true,
+              onTap: onRetry,
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 /// Live promotional campaigns as swipeable banners at the top of the discovery feed.
 /// Banner → campaign details → offers → business.
@@ -493,7 +579,9 @@ class _CampaignCarouselState extends State<_CampaignCarousel> {
                   width: i == _page ? 18 : 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: i == _page ? AppColors.emerald : AppColors.inkA(0.15),
+                    color: i == _page
+                        ? AppColors.emerald
+                        : AppColors.inkA(0.15),
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
@@ -501,6 +589,6 @@ class _CampaignCarouselState extends State<_CampaignCarousel> {
           ),
         ],
       ],
-    ).animate().fadeIn(duration: 350.ms);
+    );
   }
 }

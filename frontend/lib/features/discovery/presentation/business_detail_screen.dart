@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/maps/map_service.dart';
@@ -10,6 +11,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/photo_viewer.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../account/account_providers.dart';
 import '../../chat/chat_providers.dart';
 import 'report_business_sheet.dart';
 import '../../maps/map_providers.dart';
@@ -53,14 +55,27 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     }
   }
 
+  /// Optimistic: the heart and the message change at once, and the server catches
+  /// up in the background. If it fails, the heart goes back and says why.
   Future<void> _toggleSave(BusinessDetail b) async {
-    setState(() => _saving = true);
+    if (_saving) return;
     final repo = ref.read(discoveryRepositoryProvider);
-    final currentlySaved = _savedOverride ?? b.isSaved;
+    final wasSaved = _savedOverride ?? b.isSaved;
+    final saving = !wasSaved;
+    setState(() {
+      _saving = true;
+      _savedOverride = saving;
+    });
+    _snack(saving ? 'Saved ${b.name}' : 'Removed from your saved places',
+        actionLabel: saving ? 'View' : null,
+        onAction: saving ? () => context.push('/saved') : null);
     try {
-      final res =
-          currentlySaved ? await repo.unsave(b.id) : await repo.save(b.id);
-      if (mounted) setState(() => _savedOverride = res.isSaved);
+      saving ? await repo.save(b.id) : await repo.unsave(b.id);
+      ref.invalidate(savedListsProvider);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _savedOverride = wasSaved);
+      _snack(saving ? 'Couldn’t save ${b.name}. ${describeApiError(e)}' : describeApiError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -95,16 +110,39 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       ));
   }
 
-  void _snack(String message) {
+  void _snack(String message, {String? actionLabel, VoidCallback? onAction}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
         backgroundColor: AppColors.ink,
+        duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         content: Text(message, style: AppType.sans(size: 13, color: Colors.white)),
+        action: actionLabel == null
+            ? null
+            : SnackBarAction(label: actionLabel, textColor: AppColors.gold, onPressed: onAction!),
       ));
+  }
+
+  /// Share the place through the phone's share sheet: what it is, where, and a map link.
+  Future<void> _share(BusinessDetail b) async {
+    final point = b.location;
+    final lines = [
+      '${b.name}${b.typeLabel != null ? ' · ${b.typeLabel}' : ''}',
+      if (b.tagline.isNotEmpty) b.tagline,
+      if (b.address.isNotEmpty) b.address,
+      if (b.phone != null) 'Call: ${b.phone}',
+      if (point != null)
+        'Map: https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}',
+      'Found on Khojlo',
+    ];
+    try {
+      await SharePlus.instance.share(ShareParams(text: lines.join('\n'), subject: b.name));
+    } catch (_) {
+      if (mounted) _snack('Couldn’t open sharing on this device.');
+    }
   }
 
   /// Module 8: report the listing. It stays up until an admin decides (BR-13).
@@ -155,11 +193,23 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: async.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.emerald)),
+        skipLoadingOnRefresh: true,
+        loading: () => _LoadingDetail(card: RecentCards.get(widget.id)),
         error: (e, _) => Center(
-          child: Text('Couldn’t load this place',
-              style: AppType.sans(color: AppColors.inkA(0.6))),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Couldn’t load this place',
+                  style: AppType.sans(color: AppColors.inkA(0.6))),
+              const SizedBox(height: 12),
+              GhostButton(
+                  label: 'Try again',
+                  expand: false,
+                  onTap: () => ref.invalidate(businessDetailProvider(widget.id))),
+              const SizedBox(height: 8),
+              TextButton(onPressed: () => context.pop(), child: const Text('Go back')),
+            ]),
+          ),
         ),
         data: (b) => _content(b),
       ),
@@ -286,15 +336,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                       dimmed: b.location == null,
                       onTap: () => _directions(b)),
                   _Action(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      label: b.isOwner ? 'Messages' : 'Chat',
-                      onTap: () => _message(b)),
-                  _Action(
                       icon: Icons.compare_arrows_rounded,
                       label: comparing ? 'Comparing' : 'Compare',
                       active: comparing,
                       onTap: () => _toggleCompare(b)),
-                  _Action(icon: Icons.ios_share_rounded, label: 'Share'),
+                  _Action(
+                      icon: Icons.ios_share_rounded,
+                      label: 'Share',
+                      onTap: () => _share(b)),
                 ],
               ),
             ),
@@ -400,7 +449,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                   onTap: () => context.pop()),
               GlassIconButton(
                 icon: saved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                onTap: _saving ? null : () => _toggleSave(b),
+                onTap: () => _toggleSave(b),
               ),
             ],
           ),
@@ -428,7 +477,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       children: [
         _sectionTitle('Offers'),
         SizedBox(
-          height: 118,
+          height: OfferCoupon.height(context),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -685,5 +734,69 @@ class _LocationCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// While the full profile loads: the photo, name and type already known from the
+/// card that was tapped, so the page appears at once instead of a spinner.
+class _LoadingDetail extends StatelessWidget {
+  const _LoadingDetail({this.card});
+  final BusinessCard? card;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = card;
+    return Stack(children: [
+      ListView(
+        padding: EdgeInsets.zero,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          ImageTile(tone: c?.tone ?? 'gold', radius: 0, height: 300, photo: c?.cover),
+          Transform.translate(
+            offset: const Offset(0, -34),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.whiteA(0.92),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (c?.typeLabel != null)
+                    KhojloBadge(label: c!.typeLabel!, tone: BadgeTone.emerald)
+                  else
+                    const SkeletonBox(width: 80, height: 20, radius: 999),
+                  const SizedBox(height: 12),
+                  if (c != null)
+                    Text(c.name, style: AppType.serif(size: 26))
+                  else
+                    const SkeletonBox(width: 200, height: 26),
+                  const SizedBox(height: 10),
+                  const SkeletonBox(width: 220, height: 14),
+                  const SizedBox(height: 12),
+                  const SkeletonBox(width: 160, height: 24, radius: 999),
+                ]),
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Column(children: [
+              SkeletonBox(height: 64, radius: 16),
+              SizedBox(height: 18),
+              SkeletonBox(height: 90, radius: 16),
+            ]),
+          ),
+        ],
+      ),
+      Positioned(
+        top: 52,
+        left: 20,
+        child: GlassIconButton(
+            icon: Icons.chevron_left_rounded, onTap: () => context.pop()),
+      ),
+    ]);
   }
 }

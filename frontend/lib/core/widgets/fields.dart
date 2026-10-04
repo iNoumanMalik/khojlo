@@ -5,8 +5,9 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
 /// Labelled text field styled like the bundle's `Field` primitive
-/// (mono uppercase label + translucent rounded input).
-class AppField extends StatelessWidget {
+/// (mono uppercase label + translucent rounded input). Password fields
+/// ([obscure]) get an eye button to show or hide what's typed.
+class AppField extends StatefulWidget {
   const AppField({
     super.key,
     required this.label,
@@ -35,30 +36,52 @@ class AppField extends StatelessWidget {
   final String? prefixText;
 
   @override
+  State<AppField> createState() => _AppFieldState();
+}
+
+class _AppFieldState extends State<AppField> {
+  bool _hidden = true;
+
+  @override
   Widget build(BuildContext context) {
+    final label = widget.label;
+    final prefixText = widget.prefixText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label.toUpperCase(), style: AppType.label(color: AppColors.inkA(0.47))),
         const SizedBox(height: 7),
         TextFormField(
-          controller: controller,
-          obscureText: obscure,
-          keyboardType: keyboardType,
-          validator: validator,
-          onChanged: onChanged,
-          maxLines: maxLines,
-          inputFormatters: inputFormatters,
+          controller: widget.controller,
+          obscureText: widget.obscure && _hidden,
+          enableSuggestions: !widget.obscure,
+          autocorrect: !widget.obscure,
+          keyboardType: widget.keyboardType,
+          validator: widget.validator,
+          onChanged: widget.onChanged,
+          maxLines: widget.obscure ? 1 : widget.maxLines,
+          inputFormatters: widget.inputFormatters,
           style: AppType.sans(size: 14.5, weight: FontWeight.w500),
           decoration: InputDecoration(
             isDense: true,
-            hintText: hint,
+            hintText: widget.hint,
+            suffixIcon: widget.obscure
+                ? IconButton(
+                    tooltip: _hidden ? 'Show password' : 'Hide password',
+                    onPressed: () => setState(() => _hidden = !_hidden),
+                    icon: Icon(
+                      _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: AppColors.inkA(0.5),
+                    ),
+                  )
+                : null,
             // Always visible (unlike `prefixText`, which hides until the field is focused).
             prefixIcon: prefixText == null
                 ? null
                 : Padding(
                     padding: const EdgeInsets.only(left: 16, right: 6),
-                    child: Text(prefixText!.trim(),
+                    child: Text(prefixText.trim(),
                         style: AppType.mono(size: 13, color: AppColors.inkA(0.5))),
                   ),
             prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),

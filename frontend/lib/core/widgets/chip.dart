@@ -40,21 +40,15 @@ class KhojloChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border:
               active ? null : Border.all(color: AppColors.whiteA(0.6), width: 1),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: activeTone.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: AppColors.ink.withValues(alpha: 0.06),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+          // Flat when selected: a glow doesn't fit in the short horizontal rows these
+          // chips sit in and was clipped into a hard band. A hairline lift only.
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: active ? 0.10 : 0.06),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

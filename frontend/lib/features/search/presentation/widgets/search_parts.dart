@@ -220,7 +220,7 @@ class ResultsSummaryCard extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.15, end: 0);
+    );
   }
 }
 

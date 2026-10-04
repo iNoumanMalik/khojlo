@@ -116,7 +116,13 @@ class _PhotoFill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final large = needsLargeVariant(photo, box, MediaQuery.devicePixelRatioOf(context));
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final large = needsLargeVariant(photo, box, dpr);
+    // Decode at the size it's drawn at, not the file's full size: less memory and
+    // no decoding hitches while scrolling.
+    final w = box.maxWidth.isFinite ? box.maxWidth : 400.0;
+    final h = box.maxHeight.isFinite ? box.maxHeight : w / photo.aspectRatio;
+    final decodeWidth = (math.max(w, h * photo.aspectRatio) * dpr).ceil();
     final alignment = box.hasBoundedWidth && box.hasBoundedHeight && box.maxHeight > 0
         ? photo.alignmentFor(box.maxWidth / box.maxHeight)
         : photo.alignment;
@@ -127,6 +133,7 @@ class _PhotoFill extends StatelessWidget {
           alignment: alignment,
           fadeInDuration: const Duration(milliseconds: 250),
           placeholder: placeholder,
+          memCacheWidth: decodeWidth,
           errorWidget: (_, __, ___) => _ToneGradient(tone: tone),
         );
     if (!large) return image(photo.thumbUrl);
@@ -153,20 +160,20 @@ class _ToneGradient extends StatelessWidget {
 class _StripeOverlay extends StatelessWidget {
   const _StripeOverlay();
 
+  // The stripes are drawn faint directly, rather than through an Opacity widget,
+  // which would render every placeholder tile off-screen on each frame.
   @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.5,
-      child: CustomPaint(painter: _StripePainter()),
-    );
-  }
+  Widget build(BuildContext context) =>
+      const RepaintBoundary(child: CustomPaint(painter: _StripePainter()));
 }
 
 class _StripePainter extends CustomPainter {
+  const _StripePainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.10)
+      ..color = Colors.white.withValues(alpha: 0.05)
       ..strokeWidth = 2;
     const gap = 14.0;
     // 115deg diagonal lines

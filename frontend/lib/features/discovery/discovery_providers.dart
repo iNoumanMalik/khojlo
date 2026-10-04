@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,10 +30,15 @@ Future<Feed> refreshFeed(WidgetRef ref) {
   return ref.read(feedProvider.future);
 }
 
-/// Business detail (records a view server-side on each fetch).
+/// Business detail (records a view server-side on each fetch). Kept for a minute
+/// after the page closes, so reopening it is instant.
 final businessDetailProvider =
     FutureProvider.autoDispose.family<BusinessDetail, int>((ref, id) async {
-  return ref.watch(discoveryRepositoryProvider).detail(id);
+  final detail = await ref.watch(discoveryRepositoryProvider).detail(id);
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 1), link.close);
+  ref.onDispose(timer.cancel);
+  return detail;
 });
 
 /// Shuffle stack for "Surprise Me".
