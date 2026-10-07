@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Architecture</title>
+<style>
+/* Three-tier architecture of Khojlo as implemented (backend/app, frontend/lib). Rendered to architecture.png with headless Chrome. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Arial, Helvetica, sans-serif; fill: #111; }
+</style>
+</head>
+<body>
+<svg id="a" xmlns="http://www.w3.org/2000/svg" width="1180" height="860" viewBox="0 0 1180 860"></svg>
+<script>
+const svg = document.getElementById('a'), NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a) => { const n = el('text', a); n.textContent = s; return n; };
+const defs = el('defs');
+const m = el('marker', { id: 'ar', viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0 0 L10 5 L0 10 Z', style: 'fill: #111' }, m);
+
+tx('Khojlo — System architecture', { x: 30, y: 36, style: 'font-size: 22px; font-weight: bold' });
+tx('Three-tier client-server architecture as implemented. Dashed boxes are planned for the final evaluation.', { x: 30, y: 58, style: 'font-size: 13px; fill: #444' });
+
+const layer = (x, y, w, h, title) => { el('rect', { x, y, width: w, height: h, rx: 10, style: 'fill: #fff; stroke: #111; stroke-width: 1.8; stroke-dasharray: 9 6' }); tx(title, { x: x + 18, y: y + 28, style: 'font-size: 16px; font-weight: bold' }); };
+const box = (x, y, w, h, lines, planned) => {
+  el('rect', { x, y, width: w, height: h, rx: 8, style: `fill: #fff; stroke: #111; stroke-width: 1.8${planned ? '; stroke-dasharray: 5 4' : ''}` });
+  lines.forEach((l, i) => tx(l, { x: x + w / 2, y: y + h / 2 + 5 + (i - (lines.length - 1) / 2) * 17, 'text-anchor': 'middle', style: `font-size: 14px; font-weight: bold${planned && i === lines.length - 1 && lines.length > 1 ? '; font-weight: normal; font-style: italic' : ''}` }));
+};
+const arrow = (x1, y1, x2, y2, both, label, lx, ly) => {
+  el('line', { x1, y1, x2, y2, 'marker-end': 'url(#ar)', ...(both ? { 'marker-start': 'url(#ar)' } : {}), style: 'stroke: #111; stroke-width: 1.6' });
+  if (label) tx(label, { x: lx, y: ly, style: 'font-size: 13.5px' });
+};
+
+// presentation
+layer(30, 85, 1120, 120, 'Presentation layer — Flutter (Android and web)');
+box(70, 120, 300, 66, ['Customer app']); box(440, 120, 300, 66, ['Business owner screens']); box(810, 120, 300, 66, ['Admin panel']);
+
+arrow(590, 205, 590, 262, true);
+tx('REST / JSON over HTTPS', { x: 610, y: 228, style: 'font-size: 13.5px' });
+tx('WebSocket (WSS) for live chat', { x: 610, y: 248, style: 'font-size: 13.5px' });
+
+// application
+layer(30, 265, 1120, 250, 'Application layer — FastAPI (Python): sign-in, authorization and business logic');
+const row1 = ['Accounts', 'Businesses', 'Discovery', 'Search', 'Reviews'];
+const row2 = ['Chat', 'Notifications', 'Maps', 'Admin and moderation'];
+row1.forEach((n, i) => box(55 + i * 215, 305, 195, 56, [n]));
+row2.forEach((n, i) => box(55 + i * 215, 380, 195, 56, [n]));
+box(55 + 4 * 215, 380, 195, 56, ['AI chatbot', '(RAG, planned)'], true);
+box(55, 450, 410, 52, ['Recommendations: basic in the feed', '(full engine planned)'], true);
+tx('Every module shares one database and one sign-in check (JWT access token).', { x: 500, y: 482, style: 'font-size: 13px; fill: #444' });
+
+// data and external
+arrow(300, 515, 300, 575, true, 'SQL via SQLAlchemy', 315, 552);
+arrow(840, 515, 840, 575, true, 'HTTPS API calls', 855, 552);
+
+layer(30, 578, 540, 250, 'Data layer');
+el('ellipse', { cx: 300, cy: 665, rx: 200, ry: 22, style: 'fill: #fff; stroke: #111; stroke-width: 1.8' });
+el('path', { d: 'M100 665 V775 A200 22 0 0 0 500 775 V665', style: 'fill: #fff; stroke: #111; stroke-width: 1.8' });
+tx('PostgreSQL', { x: 300, y: 730, 'text-anchor': 'middle', style: 'font-size: 16px; font-weight: bold' });
+tx('users, businesses, offers, reviews, messages,', { x: 300, y: 752, 'text-anchor': 'middle', style: 'font-size: 12.5px' });
+tx('notifications, moderation records, photos', { x: 300, y: 769, 'text-anchor': 'middle', style: 'font-size: 12.5px' });
+
+layer(600, 578, 550, 250, 'External services');
+box(625, 615, 245, 52, ['Google Sign-In']);
+box(885, 615, 245, 52, ['Email service (SMTP)']);
+box(625, 682, 245, 52, ['Firebase Cloud Messaging']);
+box(885, 682, 245, 52, ['Map provider', 'OpenStreetMap / Google Maps']);
+box(625, 749, 505, 52, ['AI model API', 'for the chatbot, planned'], true);
+document.title = 'done';
+</script>
+</body>
+</html>

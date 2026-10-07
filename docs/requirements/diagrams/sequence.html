@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Sequence Diagrams</title>
+<style>
+/* UML sequence diagrams for the thesis. Open with #ssd, #customer, #owner or #admin; rendered to sequence_*.png with headless Chrome.
+   Message names and API paths follow backend/app/api (all under /api/v1). */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Arial, Helvetica, sans-serif; fill: #000; }
+</style>
+</head>
+<body>
+<svg id="sd" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// ---------- diagrams
+// participant: [id, label, kind]  kind: actor | object
+// item: [from, to, label]            synchronous message (solid line, filled arrow)
+//       [from, to, label, 'r']       return (dashed line, open arrow)
+//       [id, id, label]              self message
+//       { frame: 'alt'|'opt', parts: [[guard, items], ...] }
+//       { section: 'text' }          labelled divider (used in the SSD)
+const D = {
+  ssd: {
+    title: 'sd Khojlo — System Sequence Diagram',
+    parts: [['c', 'Customer', 'actor'], ['o', 'Business Owner', 'actor'], ['a', 'Admin', 'actor'], ['s', ':Khojlo System', 'object']],
+    gap: [0, 150, 150, 330],
+    items: [
+      { section: 'Customer: find, review and contact a business' },
+      ['c', 's', 'login(email, password)'], ['s', 'c', 'session token', 'r'],
+      ['c', 's', 'searchBusinesses(keyword, filters)'], ['s', 'c', 'matching businesses', 'r'],
+      ['c', 's', 'viewBusiness(businessId)'], ['s', 'c', 'business details', 'r'],
+      ['c', 's', 'submitReview(rating, comment)'], ['s', 'c', 'review published', 'r'],
+      ['c', 's', 'sendMessage(businessId, text)'], ['s', 'c', 'message delivered', 'r'],
+      { section: 'Business Owner: list a business and promote it' },
+      ['o', 's', 'registerBusiness(details, location, photos)'], ['s', 'o', 'business listed', 'r'],
+      ['o', 's', 'createOffer(title, deal, startDate, endDate)'], ['s', 'o', 'offer saved', 'r'],
+      ['o', 's', 'replyToMessage(conversationId, text)'], ['s', 'o', 'reply delivered', 'r'],
+      { section: 'Admin: moderate the platform' },
+      ['a', 's', 'viewReports()'], ['s', 'a', 'open reports', 'r'],
+      ['a', 's', 'resolveReport(reportId, action)'], ['s', 'a', 'report resolved', 'r'],
+      ['a', 's', 'verifyBusiness(businessId, decision)'], ['s', 'a', 'verification status', 'r'],
+    ],
+  },
+  customer: {
+    title: 'sd Customer — search and review a business',
+    parts: [['u', 'Customer', 'actor'], ['app', ':Flutter App', 'object'], ['api', ':FastAPI Server', 'object'], ['db', ':PostgreSQL', 'object'], ['fcm', ':Firebase (FCM)', 'object']],
+    gap: [0, 200, 215, 215, 175],
+    items: [
+      ['u', 'app', 'login(email, password)'],
+      ['app', 'api', 'POST /auth/login'],
+      ['api', 'db', 'find user by email'],
+      ['db', 'api', 'user record', 'r'],
+      ['api', 'api', 'verify password hash'],
+      ['api', 'app', 'JWT access + refresh token', 'r'],
+      ['app', 'u', 'show home feed', 'r'],
+      ['u', 'app', 'search(keyword, filters)'],
+      ['app', 'api', 'GET /search?q=…&filters'],
+      ['api', 'db', 'query matching businesses'],
+      ['db', 'api', 'business rows', 'r'],
+      ['api', 'app', 'ranked results', 'r'],
+      ['app', 'u', 'show results', 'r'],
+      ['u', 'app', 'submitReview(rating, comment)'],
+      ['app', 'api', 'POST /businesses/{id}/reviews'],
+      { frame: 'alt', parts: [
+        ['already reviewed this business', [['api', 'app', '409 Conflict', 'r'], ['app', 'u', 'show "already reviewed"', 'r']]],
+        ['else', [['api', 'db', 'insert review, recalculate rating'], ['db', 'api', 'saved', 'r'], ['api', 'fcm', 'push "new review" to owner'], ['api', 'app', '201 Created', 'r'], ['app', 'u', 'show review', 'r']]],
+      ] },
+    ],
+  },
+  owner: {
+    title: 'sd Business Owner — register a business and create an offer',
+    parts: [['u', 'Business Owner', 'actor'], ['app', ':Flutter App', 'object'], ['api', ':FastAPI Server', 'object'], ['db', ':PostgreSQL', 'object'], ['fcm', ':Firebase (FCM)', 'object']],
+    gap: [0, 290, 215, 215, 175],
+    items: [
+      ['u', 'app', 'registerBusiness(details, location, photos)'],
+      ['app', 'api', 'POST /businesses'],
+      ['api', 'db', 'insert business, services, hours'],
+      ['db', 'api', 'business id', 'r'],
+      ['api', 'api', 'run verification checks'],
+      ['api', 'app', '201 Created (listed)', 'r'],
+      ['app', 'u', 'show business page', 'r'],
+      ['u', 'app', 'createOffer(title, deal, dates)'],
+      ['app', 'api', 'POST /businesses/{id}/offers'],
+      { frame: 'alt', parts: [
+        ['end date before start date', [['api', 'app', '422 Invalid dates', 'r'], ['app', 'u', 'show error', 'r']]],
+        ['else', [['api', 'db', 'insert offer'], ['db', 'api', 'offer id', 'r'],
+          { frame: 'opt', parts: [['offer is active', [['api', 'fcm', 'notify customers who saved the business']]]] },
+          ['api', 'app', '201 Created', 'r'], ['app', 'u', 'show offer', 'r']]],
+      ] },
+      ['u', 'app', 'replyToMessage(text)'],
+      ['app', 'api', 'POST /conversations/{id}/messages'],
+      ['api', 'db', 'insert message'],
+      ['api', 'fcm', 'push message to customer'],
+      ['api', 'app', '201 Sent', 'r'],
+      ['app', 'u', 'show reply in chat', 'r'],
+    ],
+  },
+  admin: {
+    title: 'sd Admin — resolve a report and verify a business',
+    parts: [['u', 'Admin', 'actor'], ['app', ':Admin Panel', 'object'], ['api', ':FastAPI Server', 'object'], ['db', ':PostgreSQL', 'object'], ['fcm', ':Firebase (FCM)', 'object']],
+    gap: [0, 200, 255, 215, 175],
+    items: [
+      ['u', 'app', 'openReports()'],
+      ['app', 'api', 'GET /admin/reports'],
+      ['api', 'db', 'select open reports'],
+      ['db', 'api', 'reports', 'r'],
+      ['api', 'app', 'report list', 'r'],
+      ['app', 'u', 'show report queue', 'r'],
+      ['u', 'app', 'resolveReport(id, action)'],
+      ['app', 'api', 'POST /admin/reports/{kind}/{id}/resolve'],
+      ['api', 'db', 'apply action (remove / suspend)'],
+      ['api', 'db', 'insert audit log entry'],
+      ['api', 'fcm', 'notify the affected user'],
+      ['api', 'app', 'report resolved', 'r'],
+      ['app', 'u', 'show updated queue', 'r'],
+      ['u', 'app', 'verifyBusiness(id, decision)'],
+      ['app', 'api', 'POST /admin/businesses/{id}/verification'],
+      { frame: 'alt', parts: [
+        ['decision = approve', [['api', 'db', 'set status = verified']]],
+        ['decision = reject', [['api', 'db', 'set status = rejected, save note']]],
+      ] },
+      ['api', 'fcm', 'notify the owner'],
+      ['api', 'app', 'updated business', 'r'],
+      ['app', 'u', 'show decision', 'r'],
+    ],
+  },
+};
+
+// ---------- renderer
+const key = (location.hash || '#ssd').slice(1), d = D[key];
+const svg = document.getElementById('sd'), NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+const defs = el('defs', {});
+const mf = el('marker', { id: 'fill', viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+el('path', { d: 'M0 0 L10 5 L0 10 Z', style: 'fill: #000' }, mf);
+const mo = el('marker', { id: 'open', viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+el('path', { d: 'M0 0 L10 5 L0 10', style: 'fill: none; stroke: #000; stroke-width: 1.2' }, mo);
+
+const PADX = 40, TOP = 62, HEAD = 70, ROW = 34, FS = 13.5;
+const X = {}; let x = PADX + 70;
+d.parts.forEach(([id], i) => { x += d.gap[i]; X[id] = x; });
+const W = x + 110;
+// layout pass: assign y to every item
+let y = TOP + HEAD + 52, num = 0;
+const ops = [];
+// lifelines a fragment touches, so its frame covers all of them
+function involved(it) { const s = new Set(); (function go(items) { items.forEach(x => { if (x.frame) x.parts.forEach(p => go(p[1])); else if (Array.isArray(x)) { s.add(x[0]); s.add(x[1]); } }); })(it.parts.flatMap(p => p[1])); return [...s]; }
+function walk(items, depth) {
+  items.forEach(it => {
+    if (it.section) { ops.push({ t: 'section', y, label: it.section }); y += ROW + 6; return; }
+    if (it.frame) {
+      const f = { t: 'frame', kind: it.frame, y0: y - 10, depth, guards: [], who: involved(it) };
+      ops.push(f); y += 14;
+      it.parts.forEach(([guard, sub], k) => {
+        if (k) y += 8;
+        f.guards.push({ y, guard, sep: k > 0 });   // the guard gets its own line above the branch
+        y += 32;
+        walk(sub, depth + 1);
+      });
+      f.y1 = y - 12; y += 16;
+      return;
+    }
+    const [a, b, label, kind] = it;
+    num += 1;
+    ops.push({ t: a === b ? 'self' : 'msg', a, b, label, ret: kind === 'r', y, n: num });
+    y += a === b ? ROW + 14 : ROW;
+  });
+}
+walk(d.items, 0);
+const H = y + 40;
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+// outer sd frame
+el('rect', { x: 12, y: 12, width: W - 24, height: H - 24, style: 'fill: none; stroke: #000; stroke-width: 1.2' });
+const tw = d.title.length * 7.4 + 24;
+el('path', { d: `M12 12 H${12 + tw} V30 L${tw} 40 H12 Z`, style: 'fill: #fff; stroke: #000; stroke-width: 1.2' });
+tx(d.title, { x: 20, y: 31, style: 'font-size: 13.5px; font-weight: bold' });
+
+// participants and lifelines
+const lifeTop = TOP + HEAD;
+d.parts.forEach(([id, label, kind]) => {
+  const cx = X[id];
+  if (kind === 'actor') {
+    const g = el('g', { transform: `translate(${cx}, ${TOP + 20})` });
+    el('circle', { cx: 0, cy: -2, r: 9, style: 'fill: #fff; stroke: #000; stroke-width: 1.5' }, g);
+    el('path', { d: 'M0 7 V30 M-15 15 H15 M0 30 L-12 47 M0 30 L12 47', style: 'fill: none; stroke: #000; stroke-width: 1.5' }, g);
+    tx(label, { x: 0, y: 64, 'text-anchor': 'middle', style: `font-size: ${FS}px; font-weight: bold` }, g);
+  } else {
+    const w = Math.max(label.length * 8 + 26, 120);
+    el('rect', { x: cx - w / 2, y: TOP + 18, width: w, height: 36, rx: 8, style: 'fill: #fff; stroke: #000; stroke-width: 1.3' });
+    tx(label, { x: cx, y: TOP + 41, 'text-anchor': 'middle', style: `font-size: ${FS}px; text-decoration: underline` });
+  }
+  el('line', { x1: cx, y1: lifeTop + (kind === 'actor' ? 4 : -16), x2: cx, y2: H - 30, style: 'stroke: #000; stroke-width: 1; stroke-dasharray: 6 5' });
+});
+
+// combined fragments (alt / opt): drawn into their own group, moved to the front at the end
+const frameG = el('g', {});
+ops.filter(o => o.t === 'frame').forEach(f => {
+  const inset = f.depth * 14;
+  const xs = f.who.map(id => X[id]);
+  const x0 = Math.min(...xs) - 45 + inset, x1 = Math.max(...xs) + 45 - inset;
+  el('rect', { x: x0, y: f.y0, width: x1 - x0, height: f.y1 - f.y0, style: 'fill: none; stroke: #000; stroke-width: 1.3' }, frameG);
+  el('path', { d: `M${x0} ${f.y0} H${x0 + 42} V${f.y0 + 12} L${x0 + 34} ${f.y0 + 19} H${x0} Z`, style: 'fill: #fff; stroke: #000; stroke-width: 1.3' }, frameG);
+  tx(f.kind, { x: x0 + 6, y: f.y0 + 14, style: 'font-size: 12.5px; font-weight: bold' }, frameG);
+  f.guards.forEach(gd => {
+    if (gd.sep) el('line', { x1: x0, y1: gd.y - 6, x2: x1, y2: gd.y - 6, style: 'stroke: #000; stroke-width: 1.2; stroke-dasharray: 6 4' }, frameG);
+    tx(`[${gd.guard}]`, { x: x0 + (gd.sep ? 10 : 52), y: gd.y + 9, style: 'font-size: 12.5px; font-style: italic; paint-order: stroke; stroke: #fff; stroke-width: 4px' }, frameG);
+  });
+});
+ops.filter(o => o.t === 'section').forEach(s => {
+  el('line', { x1: 12, y1: s.y - 4, x2: W - 12, y2: s.y - 4, style: 'stroke: #000; stroke-width: 0.8; stroke-dasharray: 2 3' });
+  const w = s.label.length * 7 + 16;
+  el('rect', { x: 24, y: s.y + 2, width: w, height: 20, style: 'fill: #fff; stroke: #000; stroke-width: 0.9' });
+  tx(s.label, { x: 32, y: s.y + 16, style: 'font-size: 12.5px; font-weight: bold' });
+});
+// activation bars: a call opens a bar on the receiver, its reply closes it.
+// A reply in a later alt branch extends the same bar; a call that is never answered gets a short bar.
+const KIND = Object.fromEntries(d.parts.map(([id, , k]) => [id, k]));
+const open = {}, bars = [], AW = 10, SHORT = 20;
+ops.forEach(o => {
+  if (o.t === 'self') { bars.push({ id: o.a, y0: o.y + 2, y1: o.y + 26, nest: 1 }); return; }
+  if (o.t !== 'msg' || KIND[o.b] === 'actor' && !o.ret) return;
+  if (!o.ret) { (open[o.b] ||= []).push({ id: o.b, y0: o.y, y1: null, nest: 0 }); return; }
+  const st = open[o.a] || [];
+  if (st.length) { const b = st.pop(); b.y1 = o.y; bars.push(b); }
+  else { const last = [...bars].reverse().find(b => b.id === o.a && !b.nest); if (last) last.y1 = o.y; }
+});
+Object.values(open).flat().forEach(b => { b.y1 = b.y0 + SHORT; bars.push(b); });
+const barX = b => X[b.id] - AW / 2 + b.nest * 6;
+bars.forEach(b => el('rect', { x: barX(b), y: b.y0, width: AW, height: b.y1 - b.y0, style: 'fill: #fff; stroke: #000; stroke-width: 1.1' }));
+// arrows start and end on the edge of whichever bar is active at that height
+const activeAt = (id, y) => bars.some(b => b.id === id && !b.nest && b.y0 <= y + 0.5 && y - 0.5 <= b.y1);
+const edge = (id, y, dir) => X[id] + (activeAt(id, y) ? dir * AW / 2 : 0);
+
+// messages
+ops.forEach(o => {
+  if (o.t === 'msg') {
+    const dir = Math.sign(X[o.b] - X[o.a]);
+    const x1 = edge(o.a, o.y, dir), x2 = edge(o.b, o.y, -dir);
+    el('line', { x1, y1: o.y, x2: x2 - dir * 1, y2: o.y, 'marker-end': `url(#${o.ret ? 'open' : 'fill'})`, style: `stroke: #000; stroke-width: 1.2${o.ret ? '; stroke-dasharray: 6 4' : ''}` });
+    tx(`${o.n}: ${o.label}`, { x: (x1 + x2) / 2, y: o.y - 6, 'text-anchor': 'middle', style: `font-size: ${FS - 0.5}px; paint-order: stroke; stroke: #fff; stroke-width: 4px` });
+  } else if (o.t === 'self') {
+    const x0 = X[o.a] + AW / 2;
+    el('path', { d: `M${x0} ${o.y} H${x0 + 40} V${o.y + 18} H${x0 + 7}`, 'marker-end': 'url(#fill)', style: 'fill: none; stroke: #000; stroke-width: 1.2' });
+    tx(`${o.n}: ${o.label}`, { x: x0 + 48, y: o.y + 13, style: `font-size: ${FS - 0.5}px; paint-order: stroke; stroke: #fff; stroke-width: 4px` });
+  }
+});
+svg.appendChild(frameG);   // fragments in front of lifelines, bars and arrows
+document.title = `done ${W}x${Math.ceil(H)}`;
+</script>
+</body>
+</html>

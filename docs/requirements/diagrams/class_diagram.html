@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Class Diagram</title>
+<style>
+/* UML class diagram (main classes) for the thesis, checked against backend/app and frontend/lib. Rendered to class_diagram.png. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Arial, Helvetica, sans-serif; fill: #111; }
+</style>
+</head>
+<body>
+<svg id="cd" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// ---------- classes: name -> { kind: class|abstract|interface, attrs, ops }
+const C = {
+  User: { kind: 'abstract', attrs: ['-id : int', '-fullName : String', '-email : String', '-hashedPassword : String', '-phone : String', '-role : UserRole'],
+    ops: ['+login(email : String, password : String) : Boolean', '+logout() : void', '+updateProfile(name : String, phone : String) : Boolean', '-hashPassword(password : String) : String'] },
+  Admin: { attrs: [], ops: ['+verifyBusiness(business : Business, decision : String) : void', '+moderateContent(review : Review) : void', '+suspendUser(user : User) : void'] },
+  BusinessOwner: { attrs: [], ops: ['+registerBusiness(details : BusinessDetails) : Business', '+updateBusiness(business : Business) : Boolean', '+createOffer(offer : Offer) : Offer', '+replyToReview(review : Review, text : String) : void', '+replyMessage(conversation : Conversation, text : String) : Message'] },
+  Customer: { attrs: ['-interests : List<String>'], ops: ['+searchBusinesses(keyword : String, filters : Filters) : List<Business>', '+compareBusinesses(businesses : List<Business>) : Comparison', '+saveFavourite(business : Business) : void', '+submitReview(business : Business, rating : int, comment : String) : Review', '+sendMessage(business : Business, text : String) : Message'] },
+  Business: { attrs: ['-id : int', '-name : String', '-category : String', '-description : String', '-address : String', '-phone : String', '-latitude : double', '-longitude : double', '-priceLevel : String', '-verificationStatus : VerificationStatus', '-rating : double', '-reviewCount : int'],
+    ops: ['+updateInformation(details : BusinessDetails) : Boolean', '+recalculateRating() : void', '+isOpenNow() : Boolean'] },
+  Review: { attrs: ['-id : int', '-rating : int', '-comment : String', '-ownerReply : String', '-createdAt : DateTime'], ops: ['+edit(rating : int, comment : String) : void', '+delete() : void', '-validateRating(rating : int) : Boolean'] },
+  Offer: { attrs: ['-id : int', '-title : String', '-dealType : DealType', '-dealValue : double', '-startDate : Date', '-endDate : Date', '-isActive : Boolean'], ops: ['+activate() : void', '+deactivate() : void', '-validateDates() : Boolean'] },
+  SavedList: { attrs: ['-id : int', '-name : String'], ops: ['+add(business : Business) : void', '+remove(business : Business) : void'] },
+  Conversation: { attrs: ['-id : int', '-lastMessageAt : DateTime', '-isBlocked : Boolean'], ops: ['+markRead(user : User) : void', '+block() : void'] },
+  Message: { attrs: ['-id : int', '-body : String', '-fromBusiness : Boolean', '-createdAt : DateTime'], ops: [] },
+  UserPreference: { attrs: ['-preferredCategories : List<String>', '-priceRange : String', '-location : String'], ops: ['+updatePreferences() : Boolean', '+getRecommendations() : List<Business>'] },
+  Chatbot: { kind: 'interface', attrs: null, ops: ['+answerQuery(query : String) : String'] },
+  RAGChatbot: { attrs: ['-modelName : String', '-knowledgeSource : String'], ops: ['+answerQuery(query : String) : String', '-retrieveContext(query : String) : List<Business>', '-generateResponse(query : String, context : String) : String'] },
+  SearchEngine: { attrs: ['-strategies : List<SearchStrategy>'], ops: ['+search(criteria : SearchCriteria) : List<Business>'] },
+  SearchStrategy: { kind: 'abstract', attrs: [], ops: ['+apply(query : Query) : Query'] },
+  KeywordSearch: { attrs: ['-keyword : String'], ops: ['+apply(query : Query) : Query'] },
+  CategorySearch: { attrs: ['-category : String'], ops: ['+apply(query : Query) : Query'] },
+  LocationSearch: { attrs: ['-latitude : double', '-longitude : double', '-radiusKm : double'], ops: ['+apply(query : Query) : Query'] },
+  MapService: { kind: 'abstract', attrs: [], ops: ['+showLocation(lat : double, lng : double) : void', '+getDirections(from : LatLng, to : LatLng) : Route'] },
+  MapLibreService: { attrs: ['-tileUrl : String'], ops: ['+showLocation(lat : double, lng : double) : void', '+getDirections(from : LatLng, to : LatLng) : Route'] },
+};
+// ---------- relationships: [from, to, kind, label]
+// gen: from = child, triangle at `to`. real: dashed, triangle at `to`. comp: filled diamond at `from` (the whole).
+// assoc: plain line, arrow at `to` when directed (assocDir). dep: dashed, open arrow at `to`.
+const REL = [
+  ['Admin', 'User', 'gen'], ['BusinessOwner', 'User', 'gen'], ['Customer', 'User', 'gen'],
+  ['BusinessOwner', 'Business', 'assoc', 'owns'],
+  ['Business', 'Offer', 'comp'],
+  ['Business', 'Review', 'comp'],
+  ['Customer', 'Review', 'assoc', 'writes'],
+  ['Admin', 'Business', 'assocDir', 'verifies'],
+  ['Admin', 'Review', 'assocDir', 'moderates'],
+  ['Customer', 'SavedList', 'comp'],
+  ['SavedList', 'Business', 'assocDir', 'contains'],
+  ['Customer', 'Conversation', 'assoc', 'starts'],
+  ['Business', 'Conversation', 'assoc', 'receives'],
+  ['Conversation', 'Message', 'comp'],
+  ['Customer', 'UserPreference', 'comp'],
+  ['Customer', 'SearchEngine', 'assocDir', 'uses'],
+  ['Customer', 'Chatbot', 'assocDir', 'asks'],
+  ['Customer', 'MapService', 'assocDir', 'views map'],
+  ['RAGChatbot', 'Chatbot', 'real'],
+  ['RAGChatbot', 'Business', 'dep', 'reads'],
+  ['SearchEngine', 'SearchStrategy', 'assocDir', 'applies'],
+  ['KeywordSearch', 'SearchStrategy', 'gen'], ['CategorySearch', 'SearchStrategy', 'gen'], ['LocationSearch', 'SearchStrategy', 'gen'],
+  ['MapLibreService', 'MapService', 'gen'],
+];
+
+// UML notation name: Type
+Object.values(C).forEach(c => { if (c.attrs) c.attrs = c.attrs.map(t => t.replace(/ : /g, ': ')); c.ops = c.ops.map(t => t.replace(/ : /g, ': ')); });
+// ---------- sizes
+const FS = 12, CH = 6.55, LH = 15, NAMEH = 26, PAD = 6, G = 5;
+const snap = v => Math.ceil(v / G) * G;
+Object.entries(C).forEach(([n, c]) => {
+  const lines = [n.length * 8 + (c.kind === 'interface' ? 30 : 0), ...(c.attrs || []).map(s => s.length * CH), ...c.ops.map(s => s.length * CH)];
+  c.w = snap(Math.max(...lines) + 2 * PAD + 6);
+  c.nameH = c.kind === 'interface' ? NAMEH + 12 : NAMEH;
+  c.attrH = c.attrs === null ? 0 : Math.max(c.attrs.length * LH + 8, 10);
+  c.opH = Math.max(c.ops.length * LH + 8, 10);
+  c.h = snap(c.nameH + c.attrH + c.opH);
+});
+// ---------- layout
+const HG = 115, VG = 120, M = 40;
+const place = (n, x, y) => { C[n].x = snap(x); C[n].y = snap(y); };
+const right = n => C[n].x + C[n].w, bottom = n => C[n].y + C[n].h;
+// rows A/B: User above its three subclasses; Business at the top right
+const yB = M + C.User.h + VG;
+let x = M;
+['Admin', 'BusinessOwner', 'Customer'].forEach(n => { place(n, x, yB); x = right(n) + HG; });
+place('User', (C.Admin.x + right('Customer')) / 2 - C.User.w / 2, M);
+place('Business', right('Customer') + HG + 30, M);
+// row C: what the customer owns, chat, and the business's reviews and offers
+const yC = Math.max(bottom('Customer'), bottom('BusinessOwner'), bottom('Business')) + VG;
+x = C.BusinessOwner.x;
+['UserPreference', 'SavedList', 'Conversation', 'Review', 'Offer'].forEach(n => { place(n, x, yC); x = right(n) + HG; });
+// row D: chatbot, search, map, messages
+const yD = Math.max(...['UserPreference', 'SavedList', 'Conversation', 'Review', 'Offer'].map(bottom)) + VG;
+place('Chatbot', M, Math.max(bottom('Admin') + VG, yC));
+place('RAGChatbot', M, bottom('Chatbot') + VG);
+place('SearchEngine', Math.max(right('RAGChatbot') + HG, C.UserPreference.x), yD);
+place('SearchStrategy', C.SearchEngine.x + C.SearchEngine.w / 2 - C.SearchStrategy.w / 2, bottom('SearchEngine') + VG);
+let sx = C.SearchStrategy.x + C.SearchStrategy.w / 2 - (C.KeywordSearch.w + C.CategorySearch.w + C.LocationSearch.w + 2 * 40) / 2;
+sx = Math.max(sx, M);
+['KeywordSearch', 'CategorySearch', 'LocationSearch'].forEach(n => { place(n, sx, bottom('SearchStrategy') + VG); sx = right(n) + 40; });
+place('Message', Math.max(C.Conversation.x, right('SearchEngine') + HG), yD);
+place('MapService', Math.max(right('Message'), right('LocationSearch')) + HG, yD);
+place('MapLibreService', C.MapService.x, bottom('MapService') + VG);
+const W = snap(Math.max(...Object.keys(C).map(right)) + M), H = snap(Math.max(...Object.keys(C).map(bottom)) + M + 70);
+
+// ---------- orthogonal router (A* on a grid)
+const NX = W / G + 1, NY = H / G + 1;
+const blocked = new Uint8Array(NX * NY), near = new Uint8Array(NX * NY), occH = new Uint8Array(NX * NY), occV = new Uint8Array(NX * NY);
+const nearH = new Uint8Array(NX * NY), nearV = new Uint8Array(NX * NY);   // cells beside an existing line
+const id = (i, j) => j * NX + i;
+Object.values(C).forEach(b => {
+  const fill = (m, arr) => { for (let i = Math.floor((b.x - m) / G); i <= Math.ceil((b.x + b.w + m) / G); i++) for (let j = Math.floor((b.y - m) / G); j <= Math.ceil((b.y + b.h + m) / G); j++) if (i >= 0 && j >= 0 && i < NX && j < NY) arr[id(i, j)] = 1; };
+  fill(3, blocked); fill(14, near);
+});
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+class Heap { constructor() { this.a = []; } push(x) { const a = this.a; a.push(x); let i = a.length - 1; while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; } get size() { return this.a.length; } }
+function route(s, sd, t, td) {
+  const N = NX * NY * 4, g = new Float32Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
+  const h = (i, j) => Math.abs(i - t[0]) + Math.abs(j - t[1]);
+  const st = id(s[0], s[1]) * 4 + sd; g[st] = 0;
+  const heap = new Heap(); heap.push([h(...s), st]);
+  const want = (td + 2) % 4;
+  while (heap.size) {
+    const [, cur] = heap.pop();
+    const c = cur >> 2, d = cur & 3, ci = c % NX, cj = (c / NX) | 0;
+    if (ci === t[0] && cj === t[1] && d === want) { const path = []; let k = cur; while (k !== -1) { path.push([(k >> 2) % NX, ((k >> 2) / NX) | 0]); k = prev[k]; } return path.reverse(); }
+    for (let nd = 0; nd < 4; nd++) {
+      if (nd === (d + 2) % 4) continue;
+      const ni = ci + DIRS[nd][0], nj = cj + DIRS[nd][1];
+      if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+      const nc = id(ni, nj);
+      if (blocked[nc] && !(ni === t[0] && nj === t[1])) continue;
+      const horiz = nd % 2 === 0;
+      let cost = 1 + (nd !== d ? 8 : 0) + (near[nc] ? 0.5 : 0);
+      cost += horiz ? (occH[nc] ? 80 : 0) + (occV[nc] ? 10 : 0) + (nearH[nc] ? 6 : 0) : (occV[nc] ? 80 : 0) + (occH[nc] ? 10 : 0) + (nearV[nc] ? 6 : 0);
+      const ns = nc * 4 + nd, ng = g[cur] + cost;
+      if (ng < g[ns]) { g[ns] = ng; prev[ns] = cur; heap.push([ng + h(ni, nj), ns]); }
+    }
+  }
+  return null;
+}
+const mark = path => {
+  for (let k = 1; k < path.length; k++) {
+    const a = path[k - 1], b = path[k], hz = a[1] === b[1], arr = hz ? occH : occV, nr = hz ? nearH : nearV;
+    arr[id(...a)] = 1; arr[id(...b)] = 1;
+    // keep later parallel lines at least two grid steps away
+    for (const o of [-2, -1, 1, 2]) { const i = hz ? a[0] : a[0] + o, j = hz ? a[1] + o : a[1]; if (i >= 0 && j >= 0 && i < NX && j < NY) nr[id(i, j)] = 1; }
+  }
+};
+const used = {};
+function sides(a, b) {
+  if (b.y >= a.y + a.h) return ['B', 'T'];
+  if (b.y + b.h <= a.y) return ['T', 'B'];
+  return b.x > a.x ? ['R', 'L'] : ['L', 'R'];
+}
+function port(n, side, toward) {
+  const b = C[n], key = n + side; used[key] ||= [];
+  const vert = side === 'L' || side === 'R';
+  const lo = vert ? b.y + 15 : b.x + 20, hi = vert ? b.y + b.h - 15 : b.x + b.w - 20;
+  const want = snap(Math.min(hi, Math.max(lo, vert ? toward.y : toward.x)));
+  for (let k = 0; k < 400; k++) for (const v of [want + k * G, want - k * G]) {
+    if (v < lo || v > hi || used[key].some(u => Math.abs(u - v) < 30)) continue;
+    used[key].push(v);
+    return { p: side === 'L' ? [b.x, v] : side === 'R' ? [b.x + b.w, v] : side === 'T' ? [v, b.y] : [v, b.y + b.h], dir: { R: 0, B: 1, L: 2, T: 3 }[side] };
+  }
+  throw new Error('no port ' + key);
+}
+const ctr = n => ({ x: C[n].x + C[n].w / 2, y: C[n].y + C[n].h / 2 });
+// generalisations into the same parent share one port (UML "tree" style)
+const shared = {};
+const STUB = 20;
+const rels = REL.map(([f, t, kind, label]) => ({ f, t, kind, label }));
+rels.forEach(r => { [r.sf, r.st] = sides(C[r.f], C[r.t]); });
+const dist = r => Math.abs(ctr(r.f).x - ctr(r.t).x) + Math.abs(ctr(r.f).y - ctr(r.t).y);
+[...rels].sort((a, b) => dist(a) - dist(b)).forEach(r => {
+  if (r.kind === 'gen' && shared[r.t + r.st]) r.b = shared[r.t + r.st];
+  else { r.b = port(r.t, r.st, ctr(r.f)); if (r.kind === 'gen') shared[r.t + r.st] = r.b; }
+  r.a = port(r.f, r.sf, { x: r.b.p[0], y: r.b.p[1] });
+  const out = q => [(q.p[0] + DIRS[q.dir][0] * STUB) / G, (q.p[1] + DIRS[q.dir][1] * STUB) / G];
+  const path = route(out(r.a), r.a.dir, out(r.b), r.b.dir);
+  if (!path) throw new Error('no route ' + r.f + '→' + r.t);
+  mark(path);
+  const pts = [r.a.p, ...path.map(([i, j]) => [i * G, j * G]), r.b.p];
+  r.pts = pts.filter((q, k) => k === 0 || k === pts.length - 1 || !((pts[k - 1][0] === q[0] && q[0] === pts[k + 1][0]) || (pts[k - 1][1] === q[1] && q[1] === pts[k + 1][1])));
+});
+
+// ---------- draw
+const svg = document.getElementById('cd'), NS = 'http://www.w3.org/2000/svg';
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+const INK = '#181818';
+const lineG = el('g', {}), boxG = el('g', {}), endG = el('g', {}), labG = el('g', {});
+function head(at, dir, kind) {      // dir = outward direction of the box side the line touches
+  const dx = DIRS[dir][0], dy = DIRS[dir][1], px = -dy, py = dx;
+  const P = (d, o) => `${at[0] + dx * d + px * o} ${at[1] + dy * d + py * o}`;
+  if (kind === 'tri') el('path', { d: `M${P(0, 0)} L${P(14, -8)} L${P(14, 8)} Z`, style: `fill: #fff; stroke: ${INK}; stroke-width: 1.2` }, endG);
+  if (kind === 'diamond') el('path', { d: `M${P(0, 0)} L${P(8, -6)} L${P(16, 0)} L${P(8, 6)} Z`, style: `fill: ${INK}; stroke: ${INK}; stroke-width: 1` }, endG);
+  if (kind === 'arrow') el('path', { d: `M${P(10, -6)} L${P(0, 0)} L${P(10, 6)}`, style: `fill: none; stroke: ${INK}; stroke-width: 1.2` }, endG);
+}
+const drawnShared = new Set();
+const placed = Object.values(C).map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h }));   // labels avoid classes and each other
+rels.forEach(r => {
+  const dashed = r.kind === 'real' || r.kind === 'dep';
+  el('path', { d: 'M' + r.pts.map(q => q.join(' ')).join(' L'), style: `fill: none; stroke: ${INK}; stroke-width: 1.1${dashed ? '; stroke-dasharray: 6 4' : ''}` }, lineG);
+  if (r.kind === 'gen' || r.kind === 'real') { const k = r.t + r.st + r.b.p.join(); if (!drawnShared.has(k)) { head(r.b.p, r.b.dir, 'tri'); drawnShared.add(k); } }
+  if (r.kind === 'comp') head(r.a.p, r.a.dir, 'diamond');
+  if (r.kind === 'assocDir' || r.kind === 'dep') head(r.b.p, r.b.dir, 'arrow');
+  if (r.label) {
+    let best = null;
+    for (let k = 1; k < r.pts.length; k++) { const [a, b] = [r.pts[k - 1], r.pts[k]], len = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]), hz = a[1] === b[1]; if (!best || len * (hz ? 1.5 : 1) > best.s) best = { a, b, hz, s: len * (hz ? 1.5 : 1) }; }
+    const w = r.label.length * 6.4 + 4;
+    for (const f of [0.5, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9]) {
+      const mx = best.a[0] + (best.b[0] - best.a[0]) * f, my = best.a[1] + (best.b[1] - best.a[1]) * f;
+      const box = best.hz ? { x: mx - w / 2, y: my - 16, w, h: 13 } : { x: mx + 5, y: my - 8, w, h: 13 };
+      if (placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h) && f !== 0.9) continue;
+      placed.push(box);
+      const st = 'font-size: 11.5px; font-style: italic; paint-order: stroke; stroke: #fff; stroke-width: 4px';
+      if (best.hz) tx(r.label, { x: mx, y: my - 5, 'text-anchor': 'middle', style: st }, labG); else tx(r.label, { x: mx + 6, y: my + 4, style: st }, labG);
+      break;
+    }
+  }
+});
+Object.entries(C).forEach(([n, c]) => {
+  const g = el('g', { transform: `translate(${c.x}, ${c.y})` }, boxG);
+  el('rect', { x: 0, y: 0, width: c.w, height: c.h, rx: 2, style: `fill: #FEFEFE; stroke: ${INK}; stroke-width: 1.1` }, g);
+  let y = 17;
+  if (c.kind === 'interface') { tx('«interface»', { x: c.w / 2, y: 15, 'text-anchor': 'middle', style: 'font-size: 11.5px' }, g); y = 30; }
+  tx(n, { x: c.w / 2, y, 'text-anchor': 'middle', style: `font-size: 13px; font-weight: bold${c.kind === 'abstract' ? '; font-style: italic' : ''}` }, g);
+  el('line', { x1: 0, y1: c.nameH, x2: c.w, y2: c.nameH, style: `stroke: ${INK}; stroke-width: 1` }, g);
+  let yy = c.nameH;
+  if (c.attrs !== null) {
+    c.attrs.forEach((a, i) => tx(a, { x: PAD, y: yy + 15 + i * LH, style: `font-size: ${FS}px` }, g));
+    yy += c.attrH;
+    el('line', { x1: 0, y1: yy, x2: c.w, y2: yy, style: `stroke: ${INK}; stroke-width: 1` }, g);
+  }
+  c.ops.forEach((o, i) => tx(o, { x: PAD, y: yy + 15 + i * LH, style: `font-size: ${FS}px${c.kind === 'interface' || (c.kind === 'abstract' && n !== 'User') ? '; font-style: italic' : ''}` }, g));
+});
+// legend
+const ly = H - 40;
+let lx = M;
+const item = (draw, w, label) => { draw(lx); tx(label, { x: lx + w + 8, y: ly + 4, style: 'font-size: 12px' }); lx += w + 8 + label.length * 6.4 + 28; };
+item(x => { el('line', { x1: x, y1: ly, x2: x + 30, y2: ly, style: `stroke: ${INK}` }); head([x + 44, ly], 2, 'tri'); }, 44, 'generalisation (inherits)');
+item(x => { el('line', { x1: x, y1: ly, x2: x + 30, y2: ly, style: `stroke: ${INK}; stroke-dasharray: 6 4` }); head([x + 44, ly], 2, 'tri'); }, 44, 'realisation (implements)');
+item(x => { el('line', { x1: x + 16, y1: ly, x2: x + 44, y2: ly, style: `stroke: ${INK}` }); head([x, ly], 0, 'diamond'); }, 44, 'composition (part cannot exist without the whole)');
+item(x => { el('line', { x1: x, y1: ly, x2: x + 44, y2: ly, style: `stroke: ${INK}` }); head([x + 44, ly], 2, 'arrow'); }, 44, 'association');
+item(x => { el('line', { x1: x, y1: ly, x2: x + 44, y2: ly, style: `stroke: ${INK}; stroke-dasharray: 6 4` }); head([x + 44, ly], 2, 'arrow'); }, 44, 'dependency (uses)');
+tx('Italic name = abstract class.  + public   - private', { x: lx, y: ly + 4, style: 'font-size: 12px' });
+document.title = `done ${W}x${H}`;
+</script>
+</body>
+</html>

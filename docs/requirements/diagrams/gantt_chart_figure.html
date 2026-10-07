@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Gantt Figure</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Static figure for the thesis: rendered to gantt_chart.png with headless Chrome (1600 px wide, 2x). */
+:root {
+  --bg: #FFFFFF; --ink: #1F2328; --ink-2: #57606A; --muted: #8C959F; --grid: #E6E9ED; --weekend: #F5F7F9;
+  --inc1: #0E8468; --inc2: #C2800F; --inc3: #4A55B5; --link: #9AA3AE; --back: #8A3A5C;
+}
+html, body { margin: 0; background: var(--bg); }
+svg text { font-family: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif; }
+</style>
+</head>
+<body>
+<svg id="g" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const DAY = 864e5, START = Date.UTC(2026, 4, 6), END = Date.UTC(2027, 0, 16), TODAY = Date.UTC(2026, 9, 5);
+const REL = 17;
+const sStart = i => START + i * 14 * DAY;
+const sEnd = i => (i >= REL ? END : sStart(i + 1));
+const W = 1600, L = 28, R = 1572, PX = (R - L) / ((END - START) / DAY);
+const X = t => L + ((t - START) / DAY) * PX;
+const ROW = 33, BAR = 17, TOP = 112;
+const C = k => `var(--inc${k})`;
+
+// Rows top to bottom. kind: sum (increment summary), task, ms (milestone).
+// revisits: later sprints that reopened this row's module; from = row id whose work led back here.
+const ROWS = [
+  { kind: 'sum', k: 1, a: START, b: sEnd(4), label: 'Increment 1  ·  Core MVP' },
+  { id: 'plan', k: 1, s: 0, e: 0, label: 'Planning, SRS & SDD' },
+  { id: 'm1', k: 1, s: 1, e: 1, label: 'M1 · Authentication & profile',
+    rev: [{ s: 6, from: 'm4', label: 'Edit profile' }, { s: 10, from: 'm8', label: 'Privacy & account deletion' }] },
+  { id: 'm2', k: 1, s: 2, e: 2, label: 'M2 · Business registration',
+    rev: [{ s: 6, from: 'm4', label: 'Photos & categories' }, { s: 10, from: 'm8', label: 'Offers & campaigns' }, { s: 14, from: 'm8r', label: 'Advanced analytics' }] },
+  { id: 'm3', k: 1, s: 3, e: 3, label: 'M3 · Discovery feed',
+    rev: [{ s: 10, from: 'm9', label: 'Push notifications' }, { s: 13, from: 'm10', label: 'Personalised feed' }] },
+  { id: 'proto', k: 1, s: 4, e: 4, label: 'Prototypes M4–M10 & 30% build' },
+  { kind: 'ms', k: 1, t: Date.UTC(2026, 6, 15), label: '30% evaluation · 15 Jul 2026' },
+
+  { kind: 'sum', k: 2, a: sStart(5), b: sEnd(10), label: 'Increment 2  ·  Core features' },
+  { id: 'm4', k: 2, s: 5, e: 6, label: 'M4 · Search, filter & compare' },
+  { id: 'm5', k: 2, s: 7, e: 8, label: 'M5 · Reviews & ratings' },
+  { id: 'm6', k: 2, s: 9, e: 9, label: 'M6 · Maps & location', rev: [{ s: 10, from: 'm8', label: 'OpenStreetMap & routes' }] },
+  { id: 'm9', k: 2, s: 10, e: 10, label: 'M9 · Chat & messaging' },
+  { id: 'm8', k: 2, s: 10, e: 10, label: 'M8 · Admin & moderation', rev: [{ s: 14, from: 'm10', label: 'AI moderation & Trust Score', id: 'm8r' }] },
+  { kind: 'ms', k: 2, t: Date.UTC(2026, 9, 6), label: '60% evaluation · 6 Oct 2026' },
+
+  { kind: 'sum', k: 3, a: sStart(11), b: END, label: 'Increment 3  ·  AI & release' },
+  { id: 'm7', k: 3, s: 11, e: 12, label: 'M7 · AI chatbot (RAG)' },
+  { id: 'm10', k: 3, s: 13, e: 13, label: 'M10 · AI personalisation' },
+  { id: 'perf', k: 3, s: 15, e: 15, label: 'Performance & security testing' },
+  { id: 'uat', k: 3, s: 16, e: 16, label: 'System testing, UAT & UI polish' },
+  { id: 'rel', k: 3, s: REL, e: REL, label: 'Deployment & final documentation' },
+  { kind: 'ms', k: 3, t: Date.UTC(2027, 0, 15), label: '100% evaluation · 15 Jan 2027' },
+];
+// Forward flow (sprint to sprint), drawn as grey elbows; pairs that go back up are drawn as "back" links instead.
+const FLOW = [['plan', 'm1'], ['m1', 'm2'], ['m2', 'm3'], ['m3', 'proto'], ['proto', 'ms1'],
+  ['proto', 'm4', 'early'], ['m4', 'm5'], ['m5', 'm6'], ['m6', 'm9'], ['m6', 'm8'], ['m8', 'ms2'],
+  ['m8', 'm7', 'early'], ['m7', 'm10'], ['m10', 'm8r'], ['m8r', 'perf'], ['perf', 'uat'], ['uat', 'rel'], ['rel', 'ms3']];
+
+const done = s => sEnd(s.e ?? s.s) <= Date.UTC(2026, 9, 7);
+const H = TOP + ROWS.length * ROW + 92;
+const svg = document.getElementById('g');
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+const textW = (s, size) => s.length * size * 0.56;
+
+const defs = el('defs', {});
+[1, 2, 3].forEach(k => {
+  const p = el('pattern', { id: 'h' + k, patternUnits: 'userSpaceOnUse', width: 6, height: 6, patternTransform: 'rotate(45)' }, defs);
+  el('rect', { width: 6, height: 6, style: `fill: color-mix(in srgb, ${C(k)} 14%, white)` }, p);
+  el('line', { x1: 0, y1: 0, x2: 0, y2: 6, style: `stroke: ${C(k)}; stroke-width: 2.4` }, p);
+});
+const marker = (id, color) => { const m = el('marker', { id, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs); el('path', { d: 'M0 0 L10 5 L0 10 z', style: `fill: ${color}` }, m); };
+marker('af', 'var(--link)'); marker('ab', 'var(--back)');
+
+// ---- title
+tx('Khojlo — Agile Scrum development plan', { x: L, y: 34, style: 'font-size: 22px; font-weight: 700; fill: var(--ink)' });
+tx('17 two-week sprints and a release period  ·  6 May 2026 – 15 Jan 2027  ·  status on 5 Oct 2026', { x: L, y: 58, style: 'font-size: 13.5px; fill: var(--ink-2)' });
+
+// ---- time header: months, then sprints
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+for (let i = 0; i <= REL; i++) if (i % 2) el('rect', { x: X(sStart(i)), y: 98, width: X(sEnd(i)) - X(sStart(i)), height: H - 98 - 70, style: 'fill: var(--weekend)' });
+el('line', { x1: L, y1: 76, x2: R, y2: 76, style: 'stroke: var(--grid)' });
+for (let m = 4; m <= 12; m++) {
+  const a = Math.max(Date.UTC(2026, m, 1), START), b = Math.min(Date.UTC(2026, m + 1, 1), END);
+  el('line', { x1: X(a), y1: 76, x2: X(a), y2: 98, style: 'stroke: var(--grid)' });
+  tx(`${MON[new Date(a).getUTCMonth()]} ${new Date(a).getUTCFullYear()}`, { x: X(a) + 6, y: 92, style: 'font-size: 12.5px; font-weight: 600; fill: var(--ink)' });
+}
+el('line', { x1: L, y1: 98, x2: R, y2: 98, style: 'stroke: var(--grid)' });
+for (let i = 0; i <= REL; i++) {
+  const cx = (X(sStart(i)) + X(sEnd(i))) / 2;
+  tx(i >= REL ? 'Release' : 'S' + i, { x: cx, y: 112 - 1, 'text-anchor': 'middle', style: 'font-size: 11px; font-weight: 600; fill: var(--muted)' });
+}
+const rowsTop = TOP + 8;
+
+// ---- positions
+const pos = {};
+ROWS.forEach((r, i) => { r.y = rowsTop + i * ROW; r.cy = r.y + ROW / 2; });
+const barBox = (r, s, e) => ({ x1: X(sStart(s)) + 2, x2: X(sEnd(e)) - 2, y1: r.cy - BAR / 2, y2: r.cy + BAR / 2 });
+ROWS.forEach(r => {
+  if (r.kind === 'ms') { pos['ms' + r.k] = { x1: X(r.t + DAY / 2) - 8, x2: X(r.t + DAY / 2) + 8, y1: r.cy - 8, y2: r.cy + 8, ms: true }; return; }
+  if (r.kind === 'sum') return;
+  pos[r.id] = barBox(r, r.s, r.e);
+  (r.rev || []).forEach(v => { v.box = barBox(r, v.s, v.s); if (v.id) pos[v.id] = v.box; });
+});
+
+// ---- increment group boxes and summary bars
+const groupsEnd = {};
+ROWS.forEach(r => { if (r.kind === 'ms') groupsEnd[r.k] = r.y + ROW; });
+ROWS.filter(r => r.kind === 'sum').forEach(r => {
+  const x1 = X(r.a) - 4, x2 = X(r.b) + 4;
+  el('rect', { x: x1, y: r.y + 2, width: x2 - x1, height: groupsEnd[r.k] - r.y - 2, rx: 8, style: `fill: none; stroke: ${C(r.k)}; stroke-width: 1.2; stroke-dasharray: 5 4; opacity: .7` });
+  el('rect', { x: x1 + 4, y: r.cy - 9, width: x2 - x1 - 8, height: 18, rx: 4, style: `fill: color-mix(in srgb, ${C(r.k)} 22%, white)` });
+  tx(r.label, { x: x1 + 12, y: r.cy + 4.5, style: `font-size: 12.5px; font-weight: 700; fill: var(--ink)` });
+});
+
+// ---- today line
+const tdx = X(TODAY + DAY / 2);
+el('line', { x1: tdx, y1: 100, x2: tdx, y2: groupsEnd[3], style: 'stroke: var(--back); stroke-width: 1.2; stroke-dasharray: 2 3' });
+
+// ---- forward links (grey elbows) and back links (dashed, upward)
+const linksG = el('g', {}), backG = el('g', {}), barsG = el('g', {}), labelsG = el('g', {});
+const elbow = (a, b, early) => {
+  const back = b.y1 < a.y1;
+  if (!back) {
+    // 'early' drops from the start of the bar so the line clears the milestone diamond below it
+    const sx = early ? a.x1 + 14 : Math.max(a.x1 + 6, Math.min(a.x2 - 8, b.x1 - 8));
+    const d = `M${sx} ${a.y2} V${(b.y1 + b.y2) / 2} H${b.x1 - 1}`;
+    el('path', { d, 'marker-end': 'url(#af)', style: 'fill: none; stroke: var(--link); stroke-width: 1.3' }, linksG);
+  } else backLink(a, b);
+};
+const backLink = (a, b, xAt) => {
+  const x = xAt ?? (a.x2 < b.x1 ? b.x1 + 12 : Math.min(a.x2 - 10, b.x1 + 10));
+  const d = a.x2 < b.x1 ? `M${a.x2} ${(a.y1 + a.y2) / 2} H${x} V${b.y2 + 2}` : `M${x} ${a.y1} V${b.y2 + 2}`;
+  el('path', { d, 'marker-end': 'url(#ab)', style: 'fill: none; stroke: var(--back); stroke-width: 1.6; stroke-dasharray: 5 3' }, backG);
+  el('circle', { cx: a.x2 < b.x1 ? a.x2 : x, cy: a.x2 < b.x1 ? (a.y1 + a.y2) / 2 : a.y1, r: 2.6, style: 'fill: var(--back)' }, backG);
+};
+FLOW.forEach(([a, b, early]) => elbow(pos[a], pos[b], early));
+// back links from the sprint's own work to the reopened module, staggered inside the sprint
+const bySprint = {};
+ROWS.forEach(r => (r.rev || []).forEach(v => { if (!(v.s === 14 && v.from === 'm10')) (bySprint[v.s] ||= []).push(v); }));
+Object.values(bySprint).forEach(list => {
+  list.sort((p, q) => q.box.y1 - p.box.y1);
+  list.forEach((v, i) => {
+    const b = v.box, src = pos[v.from];
+    const x = b.x1 + ((i + 1) * (b.x2 - b.x1)) / (list.length + 1);
+    backLink({ ...src, x1: Math.min(src.x1, x), x2: Math.max(src.x2, x + 1) }, b, x);
+  });
+});
+
+// ---- bars and labels
+const label = (s, x, y, anchor = 'start', strong = true) =>
+  tx(s, { x, y: y + 4.5, 'text-anchor': anchor, style: `font-size: ${strong ? 13 : 12}px; font-weight: ${strong ? 600 : 500}; fill: ${strong ? 'var(--ink)' : 'var(--ink-2)'}; paint-order: stroke; stroke: white; stroke-width: 4px; stroke-linejoin: round` }, labelsG);
+ROWS.forEach((r, idx) => {
+  if (r.kind === 'sum') return;
+  if (r.kind === 'ms') {
+    const p = pos['ms' + r.k], cx = (p.x1 + p.x2) / 2;
+    const held = r.t <= TODAY;
+    el('path', { d: `M${cx} ${r.cy - 9} L${cx + 9} ${r.cy} L${cx} ${r.cy + 9} L${cx - 9} ${r.cy} Z`, style: held ? 'fill: #E9B84A; stroke: #B8860B; stroke-width: 1' : 'fill: #FFF6DB; stroke: #B8860B; stroke-width: 1.4' }, barsG);
+    const right = cx + 16 + textW(r.label, 13) < R;
+    label(r.label + (held ? '' : r.t - TODAY < 7 * DAY ? '  (upcoming)' : '  (planned)'), right ? cx + 15 : cx - 15, r.cy, right ? 'start' : 'end');
+    return;
+  }
+  const b = pos[r.id], isDone = done(r);
+  el('rect', { x: b.x1, y: b.y1, width: b.x2 - b.x1, height: BAR, rx: 4,
+    style: isDone ? `fill: ${C(r.k)}` : `fill: color-mix(in srgb, ${C(r.k)} 12%, white); stroke: ${C(r.k)}; stroke-width: 1.5` }, barsG);
+  const nextX = (r.rev && r.rev.length) ? r.rev[0].box.x1 : R;
+  const w = textW(r.label, 13);
+  if (b.x2 + 8 + w < nextX - 6) label(r.label, b.x2 + 8, r.cy); else label(r.label, b.x1 - 8, r.cy, 'end');
+  (r.rev || []).forEach((v, j) => {
+    const rk = v.s <= 4 ? 1 : v.s <= 10 ? 2 : 3, vb = v.box, vd = sEnd(v.s) <= Date.UTC(2026, 9, 7);
+    el('rect', { x: vb.x1, y: vb.y1, width: vb.x2 - vb.x1, height: BAR, rx: 4,
+      style: `fill: url(#h${rk}); stroke: ${C(rk)}; stroke-width: 1.3${vd ? '' : '; stroke-dasharray: 4 2'}` }, barsG);
+    label(v.label, vb.x2 + 7, r.cy, 'start', false);
+  });
+});
+svg.appendChild(labelsG);
+
+// ---- legend
+const ly = H - 46;
+el('line', { x1: L, y1: ly - 22, x2: R, y2: ly - 22, style: 'stroke: var(--grid)' });
+let lx = L;
+const item = (draw, text) => { draw(lx, ly); const t = tx(text, { x: lx + 34, y: ly + 4.5, style: 'font-size: 12.5px; fill: var(--ink-2)' }); lx += 34 + textW(text, 12.5) + 26; };
+item((x, y) => el('rect', { x, y: y - 7, width: 26, height: 14, rx: 3, style: 'fill: var(--inc2)' }), 'Completed sprint work');
+item((x, y) => el('rect', { x: x + .75, y: y - 6.25, width: 24.5, height: 12.5, rx: 3, style: 'fill: color-mix(in srgb, var(--inc3) 12%, white); stroke: var(--inc3); stroke-width: 1.5' }), 'Planned');
+item((x, y) => el('rect', { x, y: y - 7, width: 26, height: 14, rx: 3, style: 'fill: url(#h2); stroke: var(--inc2); stroke-width: 1.3' }), 'Earlier module reopened');
+item((x, y) => { el('path', { d: `M${x} ${y} H${x + 24}`, 'marker-end': 'url(#ab)', style: 'fill: none; stroke: var(--back); stroke-width: 1.6; stroke-dasharray: 5 3' }); }, 'Back to an earlier module (Agile iteration)');
+item((x, y) => { el('path', { d: `M${x} ${y - 6} V${y} H${x + 24}`, 'marker-end': 'url(#af)', style: 'fill: none; stroke: var(--link); stroke-width: 1.3' }); }, 'Next sprint');
+item((x, y) => el('path', { d: `M${x + 13} ${y - 8} L${x + 21} ${y} L${x + 13} ${y + 8} L${x + 5} ${y} Z`, style: 'fill: #E9B84A; stroke: #B8860B' }), 'Evaluation milestone');
+item((x, y) => el('path', { d: `M${x + 13} ${y - 10} V${y + 10}`, style: 'stroke: var(--back); stroke-width: 1.2; stroke-dasharray: 2 3' }), 'Today (5 Oct 2026)');
+tx('Colours: green = Increment 1 (30%), gold = Increment 2 (60%), blue = Increment 3 (100%). Each sprint includes backend and Flutter tests.', { x: L, y: ly + 30, style: 'font-size: 12px; fill: var(--muted)' });
+</script>
+</body>
+</html>

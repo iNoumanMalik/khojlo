@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo DFD Context</title>
+<style>
+/* Level 0 (context) data flow diagram, Gane-Sarson notation. Rendered to dfd_context.png with headless Chrome. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Arial, Helvetica, sans-serif; fill: #111; }
+</style>
+</head>
+<body>
+<svg id="d" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// Each external entity: name, side, and its flows. dir 'in' = entity → system, 'out' = system → entity.
+const ENT = [
+  { name: 'Customer', side: 'L', flows: [
+    ['in', 'registration and login details'], ['out', 'session token, profile'],
+    ['in', 'search keywords, filters, saved businesses'], ['out', 'feed, results, business details, map'],
+    ['in', 'reviews, chat messages, reports, chatbot questions'], ['out', 'chat replies, chatbot answers, notifications'] ] },
+  { name: 'Business Owner', side: 'L', flows: [
+    ['in', 'account and login details'], ['out', 'session token, profile'],
+    ['in', 'business details, photos, offers, review replies'], ['out', 'listing status, analytics'],
+    ['in', 'chat replies'], ['out', 'customer messages, notifications'] ] },
+  { name: 'Admin', side: 'L', flows: [
+    ['in', 'login details'], ['out', 'session token'],
+    ['in', 'verification decisions, report actions'], ['out', 'reports, flags, audit log'] ] },
+  { name: 'Google Sign-In', side: 'R', flows: [['in', 'Google identity token']] },
+  { name: 'Email Service (SMTP)', side: 'R', flows: [['out', 'verification and reset codes']] },
+  { name: 'AI Model API (Claude)', side: 'R', flows: [['out', 'question and business context'], ['in', 'generated answer']] },
+  { name: 'OpenStreetMap / Google Maps', side: 'R', flows: [['out', 'address and route queries'], ['in', 'addresses, routes, map tiles']] },
+  { name: 'Firebase Cloud Messaging', side: 'R', flows: [['out', 'push messages']] },
+];
+const TRACK = 40, GAP = 34, M = 40, EW = 170, LW = 420, PW = 250, TOP = 100;
+const svg = document.getElementById('d'), NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+// stack the entities on each side
+let yL = TOP, yR = TOP;
+ENT.forEach(e => {
+  e.h = Math.max(e.flows.length * TRACK, 64);
+  if (e.side === 'L') { e.y = yL; yL += e.h + GAP; } else { e.y = yR; yR += e.h + GAP; }
+});
+const H = Math.max(yL, yR) - GAP + TOP + 20;
+const xE1 = M, xP = M + EW + LW, xE2 = xP + PW + LW, W = xE2 + EW + M;
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ar', viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+el('path', { d: 'M0 0 L10 5 L0 10 Z', style: 'fill: #111' }, mk);
+
+tx('Khojlo — Data Flow Diagram, Level 0 (context diagram)', { x: M, y: 38, style: 'font-size: 22px; font-weight: bold' });
+tx('Gane-Sarson notation · the whole system is one process; every arrow is a data flow between it and an external entity', { x: M, y: 62, style: 'font-size: 13px; fill: #444' });
+
+// the system process: one tall rounded rectangle with its id band
+const py = TOP - 20, ph = H - TOP - 20 + 20 - 20;
+el('rect', { x: xP, y: py, width: PW, height: ph, rx: 14, style: 'fill: #fff; stroke: #111; stroke-width: 2' });
+el('line', { x1: xP, y1: py + 34, x2: xP + PW, y2: py + 34, style: 'stroke: #111; stroke-width: 1.5' });
+tx('0', { x: xP + PW / 2, y: py + 24, 'text-anchor': 'middle', style: 'font-size: 16px; font-weight: bold' });
+tx('Khojlo', { x: xP + PW / 2, y: py + ph / 2 - 6, 'text-anchor': 'middle', style: 'font-size: 22px; font-weight: bold' });
+tx('System', { x: xP + PW / 2, y: py + ph / 2 + 22, 'text-anchor': 'middle', style: 'font-size: 22px; font-weight: bold' });
+
+ENT.forEach(e => {
+  const x = e.side === 'L' ? xE1 : xE2, w = EW;
+  const nameLines = e.name.length > 17 ? (e.name.includes(' / ') ? [e.name.split(' / ')[0] + ' /', e.name.split(' / ')[1]] : [e.name.slice(0, e.name.lastIndexOf(' ')), e.name.slice(e.name.lastIndexOf(' ') + 1)]) : [e.name];
+  if (e.name === 'Email Service (SMTP)') { nameLines.length = 0; nameLines.push('Email Service', '(SMTP)'); }
+  if (e.name === 'AI Model API (Claude)') { nameLines.length = 0; nameLines.push('AI Model API', '(Claude)'); }
+  if (e.name === 'Firebase Cloud Messaging') { nameLines.length = 0; nameLines.push('Firebase Cloud', 'Messaging'); }
+  el('rect', { x, y: e.y, width: w, height: e.h, style: 'fill: #fff; stroke: #111; stroke-width: 2' });
+  nameLines.forEach((l, i) => tx(l, { x: x + w / 2, y: e.y + e.h / 2 + 5 + (i - (nameLines.length - 1) / 2) * 17, 'text-anchor': 'middle', style: 'font-size: 15px; font-weight: bold' }));
+  e.flows.forEach(([dir, label], i) => {
+    const y = e.y + (e.h - e.flows.length * TRACK) / 2 + TRACK * (i + 0.5) + 6;
+    const xe = e.side === 'L' ? x + w : x, xs = e.side === 'L' ? xP : xP + PW;
+    const [x1, x2] = dir === 'in' ? (e.side === 'L' ? [xe, xs] : [xs, xe]) : (e.side === 'L' ? [xs, xe] : [xe, xs]);
+    // 'in' flows go entity → system, 'out' flows go system → entity
+    const from = dir === 'in' ? xe : xs, to = dir === 'in' ? xs : xe;
+    el('line', { x1: from, y1: y, x2: to + Math.sign(to - from) * -1, y2: y, 'marker-end': 'url(#ar)', style: 'stroke: #111; stroke-width: 1.4' });
+    tx(label, { x: (xe + xs) / 2, y: y - 6, 'text-anchor': 'middle', style: 'font-size: 12.5px' });
+  });
+});
+document.title = `done ${W}x${H}`;
+</script>
+</body>
+</html>

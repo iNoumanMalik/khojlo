@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Core ERD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,600;0,700;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Core-entity Crow's Foot ERD for the thesis, taken from backend/app/models. Rendered to erd_core.png with headless Chrome.
+   The full 28-table version is erd.html / erd.png. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif; }
+svg .mono { font-family: "IBM Plex Mono", Consolas, monospace; }
+</style>
+</head>
+<body>
+<svg id="erd" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const AREA = {
+  acc:  { name: 'Accounts (M1)', color: '#2F5D8A' },
+  biz:  { name: 'Business (M2, M3)', color: '#0E7A63' },
+  promo:{ name: 'Offers (M2)', color: '#B8680A' },
+  rev:  { name: 'Reviews (M5)', color: '#7A3E9D' },
+  chat: { name: 'Chat & notifications (M9)', color: '#B0436B' },
+  mod:  { name: 'Moderation (M8)', color: '#7A5230' },
+};
+// Core attributes only; every FK listed here has its relationship line drawn from its row.
+const E = {
+  USER: ['acc', [['id','int','PK'],['full_name','varchar'],['email','varchar','UK'],['hashed_password','varchar'],['role','enum'],['phone','varchar'],['created_at','timestamp']]],
+  NOTIFICATION: ['chat', [['id','int','PK'],['user_id','int','FK'],['kind','enum'],['title','varchar'],['read_at','timestamp']]],
+  SAVED_LIST: ['acc', [['id','int','PK'],['user_id','int','FK'],['name','varchar']]],
+  SAVED_BUSINESS: ['acc', [['id','int','PK'],['list_id','int','FK'],['business_id','int','FK']]],
+  CATEGORY: ['biz', [['id','int','PK'],['slug','varchar','UK'],['name','varchar']]],
+  BUSINESS: ['biz', [['id','int','PK'],['owner_id','int','FK'],['category_id','int','FK'],['name','varchar'],['description','text'],['address','varchar'],['phone','varchar'],['latitude','float'],['longitude','float'],['price_level','varchar'],['verification_status','enum'],['rating','float']]],
+  SERVICE: ['biz', [['id','int','PK'],['business_id','int','FK'],['name','varchar'],['price_amount','int']]],
+  OPENING_HOURS: ['biz', [['id','int','PK'],['business_id','int','FK'],['day_of_week','int'],['opens','varchar'],['closes','varchar']]],
+  OFFER: ['promo', [['id','int','PK'],['business_id','int','FK'],['title','varchar'],['deal_type','enum'],['deal_value','float'],['start_date','date'],['end_date','date'],['is_active','bool']]],
+  REVIEW: ['rev', [['id','int','PK'],['business_id','int','FK'],['user_id','int','FK'],['rating','int (1–5)'],['comment','text'],['owner_reply','text'],['created_at','timestamp']]],
+  CONVERSATION: ['chat', [['id','int','PK'],['customer_id','int','FK'],['business_id','int','FK'],['last_message_at','timestamp']]],
+  MESSAGE: ['chat', [['id','int','PK'],['conversation_id','int','FK'],['sender_id','int','FK'],['body','text'],['created_at','timestamp']]],
+  BUSINESS_REPORT: ['mod', [['id','int','PK'],['business_id','int','FK'],['reporter_id','int','FK'],['resolved_by_id','int','FK'],['reason','enum'],['status','enum']]],
+};
+// [parent ("one" side), child, FK column in the child, FK nullable (zero or one parent), verb read parent → child]
+const R = [
+  ['USER','BUSINESS','owner_id',false,'owns'],
+  ['CATEGORY','BUSINESS','category_id',true,'classifies'],
+  ['BUSINESS','SERVICE','business_id',false,'offers'],
+  ['BUSINESS','OPENING_HOURS','business_id',false,'has'],
+  ['BUSINESS','OFFER','business_id',false,'publishes'],
+  ['USER','REVIEW','user_id',false,'writes'],
+  ['BUSINESS','REVIEW','business_id',false,'receives'],
+  ['USER','SAVED_LIST','user_id',false,'creates'],
+  ['SAVED_LIST','SAVED_BUSINESS','list_id',false,'contains'],
+  ['BUSINESS','SAVED_BUSINESS','business_id',false,'saved in'],
+  ['USER','CONVERSATION','customer_id',false,'starts'],
+  ['BUSINESS','CONVERSATION','business_id',false,'takes part in'],
+  ['CONVERSATION','MESSAGE','conversation_id',false,'contains'],
+  ['USER','MESSAGE','sender_id',false,'sends'],
+  ['USER','NOTIFICATION','user_id',false,'receives'],
+  ['USER','BUSINESS_REPORT','reporter_id',false,'files'],
+  ['USER','BUSINESS_REPORT','resolved_by_id',true,'resolves (admin)'],
+  ['BUSINESS','BUSINESS_REPORT','business_id',false,'reported in'],
+];
+const COLS = [
+  [null, 'NOTIFICATION', 'USER', 'SAVED_LIST', null],
+  ['REVIEW', 'CONVERSATION', 'MESSAGE', 'SAVED_BUSINESS'],
+  [null, 'BUSINESS', 'BUSINESS_REPORT', null],
+  ['CATEGORY', 'SERVICE', 'OPENING_HOURS', 'OFFER'],
+];
+
+// ---------- geometry (5 px grid; rows are 20 px so every attribute row centre sits on the grid)
+const G = 5, snap = v => Math.round(v / G) * G;
+const HEAD = 25, LINE = 20, PADB = 5, VGAP = 30, HGAP = 120, M = 35;
+const boxH = n => HEAD + E[n][1].length * LINE + PADB;
+const boxW = n => Math.max(n.length * 8.6 + 22, ...E[n][1].map(([a, t]) => 30 + a.length * 7.1 + 18 + t.length * 6.4 + 10));
+const colW = COLS.map(c => snap(Math.max(...c.filter(Boolean).map(boxW))));
+const linked = (a, b) => R.some(r => (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a));
+// linked neighbours need room for both line ends; CORRIDOR leaves a lane for lines crossing the column
+const CORRIDOR = new Set(['MESSAGE']);
+const gapAfter = (a, b) => (b && (linked(a, b) || CORRIDOR.has(a)) ? 70 : VGAP);
+const colH = COLS.map(c => { const it = c.filter(Boolean); return it.reduce((s, n, k) => s + boxH(n) + (k < it.length - 1 ? gapAfter(n, it[k + 1]) : 0), 0); });
+const DH = snap(Math.max(...colH));
+const B = {};
+let cx = M;
+COLS.forEach((col, ci) => {
+  const items = col.filter(Boolean), free = DH - colH[ci], spacers = col.filter(v => v === null).length;
+  const extra = spacers ? 0 : free / Math.max(items.length - 1, 1);
+  let y = M;
+  col.forEach(n => {
+    if (n === null) { y += free / spacers; return; }
+    B[n] = { x: cx, y: snap(y), w: colW[ci], h: boxH(n) };
+    y += boxH(n) + gapAfter(n, items[items.indexOf(n) + 1]) + extra;
+  });
+  cx += colW[ci] + HGAP;
+});
+const DW = cx - HGAP + M, DHT = DH + 2 * M;
+
+// ---------- orthogonal router (A* on the grid; penalises bends, overlaps and crossings)
+const NX = Math.ceil(DW / G) + 1, NY = Math.ceil(DHT / G) + 1;
+const blocked = new Uint8Array(NX * NY), nearBox = new Uint8Array(NX * NY), occH = new Uint8Array(NX * NY), occV = new Uint8Array(NX * NY);
+const id = (i, j) => j * NX + i;
+Object.values(B).forEach(b => {
+  const fill = (m, arr) => { for (let i = Math.floor((b.x - m) / G); i <= Math.ceil((b.x + b.w + m) / G); i++) for (let j = Math.floor((b.y - m) / G); j <= Math.ceil((b.y + b.h + m) / G); j++) if (i >= 0 && j >= 0 && i < NX && j < NY) arr[id(i, j)] = 1; };
+  fill(3, blocked); fill(14, nearBox);
+});
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];   // right, down, left, up
+class Heap { constructor() { this.a = []; } push(x) { const a = this.a; a.push(x); let i = a.length - 1; while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; } get size() { return this.a.length; } }
+function route(s, sd, t, td) {
+  const N = NX * NY * 4, g = new Float32Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
+  const h = (i, j) => Math.abs(i - t[0]) + Math.abs(j - t[1]);
+  const st = id(s[0], s[1]) * 4 + sd; g[st] = 0;
+  const heap = new Heap(); heap.push([h(s[0], s[1]), st]);
+  const want = (td + 2) % 4;
+  while (heap.size) {
+    const [, cur] = heap.pop();
+    const c = cur >> 2, d = cur & 3, ci = c % NX, cj = (c / NX) | 0;
+    if (ci === t[0] && cj === t[1] && d === want) { const path = []; let k = cur; while (k !== -1) { path.push([(k >> 2) % NX, ((k >> 2) / NX) | 0]); k = prev[k]; } return path.reverse(); }
+    for (let nd = 0; nd < 4; nd++) {
+      if (nd === (d + 2) % 4) continue;
+      const ni = ci + DIRS[nd][0], nj = cj + DIRS[nd][1];
+      if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+      const nc = id(ni, nj);
+      if (blocked[nc] && !(ni === t[0] && nj === t[1])) continue;
+      const horiz = nd % 2 === 0;
+      let cost = 1 + (nd !== d ? 8 : 0) + (nearBox[nc] ? 0.5 : 0);
+      cost += horiz ? (occH[nc] ? 60 : 0) + (occV[nc] ? 6 : 0) : (occV[nc] ? 60 : 0) + (occH[nc] ? 6 : 0);
+      const ns = nc * 4 + nd, ng = g[cur] + cost;
+      if (ng < g[ns]) { g[ns] = ng; prev[ns] = cur; heap.push([ng + h(ni, nj), ns]); }
+    }
+  }
+  return null;
+}
+function mark(path) {
+  for (let k = 1; k < path.length; k++) {
+    const a = path[k - 1], b = path[k], arr = a[1] === b[1] ? occH : occV;
+    arr[id(a[0], a[1])] = 1; arr[id(b[0], b[1])] = 1;
+  }
+}
+const used = {};
+function sides(a, b) {
+  if (b.x >= a.x + a.w) return ['R', 'L'];
+  if (b.x + b.w <= a.x) return ['L', 'R'];
+  return b.y > a.y ? ['B', 'T'] : ['T', 'B'];
+}
+const DIR_OF = { R: 0, B: 1, L: 2, T: 3 };
+function portAt(name, side, v) {
+  const b = B[name];
+  (used[name + side] ||= []).push(v);
+  return { p: side === 'L' ? [b.x, v] : side === 'R' ? [b.x + b.w, v] : side === 'T' ? [v, b.y] : [v, b.y + b.h], dir: DIR_OF[side] };
+}
+function port(name, side, toward) {
+  const b = B[name], key = name + side; used[key] ||= [];
+  const vertical = side === 'L' || side === 'R';
+  const lo = vertical ? b.y + HEAD + 10 : b.x + 20, hi = vertical ? b.y + b.h - 10 : b.x + b.w - 20;
+  const want = snap(Math.min(hi, Math.max(lo, vertical ? toward.y : toward.x)));
+  for (let k = 0; k < 200; k++) for (const v of [want + k * G, want - k * G]) {
+    if (v < lo || v > hi || used[key].some(u => Math.abs(u - v) < 15)) continue;
+    return portAt(name, side, v);
+  }
+  throw new Error('no port on ' + key);
+}
+const center = n => ({ x: B[n].x + B[n].w / 2, y: B[n].y + B[n].h / 2 });
+const STUB = 20;
+const edges = R.map(([p, c, fk, opt, verb]) => ({ p, c, fk, opt, verb }));
+edges.forEach(e => { [e.sp, e.sc] = sides(B[e.p], B[e.c]); });
+// child ends first: on a left/right side the line leaves from the FK's own row
+edges.forEach(e => {
+  if (e.sc === 'L' || e.sc === 'R') {
+    const row = E[e.c][1].findIndex(a => a[0] === e.fk);
+    e.b = portAt(e.c, e.sc, B[e.c].y + HEAD + row * LINE + LINE / 2);
+  }
+});
+const dist = e => Math.abs(center(e.p).x - center(e.c).x) + Math.abs(center(e.p).y - center(e.c).y);
+[...edges].sort((a, b) => dist(a) - dist(b)).forEach(e => {
+  e.b ||= port(e.c, e.sc, center(e.p));
+  e.a = port(e.p, e.sp, { x: e.b.p[0], y: e.b.p[1] });
+});
+[...edges].sort((a, b) => dist(a) - dist(b)).forEach(e => {
+  const out = (q) => [(q.p[0] + DIRS[q.dir][0] * STUB) / G, (q.p[1] + DIRS[q.dir][1] * STUB) / G];
+  const path = route(out(e.a), e.a.dir, out(e.b), e.b.dir);
+  if (!path) throw new Error('no route ' + e.p + '→' + e.c);
+  mark(path);
+  const pts = [e.a.p, ...path.map(([i, j]) => [i * G, j * G]), e.b.p];
+  e.pts = pts.filter((q, k) => k === 0 || k === pts.length - 1 ||
+    !((pts[k - 1][0] === q[0] && q[0] === pts[k + 1][0]) || (pts[k - 1][1] === q[1] && q[1] === pts[k + 1][1])));
+});
+
+// ---------- draw
+const TITLE = 70, LEG = 106;
+const W = DW, H = DHT + TITLE + LEG;
+const svg = document.getElementById('erd');
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+tx('Khojlo — Entity Relationship Diagram (core entities)', { x: M, y: 36, style: 'font-size: 23px; font-weight: 700; fill: #1F2328' });
+tx(`Crow's Foot notation  ·  ${Object.keys(E).length} core tables of the implemented PostgreSQL database  ·  each line is one foreign key`, { x: M, y: 59, style: 'font-size: 13.5px; fill: #57606A' });
+const root = el('g', { transform: `translate(0, ${TITLE - M + 12})` });
+const LC = '#3F4752';
+function endMark(at, dir, kind, parent) {
+  const dx = DIRS[dir][0], dy = DIRS[dir][1], px = -dy, py = dx;
+  const P = (d, o) => `${at[0] + dx * d + px * o} ${at[1] + dy * d + py * o}`;
+  const st = `fill: none; stroke: ${LC}; stroke-width: 1.4`;
+  const ring = d => el('circle', { cx: at[0] + dx * d, cy: at[1] + dy * d, r: 4, style: `fill: white; stroke: ${LC}; stroke-width: 1.4` }, parent);
+  if (kind === 'zeroMany') { el('path', { d: `M${P(0, -6.5)} L${P(10, 0)} L${P(0, 6.5)}`, style: st }, parent); ring(15); }
+  else { el('path', { d: `M${P(6, -6)} L${P(6, 6)}`, style: st }, parent); if (kind === 'one') el('path', { d: `M${P(11, -6)} L${P(11, 6)}`, style: st }, parent); else ring(15); }
+}
+const edgeG = el('g', {}, root), nodeG = el('g', {}, root), markG = el('g', {}, root), labelG = el('g', {}, root);
+const placed = [];
+edges.forEach(e => {
+  el('path', { d: 'M' + e.pts.map(q => q.join(' ')).join(' L'), style: `fill: none; stroke: ${LC}; stroke-width: 1.3; stroke-linejoin: round` }, edgeG);
+  endMark(e.a.p, e.a.dir, e.opt ? 'zeroOne' : 'one', markG);
+  endMark(e.b.p, e.b.dir, 'zeroMany', markG);
+  // verb on the longest straight run, clear of the end symbols
+  let best = null;
+  for (let k = 1; k < e.pts.length; k++) {
+    const [a, b] = [e.pts[k - 1], e.pts[k]], len = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+    const horiz = a[1] === b[1], score = len * (horiz ? 1.6 : 1);
+    if (!best || score > best.score) best = { a, b, horiz, score };
+  }
+  const style = `font-size: 11.5px; font-style: italic; font-weight: 500; fill: #57606A; paint-order: stroke; stroke: white; stroke-width: 5px; stroke-linejoin: round`;
+  const w = e.verb.length * 6.2 + 4, len = best.horiz ? Math.abs(best.a[0] - best.b[0]) : Math.abs(best.a[1] - best.b[1]);
+  // slide the label along its run until it clears the labels already placed
+  for (const f of [0.5, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9]) {
+    const mx = best.a[0] + (best.b[0] - best.a[0]) * f, my = best.a[1] + (best.b[1] - best.a[1]) * f;
+    const box = best.horiz ? { x: mx - w / 2, y: my - 17, w, h: 14 } : { x: mx + 5, y: my - 8, w, h: 14 };
+    if (placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h) && f !== 0.9) continue;
+    placed.push(box);
+    if (best.horiz) tx(e.verb, { x: mx, y: my - 5, 'text-anchor': 'middle', style }, labelG);
+    else tx(e.verb, { x: mx + 6, y: my + 4, style }, labelG);
+    break;
+  }
+});
+Object.entries(B).forEach(([n, b]) => {
+  const [area, attrs] = E[n], col = AREA[area].color;
+  const g = el('g', { transform: `translate(${b.x}, ${b.y})` }, nodeG);
+  el('rect', { x: 0, y: 0, width: b.w, height: b.h, rx: 4, style: 'fill: white; stroke: #6E7781; stroke-width: 1.1' }, g);
+  el('path', { d: `M0 ${HEAD} V4 a4 4 0 0 1 4 -4 H${b.w - 4} a4 4 0 0 1 4 4 V${HEAD} Z`, style: `fill: ${col}` }, g);
+  tx(n, { x: 9, y: 17.5, style: 'font-size: 13.5px; font-weight: 700; fill: white; letter-spacing: .02em' }, g);
+  attrs.forEach(([name, type, key], i) => {
+    const y = HEAD + i * LINE + 14.5;
+    if (key === 'PK') el('rect', { x: 1, y: HEAD, width: b.w - 2, height: LINE, style: 'fill: #F1F3F5' }, g);
+    if (i) el('line', { x1: 1, y1: HEAD + i * LINE, x2: b.w - 1, y2: HEAD + i * LINE, style: 'stroke: #EEF0F2' }, g);
+    const kc = key === 'PK' ? '#B8680A' : key === 'FK' ? '#2F5D8A' : '#7A3E9D';
+    if (key) tx(key, { x: 7, y, class: 'mono', style: `font-size: 10px; font-weight: 500; fill: ${kc}` }, g);
+    tx(name, { x: 30, y, style: `font-size: 12.5px; fill: #1F2328; font-weight: ${key === 'PK' ? 700 : key === 'FK' ? 600 : 400}${key === 'PK' ? '; text-decoration: underline' : ''}` }, g);
+    tx(type, { x: b.w - 8, y, 'text-anchor': 'end', class: 'mono', style: 'font-size: 10.5px; fill: #8C959F' }, g);
+  });
+});
+
+// legend
+const ly = H - LEG + 26;
+el('line', { x1: M, y1: ly - 18, x2: W - M, y2: ly - 18, style: 'stroke: #E1E4E8' });
+let lx = M;
+const item = (draw, w, label) => { draw(lx); tx(label, { x: lx + w + 8, y: ly + 4.5, style: 'font-size: 12.5px; fill: #57606A' }); lx += w + 8 + label.length * 6.7 + 26; };
+const sample = kind => x => { el('path', { d: `M${x} ${ly} H${x + 48}`, style: `stroke: ${LC}; stroke-width: 1.3` }); endMark([x, ly], 0, kind, svg); };
+item(sample('one'), 48, 'exactly one');
+item(sample('zeroOne'), 48, 'zero or one (optional FK)');
+item(sample('zeroMany'), 48, 'zero or many');
+item(x => tx('PK', { x, y: ly + 4.5, class: 'mono', style: 'font-size: 11px; fill: #B8680A' }), 16, 'primary key');
+item(x => tx('FK', { x, y: ly + 4.5, class: 'mono', style: 'font-size: 11px; fill: #2F5D8A' }), 16, 'foreign key');
+item(x => tx('UK', { x, y: ly + 4.5, class: 'mono', style: 'font-size: 11px; fill: #7A3E9D' }), 16, 'unique');
+let ax = M; const ay = ly + 30;
+Object.values(AREA).forEach(ar => { el('rect', { x: ax, y: ay - 10, width: 13, height: 13, rx: 2, style: `fill: ${ar.color}` }); tx(ar.name, { x: ax + 19, y: ay + 1.5, style: 'font-size: 12.5px; fill: #57606A' }); ax += 19 + ar.name.length * 6.7 + 24; });
+tx('Core view of the 28-table database. Not shown: media and photos, campaigns, review votes and photos, chat and review reports, automatic flags, the moderation log, device tokens, OTP codes and search history.', { x: M, y: ay + 26, style: 'font-size: 12px; fill: #8C959F' });
+document.title = 'done ' + Math.ceil(W) + 'x' + Math.ceil(H);
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo DFD Level 1</title>
+<style>
+/* Level 1 data flow diagram, Gane-Sarson notation. Processes group the modules in docs/development_roadmap/implementation_plan.md,
+   data stores follow backend/app/models. Rendered to dfd_level1.png with headless Chrome. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Arial, Helvetica, sans-serif; fill: #111; }
+</style>
+</head>
+<body>
+<svg id="d" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const TOPOFF = 45;
+// ---------- nodes: [kind, label lines, centre x, centre y]
+const N = {
+  cust: ['ext', 'Customer', 115, 450], admin: ['ext', 'Admin', 115, 700], owner: ['ext', 'Business Owner', 115, 975],
+  ai: ['ext', 'AI Model API|(Claude)', 1420, 130], maps: ['ext', 'OpenStreetMap /|Google Maps', 1420, 270],
+  gsi: ['ext', 'Google Sign-In', 1420, 395], mail: ['ext', 'Email Service|(SMTP)', 1420, 490], fcm: ['ext', 'Firebase Cloud|Messaging', 1420, 850],
+  p7: ['proc', '7.0|Answer Questions|(AI Chatbot)', 710, 130], p3: ['proc', '3.0|Discover Businesses,|Search and Maps', 710, 280],
+  p1: ['proc', '1.0|Manage Accounts|and Profiles', 710, 430], p6: ['proc', '6.0|Moderate and|Verify', 710, 580],
+  p4: ['proc', '4.0|Manage Reviews|and Ratings', 710, 730], p5: ['proc', '5.0|Chat and|Notifications', 710, 880],
+  p2: ['proc', '2.0|Manage Businesses|and Offers', 710, 1030],
+  d2a: ['store', 'D2|Businesses and Offers', 1105, 205], d1: ['store', 'D1|Users and Favorites', 1105, 355],
+  d5: ['store', 'D5|Moderation Records', 1105, 540], d2b: ['store', 'D2|Businesses and Offers', 1105, 625], d3: ['store', 'D3|Reviews', 1105, 750],
+  d4: ['store', 'D4|Messages, Notifications', 1105, 955], d2c: ['store', 'D2|Businesses and Offers', 1105, 1050],
+};
+const DUP = new Set(['d2b', 'd2c']);               // later copies of D2: marked with a second bar
+// ---------- flows: [from, to, label, both?]
+const F = [
+  ['cust', 'p1', 'login / registration details'], ['p1', 'cust', 'session token'],
+  ['owner', 'p1', 'account details'], ['admin', 'p1', 'login credentials'],
+  ['gsi', 'p1', 'Google identity'], ['p1', 'mail', 'verification code'], ['p1', 'd1', 'user records', 1],
+
+  ['cust', 'p3', 'search keywords, filters'], ['p3', 'cust', 'feed, results, directions'],
+  ['p3', 'maps', 'address / route query'], ['maps', 'p3', 'address, route'],
+  ['d2a', 'p3', 'business data'], ['p3', 'd1', 'saved businesses', 1],
+
+  ['owner', 'p2', 'business details, offers'], ['p2', 'owner', 'listing status, analytics'], ['p2', 'd2c', 'business, offers', 1],
+
+  ['cust', 'p4', 'rating, comment'], ['owner', 'p4', 'review reply'], ['p4', 'd3', 'reviews', 1], ['p4', 'd2b', 'updated rating'],
+
+  ['cust', 'p5', 'chat message'], ['p5', 'cust', 'replies, notifications'],
+  ['owner', 'p5', 'chat reply'], ['p5', 'owner', 'messages, notifications'],
+  ['p5', 'd4', 'messages, notifications', 1], ['p5', 'fcm', 'push message'],
+  ['p2', 'p5', 'new offer'], ['p4', 'p5', 'new review'], ['p6', 'p5', 'moderation notice'],
+
+  ['cust', 'p6', 'report'], ['admin', 'p6', 'decisions'], ['p6', 'admin', 'reports, flags, log'],
+  ['p6', 'd5', 'reports, flags, log', 1], ['p6', 'd2b', 'verification status', 1],
+
+  ['cust', 'p7', 'question'], ['p7', 'cust', 'answer'],
+  ['p7', 'ai', 'question, business context'], ['ai', 'p7', 'answer'], ['d2a', 'p7', 'business data'],
+];
+
+// ---------- geometry
+const SZ = { ext: [150, 55], proc: [190, 110], store: [210, 40] };
+const TALL = { cust: 260, admin: 110, owner: 160 };   // people boxes grow to take all their flows
+const G = 5, snap = v => Math.round(v / G) * G;
+const B = {};
+Object.entries(N).forEach(([id, [k, , cx, cy]]) => {
+  const [w, h0] = SZ[k], h = TALL[id] || h0;
+  B[id] = { id, k, x: snap(cx - w / 2), y: snap(cy - h / 2 + TOPOFF), w, h };
+});
+const W = 1560, H = 1250;
+
+// ---------- orthogonal router (A* on a 5 px grid)
+const NX = W / G + 1, NY = H / G + 1;
+const blocked = new Uint8Array(NX * NY), near = new Uint8Array(NX * NY), occH = new Uint8Array(NX * NY), occV = new Uint8Array(NX * NY), nearH = new Uint8Array(NX * NY), nearV = new Uint8Array(NX * NY);
+const id = (i, j) => j * NX + i;
+Object.values(B).forEach(b => {
+  const fill = (m, arr) => { for (let i = Math.floor((b.x - m) / G); i <= Math.ceil((b.x + b.w + m) / G); i++) for (let j = Math.floor((b.y - m) / G); j <= Math.ceil((b.y + b.h + m) / G); j++) if (i >= 0 && j >= 0 && i < NX && j < NY) arr[id(i, j)] = 1; };
+  fill(3, blocked); fill(14, near);
+});
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+class Heap { constructor() { this.a = []; } push(x) { const a = this.a; a.push(x); let i = a.length - 1; while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; } get size() { return this.a.length; } }
+function route(s, sd, t, td) {
+  const NN = NX * NY * 4, g = new Float32Array(NN).fill(Infinity), prev = new Int32Array(NN).fill(-1);
+  const h = (i, j) => Math.abs(i - t[0]) + Math.abs(j - t[1]);
+  const st = id(s[0], s[1]) * 4 + sd; g[st] = 0;
+  const heap = new Heap(); heap.push([h(...s), st]);
+  const want = (td + 2) % 4;
+  while (heap.size) {
+    const [, cur] = heap.pop();
+    const c = cur >> 2, d = cur & 3, ci = c % NX, cj = (c / NX) | 0;
+    if (ci === t[0] && cj === t[1] && d === want) { const path = []; let k = cur; while (k !== -1) { path.push([(k >> 2) % NX, ((k >> 2) / NX) | 0]); k = prev[k]; } return path.reverse(); }
+    for (let nd = 0; nd < 4; nd++) {
+      if (nd === (d + 2) % 4) continue;
+      const ni = ci + DIRS[nd][0], nj = cj + DIRS[nd][1];
+      if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+      const nc = id(ni, nj);
+      if (blocked[nc] && !(ni === t[0] && nj === t[1])) continue;
+      const hz = nd % 2 === 0;
+      let cost = 1 + (nd !== d ? 9 : 0) + (near[nc] ? 0.5 : 0);
+      cost += hz ? (occH[nc] ? 90 : 0) + (occV[nc] ? 8 : 0) + (nearH[nc] ? 7 : 0) : (occV[nc] ? 90 : 0) + (occH[nc] ? 8 : 0) + (nearV[nc] ? 7 : 0);
+      const ns = nc * 4 + nd, ng = g[cur] + cost;
+      if (ng < g[ns]) { g[ns] = ng; prev[ns] = cur; heap.push([ng + h(ni, nj), ns]); }
+    }
+  }
+  return null;
+}
+function mark(path) {
+  for (let k = 1; k < path.length; k++) {
+    const a = path[k - 1], b = path[k], hz = a[1] === b[1], arr = hz ? occH : occV, nr = hz ? nearH : nearV;
+    arr[id(...a)] = 1; arr[id(...b)] = 1;
+    for (const o of [-2, -1, 1, 2]) { const i = hz ? a[0] : a[0] + o, j = hz ? a[1] + o : a[1]; if (i >= 0 && j >= 0 && i < NX && j < NY) nr[id(i, j)] = 1; }
+  }
+}
+const used = {};
+function sides(a, b) {
+  if (b.x >= a.x + a.w) return ['R', 'L'];
+  if (b.x + b.w <= a.x) return ['L', 'R'];
+  return b.y > a.y ? ['B', 'T'] : ['T', 'B'];
+}
+function port(n, side, toward) {
+  const b = B[n], key = n + side; used[key] ||= [];
+  const vert = side === 'L' || side === 'R';
+  const lo = vert ? b.y + (b.k === 'proc' ? 30 : 8) : b.x + 25, hi = vert ? b.y + b.h - 8 : b.x + b.w - 25;
+  const want = snap(Math.min(hi, Math.max(lo, vert ? toward.y : toward.x)));
+  for (let k = 0; k < 400; k++) for (const v of [want + k * G, want - k * G]) {
+    if (v < lo || v > hi || used[key].some(u => Math.abs(u - v) < 18)) continue;
+    used[key].push(v);
+    return { p: side === 'L' ? [b.x, v] : side === 'R' ? [b.x + b.w, v] : side === 'T' ? [v, b.y] : [v, b.y + b.h], dir: { R: 0, B: 1, L: 2, T: 3 }[side] };
+  }
+  throw new Error('no port ' + key + ' ' + n);
+}
+const ctr = n => ({ x: B[n].x + B[n].w / 2, y: B[n].y + B[n].h / 2 });
+const STUB = 20;
+const flows = F.map(([f, t, label, both]) => ({ f, t, label, both }));
+// stores and processes that share a column are connected top-to-bottom; a skipped neighbour (6.0 → 5.0) goes round on the right
+flows.forEach(r => {
+  [r.sf, r.st] = sides(B[r.f], B[r.t]);
+  if (r.f === 'p6' && r.t === 'p5') { r.sf = 'R'; r.st = 'R'; }
+});
+const dist = r => Math.abs(ctr(r.f).x - ctr(r.t).x) + Math.abs(ctr(r.f).y - ctr(r.t).y);
+[...flows].sort((a, b) => dist(a) - dist(b)).forEach(r => {
+  r.a = port(r.f, r.sf, ctr(r.t));
+  r.b = port(r.t, r.st, { x: r.a.p[0], y: r.a.p[1] });
+  const out = q => [(q.p[0] + DIRS[q.dir][0] * STUB) / G, (q.p[1] + DIRS[q.dir][1] * STUB) / G];
+  const path = route(out(r.a), r.a.dir, out(r.b), r.b.dir);
+  if (!path) throw new Error('no route ' + r.f + '→' + r.t);
+  mark(path);
+  const pts = [r.a.p, ...path.map(([i, j]) => [i * G, j * G]), r.b.p];
+  r.pts = pts.filter((q, k) => k === 0 || k === pts.length - 1 || !((pts[k - 1][0] === q[0] && q[0] === pts[k + 1][0]) || (pts[k - 1][1] === q[1] && q[1] === pts[k + 1][1])));
+});
+
+// ---------- draw
+const svg = document.getElementById('d'), NS = 'http://www.w3.org/2000/svg';
+const LEG = 70;
+svg.setAttribute('width', W); svg.setAttribute('height', H + LEG - 70); svg.setAttribute('viewBox', `0 0 ${W} ${H + LEG - 70}`);
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ar', viewBox: '0 0 10 10', refX: 10, refY: 5, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0 0 L10 5 L0 10 Z', style: 'fill: #111' }, mk);
+tx('Khojlo — Data Flow Diagram, Level 1', { x: 40, y: 38, style: 'font-size: 23px; font-weight: bold' });
+tx('Gane-Sarson notation · 7 processes, 5 data stores, 8 external entities. D2 is drawn three times to keep lines short (copies have a second bar).', { x: 40, y: 62, style: 'font-size: 13px; fill: #444' });
+const edgeG = el('g', {}), nodeG = el('g', {}), labG = el('g', {});
+const placed = Object.values(B).map(b => ({ x: b.x - 4, y: b.y - 4, w: b.w + 8, h: b.h + 8 }));
+const FS = 12.5;
+flows.forEach(r => {
+  el('path', { d: 'M' + r.pts.map(q => q.join(' ')).join(' L'), 'marker-end': 'url(#ar)', ...(r.both ? { 'marker-start': 'url(#ar)' } : {}), style: 'fill: none; stroke: #111; stroke-width: 1.2; stroke-linejoin: round' }, edgeG);
+  const w = r.label.length * (FS * 0.54) + 4;
+  const segs = [];
+  for (let k = 1; k < r.pts.length; k++) { const [a, b] = [r.pts[k - 1], r.pts[k]], len = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); segs.push({ a, b, len, hz: a[1] === b[1] }); }
+  segs.sort((p, q) => q.len * (q.hz ? 1.4 : 1) - p.len * (p.hz ? 1.4 : 1));
+  let done = false;
+  for (const s of segs) {
+    for (const f of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+      const mx = s.a[0] + (s.b[0] - s.a[0]) * f, my = s.a[1] + (s.b[1] - s.a[1]) * f;
+      const box = s.hz ? { x: mx - w / 2, y: my - 17, w, h: 15 } : { x: mx + 4, y: my - 8, w, h: 15 };
+      if (s.hz && s.len < w + 6) continue;
+      if (placed.some(o => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h)) continue;
+      placed.push(box);
+      const st = `font-size: ${FS}px; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round`;
+      if (s.hz) tx(r.label, { x: mx, y: my - 5, 'text-anchor': 'middle', style: st }, labG); else tx(r.label, { x: mx + 5, y: my + 4, style: st }, labG);
+      done = true; break;
+    }
+    if (done) break;
+  }
+  if (!done) { const s = segs[0], mx = (s.a[0] + s.b[0]) / 2, my = (s.a[1] + s.b[1]) / 2; tx(r.label, { x: mx, y: my - 5, 'text-anchor': 'middle', style: `font-size: ${FS}px; paint-order: stroke; stroke: #fff; stroke-width: 4px` }, labG); }
+});
+Object.values(B).forEach(b => {
+  const g = el('g', { transform: `translate(${b.x}, ${b.y})` }, nodeG), lab = N[b.id][1].split('|'), w = b.w, h = b.h;
+  if (b.k === 'ext') {
+    el('rect', { x: 0, y: 0, width: w, height: h, style: 'fill: #fff; stroke: #111; stroke-width: 2' }, g);
+    lab.forEach((l, i) => tx(l, { x: w / 2, y: h / 2 + 5 + (i - (lab.length - 1) / 2) * 17, 'text-anchor': 'middle', style: 'font-size: 14.5px; font-weight: bold' }, g));
+  } else if (b.k === 'proc') {
+    el('rect', { x: 0, y: 0, width: w, height: h, rx: 12, style: 'fill: #fff; stroke: #111; stroke-width: 2' }, g);
+    el('line', { x1: 0, y1: 24, x2: w, y2: 24, style: 'stroke: #111; stroke-width: 1.4' }, g);
+    tx(lab[0], { x: w / 2, y: 17, 'text-anchor': 'middle', style: 'font-size: 13.5px; font-weight: bold' }, g);
+    const nl = lab.slice(1);
+    nl.forEach((l, i) => tx(l, { x: w / 2, y: 24 + (h - 24) / 2 + 5 + (i - (nl.length - 1) / 2) * 17, 'text-anchor': 'middle', style: 'font-size: 14px; font-weight: bold' }, g));
+  } else {
+    el('path', { d: `M${w} 0 H0 V${h} H${w}`, style: 'fill: #fff; stroke: #111; stroke-width: 2' }, g);
+    el('line', { x1: 36, y1: 0, x2: 36, y2: h, style: 'stroke: #111; stroke-width: 1.4' }, g);
+    if (DUP.has(b.id)) el('line', { x1: 41, y1: 0, x2: 41, y2: h, style: 'stroke: #111; stroke-width: 1.4' }, g);
+    tx(lab[0], { x: 18, y: h / 2 + 5, 'text-anchor': 'middle', style: 'font-size: 13.5px; font-weight: bold' }, g);
+    tx(lab[1], { x: (DUP.has(b.id) ? 48 : 43), y: h / 2 + 5, style: 'font-size: 13.5px; font-weight: bold' }, g);
+  }
+});
+// legend
+const ly = H - 28;
+el('line', { x1: 40, y1: ly - 22, x2: W - 40, y2: ly - 22, style: 'stroke: #ccc' });
+let lx = 40;
+const item = (draw, w, label) => { draw(lx); tx(label, { x: lx + w + 8, y: ly + 5, style: 'font-size: 12.5px; fill: #333' }); lx += w + 8 + label.length * 6.5 + 28; };
+item(x => el('rect', { x, y: ly - 11, width: 38, height: 24, style: 'fill: #fff; stroke: #111; stroke-width: 2' }), 38, 'external entity');
+item(x => { el('rect', { x, y: ly - 11, width: 38, height: 24, rx: 6, style: 'fill: #fff; stroke: #111; stroke-width: 2' }); el('line', { x1: x, y1: ly - 3, x2: x + 38, y2: ly - 3, style: 'stroke: #111' }); }, 38, 'process');
+item(x => { el('path', { d: `M${x + 38} ${ly - 11} H${x} V${ly + 13} H${x + 38}`, style: 'fill: none; stroke: #111; stroke-width: 2' }); el('line', { x1: x + 10, y1: ly - 11, x2: x + 10, y2: ly + 13, style: 'stroke: #111' }); }, 38, 'data store');
+item(x => el('line', { x1: x, y1: ly, x2: x + 38, y2: ly, 'marker-end': 'url(#ar)', style: 'stroke: #111; stroke-width: 1.2' }), 38, 'data flow');
+item(x => el('line', { x1: x + 2, y1: ly, x2: x + 38, y2: ly, 'marker-end': 'url(#ar)', 'marker-start': 'url(#ar)', style: 'stroke: #111; stroke-width: 1.2' }), 38, 'store read and written');
+tx('7.0 is the AI chatbot (Module 7), planned for the final evaluation.', { x: lx, y: ly + 5, style: 'font-size: 12px; fill: #666' });
+document.title = `done ${W}x${H + LEG - 70}`;
+</script>
+</body>
+</html>

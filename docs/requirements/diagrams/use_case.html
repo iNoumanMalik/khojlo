@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo Use Case Diagram</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* UML 2 use case diagram of Khojlo (SRS v1.2 use cases and the implemented app). Rendered to use_case.png with headless Chrome. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif; }
+</style>
+</head>
+<body>
+<svg id="uc" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const W = 1100, H = 1850, OFF = 20;                 // OFF: room under the boundary's name
+const AX = 470, BX = 770, ARX = 120, BRX = 110, RY = 23;   // use case columns: A = actor-facing, B = include/extend/system-facing
+const LX = 100, RX = 1035;                           // actor columns
+const INK = '#1F2328', LINE = '#3F4752', MUTED = '#6E7781';
+
+// Use cases: [key, label, column, y]
+const UC = [
+  ['verify', 'Verify Business', 'A', 125],
+  ['content', 'Manage Content', 'A', 180],
+  ['users', 'Manage Users', 'A', 235],
+  ['monitor', 'Monitor System', 'A', 290],
+
+  ['feed', 'Browse Business Feed', 'A', 395],
+  ['search', 'Search Businesses', 'A', 455],
+  ['compare', 'Filter & Compare', 'B', 455],
+  ['details', 'View Business Details', 'A', 515],
+  ['review', 'Submit Review & Rating', 'A', 575],
+  ['fav', 'Save to Favorites', 'A', 635],
+  ['message', 'Message a Business', 'A', 695],
+  ['chatbot', 'Use AI Chatbot', 'A', 755],
+  ['map', 'View Map & Directions', 'A', 815],
+  ['report', 'Report Content', 'A', 875],
+  ['notify', 'Receive Notifications', 'A', 935],
+
+  ['register', 'Register Account', 'A', 1027],
+  ['verifyEmail', 'Verify Email', 'B', 1000],
+  ['consent', 'Accept Privacy Policy', 'B', 1055],
+  ['login', 'Login', 'A', 1137],
+  ['reset', 'Reset Password', 'B', 1110],
+  ['google', 'Sign in with Google', 'B', 1165],
+  ['profile', 'Manage Profile', 'A', 1247],
+  ['prefs', 'Manage Preferences', 'B', 1220],
+  ['delete', 'Delete Account', 'B', 1275],
+
+  ['regBiz', 'Register Business', 'A', 1370],
+  ['location', 'Set Location on Map', 'B', 1370],
+  ['bizProfile', 'Manage Business Profile', 'A', 1430],
+  ['offers', 'Manage Offers & Campaigns', 'A', 1490],
+  ['respond', 'Respond to Messages', 'A', 1550],
+  ['reply', 'Reply to Reviews', 'A', 1610],
+  ['analytics', 'View Business Analytics', 'A', 1670],
+];
+// Actors: [key, name, side, y, isSystem]
+const ACT = [
+  ['admin', 'Admin', 'L', 205],
+  ['customer', 'Customer', 'L', 720],
+  ['owner', 'Business Owner', 'L', 1480],
+  ['ai', 'AI Model API (Claude)', 'R', 700, true],
+  ['maps', 'OpenStreetMap / Google Maps', 'R', 830, true],
+  ['fcm', 'Firebase Cloud Messaging', 'R', 968, true],
+  ['email', 'Email Service (SMTP)', 'R', 1100, true],
+  ['gsi', 'Google Sign-In', 'R', 1235, true],
+];
+const ASSOC = [
+  ...['verify', 'content', 'users', 'monitor', 'login'].map(u => ['admin', u]),
+  ...['login', 'profile', 'register', 'feed', 'search', 'details', 'review', 'fav', 'message', 'report', 'chatbot', 'notify', 'map'].map(u => ['customer', u]),
+  ...['login', 'profile', 'regBiz', 'bizProfile', 'offers', 'respond', 'reply', 'analytics', 'notify', 'report'].map(u => ['owner', u]),
+  ['gsi', 'google'], ['email', 'reset'], ['email', 'verifyEmail'], ['ai', 'chatbot'], ['fcm', 'notify'], ['maps', 'map'],
+];
+// [from, to, kind]: include points base → included; extend points extension → base
+const DEP = [
+  ['google', 'login', 'extend'], ['reset', 'login', 'extend'],
+  ['prefs', 'profile', 'extend'], ['delete', 'profile', 'extend'],
+  ['register', 'verifyEmail', 'include'], ['register', 'consent', 'include'],
+  ['compare', 'search', 'extend'],
+  ['regBiz', 'location', 'include'],
+];
+
+// ---------- setup
+const svg = document.getElementById('uc');
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+const defs = el('defs', {});
+const mk = el('marker', { id: 'open', viewBox: '0 0 12 12', refX: 11, refY: 6, markerWidth: 9, markerHeight: 9, orient: 'auto' }, defs);
+el('path', { d: 'M1 1 L11 6 L1 11', style: `fill: none; stroke: ${LINE}; stroke-width: 1.4` }, mk);
+
+const U = Object.fromEntries(UC.map(([k, label, col, y]) => [k, { label, cx: col === 'A' ? AX : BX, cy: y + OFF, rx: col === 'A' ? ARX : BRX, ry: RY }]));
+const A = Object.fromEntries(ACT.map(([k, name, side, y, sys]) => [k, { name, side, x: side === 'L' ? LX : RX, y: y + OFF, sys }]));
+const hand = a => [a.x + (a.side === 'L' ? 24 : -24), a.y - 12];
+
+// ---------- ports: lines that meet the same side of a use case each get their own spot on the oval,
+// ordered by where the line comes from, so they never share or cross at the end
+const ports = {};
+const addPort = (u, side, oy, set) => (ports[u + '|' + side] ||= []).push({ oy, set });
+const ANG = [[0], [-30, 30], [-42, 0, 42], [-52, -20, 20, 52]];
+const assocs = ASSOC.map(([a, u]) => {
+  const cn = { a: A[a], h: hand(A[a]) };
+  addPort(u, A[a].side, cn.h[1], p => (cn.p = p));
+  return cn;
+});
+const deps = DEP.map(([f, t, kind]) => {
+  const cn = { f, t, kind };
+  // the column-A use case is entered on its right, the column-B one on its left
+  addPort(f, U[f].cx === AX ? 'R' : 'L', U[t].cy, p => (cn.p1 = p));
+  addPort(t, U[t].cx === AX ? 'R' : 'L', U[f].cy, p => (cn.p2 = p));
+  return cn;
+});
+Object.entries(ports).forEach(([key, list]) => {
+  const [u, side] = key.split('|'), c = U[u];
+  list.sort((a, b) => a.oy - b.oy);
+  list.forEach((p, i) => {
+    const th = ANG[list.length - 1][i] * Math.PI / 180;
+    p.set([c.cx + (side === 'L' ? -1 : 1) * c.rx * Math.cos(th), c.cy + c.ry * Math.sin(th)]);
+  });
+});
+
+// ---------- title, boundary
+tx('Khojlo — Use Case Diagram', { x: 30, y: 38, style: `font-size: 23px; font-weight: 700; fill: ${INK}` });
+tx('UML 2 notation · primary actors on the left, secondary (supporting system) actors on the right', { x: 30, y: 61, style: `font-size: 13.5px; fill: ${MUTED}` });
+const BT = 80, BB = 1730, BL = 320, BR = 900;
+el('rect', { x: BL, y: BT, width: BR - BL, height: BB - BT, rx: 6, style: `fill: #FAFBFC; stroke: ${INK}; stroke-width: 1.6` });
+tx('Khojlo System', { x: (BL + BR) / 2, y: BT + 24, 'text-anchor': 'middle', style: `font-size: 15px; font-weight: 700; fill: ${INK}` });
+const lines = el('g', {}), shapes = el('g', {});
+
+// ---------- associations: smooth curves that leave the actor at an angle and meet the oval horizontally, so they never pass under another use case
+assocs.forEach(cn => {
+  const [hx, hy] = cn.h, [px, py] = cn.p;
+  let d;
+  if (cn.a.side === 'L') {
+    const dx = px - hx, dy = py - hy;
+    d = `M${hx} ${hy} C${hx + 0.3 * dx} ${hy + 0.5 * dy} ${px - 0.5 * dx} ${py} ${px} ${py}`;
+  } else {
+    const dx = hx - px, dy = hy - py;
+    d = `M${px} ${py} C${px + 0.5 * dx} ${py} ${hx - 0.3 * dx} ${hy - 0.5 * dy} ${hx} ${hy}`;
+  }
+  el('path', { d, style: `fill: none; stroke: ${LINE}; stroke-width: 1.2; stroke-linecap: round` }, lines);
+});
+// ---------- include / extend: dashed S-curves with horizontal ends
+deps.forEach(cn => {
+  const [x1, y1] = cn.p1, [x2, y2] = cn.p2, c = (x2 - x1) * 0.5;
+  el('path', { d: `M${x1} ${y1} C${x1 + c} ${y1} ${x2 - c} ${y2} ${x2} ${y2}`, 'marker-end': 'url(#open)', style: `fill: none; stroke: ${LINE}; stroke-width: 1.2; stroke-dasharray: 6 4` }, lines);
+  tx(`«${cn.kind}»`, { x: (x1 + x2) / 2, y: (y1 + y2) / 2 - 7, 'text-anchor': 'middle', style: `font-size: 11px; font-style: italic; fill: ${MUTED}; paint-order: stroke; stroke: #FAFBFC; stroke-width: 5px; stroke-linejoin: round` }, lines);
+});
+
+// ---------- use cases
+Object.values(U).forEach(u => {
+  el('ellipse', { cx: u.cx, cy: u.cy, rx: u.rx, ry: u.ry, style: `fill: white; stroke: ${INK}; stroke-width: 1.3` }, shapes);
+  tx(u.label, { x: u.cx, y: u.cy + 5, 'text-anchor': 'middle', style: `font-size: 13.5px; font-weight: 500; fill: ${INK}` }, shapes);
+});
+// ---------- actors
+function splitTwo(s) {
+  if (s.includes(' / ')) { const i = s.indexOf(' / '); return [s.slice(0, i + 2), s.slice(i + 3)]; }
+  const mid = s.length / 2; let best = 0;
+  [...s].forEach((c, i) => { if (c === ' ' && Math.abs(i - mid) < Math.abs(best - mid)) best = i; });
+  return [s.slice(0, best), s.slice(best + 1)];
+}
+Object.values(A).forEach(a => {
+  const g = el('g', { transform: `translate(${a.x}, ${a.y})` }, shapes);
+  el('circle', { cx: 0, cy: -30, r: 9, style: `fill: white; stroke: ${INK}; stroke-width: 1.6` }, g);
+  el('path', { d: 'M0 -21 V6 M-17 -12 H17 M0 6 L-13 26 M0 6 L13 26', style: `fill: none; stroke: ${INK}; stroke-width: 1.6; stroke-linecap: round` }, g);
+  let y = 44;
+  if (a.sys) { tx('«system»', { x: 0, y, 'text-anchor': 'middle', style: `font-size: 11px; font-style: italic; fill: ${MUTED}` }, g); y += 15; }
+  const words = a.name.length > 18 && a.name.includes(' ') ? splitTwo(a.name) : [a.name];
+  words.forEach((w, i) => tx(w, { x: 0, y: y + i * 15, 'text-anchor': 'middle', style: `font-size: 13.5px; font-weight: 700; fill: ${INK}; paint-order: stroke; stroke: white; stroke-width: 4px` }, g));
+});
+
+// ---------- legend
+const ly = H - 62;
+el('line', { x1: 30, y1: ly - 26, x2: W - 30, y2: ly - 26, style: 'stroke: #E1E4E8' });
+let lx = 30;
+const item = (draw, w, label) => { draw(lx); tx(label, { x: lx + w + 8, y: ly + 4.5, style: 'font-size: 12.5px; fill: #57606A' }); lx += w + 8 + label.length * 6.6 + 24; };
+item(x => el('path', { d: `M${x} ${ly + 5} C${x + 14} ${ly + 5} ${x + 26} ${ly - 5} ${x + 40} ${ly - 5}`, style: `fill: none; stroke: ${LINE}; stroke-width: 1.2` }), 40, 'association');
+item(x => el('line', { x1: x, y1: ly, x2: x + 40, y2: ly, 'marker-end': 'url(#open)', style: `stroke: ${LINE}; stroke-width: 1.2; stroke-dasharray: 6 4` }), 40, '«include» / «extend»');
+tx('Secondary actors are the external services Khojlo calls. The map provider can be OpenStreetMap or Google Maps.', { x: 30, y: ly + 30, style: 'font-size: 12px; fill: #8C959F' });
+document.title = 'done';
+</script>
+</body>
+</html>

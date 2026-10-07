@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Khojlo ERD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Crow's Foot ERD of the Khojlo database, taken from backend/app/models. Rendered to erd.png with headless Chrome. */
+html, body { margin: 0; background: #fff; }
+svg text { font-family: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif; }
+svg .mono { font-family: "IBM Plex Mono", Consolas, monospace; }
+</style>
+</head>
+<body>
+<svg id="erd" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// ---------- data: entities as implemented (backend/app/models), attributes [name, type, key]
+const AREA = {
+  acc:  { name: 'Accounts & profile (M1)', color: '#2F5D8A' },
+  biz:  { name: 'Business & discovery (M2, M3)', color: '#0E7A63' },
+  promo:{ name: 'Offers & campaigns (M2)', color: '#B8680A' },
+  rev:  { name: 'Reviews & ratings (M5)', color: '#7A3E9D' },
+  chat: { name: 'Chat & notifications (M9, M3)', color: '#B0436B' },
+  mod:  { name: 'Admin & moderation (M8)', color: '#7A5230' },
+  sup:  { name: 'Search & media (M4, shared)', color: '#56606D' },
+};
+const E = {
+  USER: ['acc', [['id','int','PK'],['full_name','varchar'],['email','varchar','UK'],['hashed_password','varchar'],['google_id','varchar','UK'],['role','enum'],['phone','varchar'],['avatar_media_id','int','FK'],['interests','json'],['is_verified','bool'],['is_banned','bool'],['suspended_until','timestamp'],['privacy_consent_at','timestamp']]],
+  OTP_CODE: ['acc', [['id','int','PK'],['user_id','int','FK'],['purpose','enum'],['code_hash','varchar'],['expires_at','timestamp'],['consumed_at','timestamp']]],
+  SAVED_LIST: ['acc', [['id','int','PK'],['user_id','int','FK'],['name','varchar']]],
+  SAVED_BUSINESS: ['acc', [['id','int','PK'],['list_id','int','FK'],['business_id','int','FK']]],
+  CATEGORY: ['biz', [['id','int','PK'],['slug','varchar','UK'],['name','varchar'],['group_name','varchar']]],
+  BUSINESS: ['biz', [['id','int','PK'],['owner_id','int','FK'],['category_id','int','FK'],['verified_by_id','int','FK'],['storefront_media_id','int','FK'],['name','varchar'],['custom_category','varchar'],['description','text'],['address','varchar'],['phone','varchar'],['latitude','float'],['longitude','float'],['price_level','varchar'],['price_min','int'],['price_max','int'],['is_published','bool'],['verification_status','enum'],['suspended_at','timestamp'],['rating','float'],['review_count','int'],['created_at','timestamp']]],
+  SERVICE: ['biz', [['id','int','PK'],['business_id','int','FK'],['name','varchar'],['price','varchar'],['price_amount','int']]],
+  OPENING_HOURS: ['biz', [['id','int','PK'],['business_id','int','FK'],['day_of_week','int'],['opens','varchar'],['closes','varchar'],['is_closed','bool']]],
+  BUSINESS_PHOTO: ['biz', [['id','int','PK'],['business_id','int','FK'],['media_id','int','FK'],['position','int']]],
+  BUSINESS_VIEW: ['biz', [['id','int','PK'],['business_id','int','FK'],['viewer_id','int','FK'],['created_at','timestamp']]],
+  OFFER: ['promo', [['id','int','PK'],['business_id','int','FK'],['title','varchar'],['description','text'],['deal_type','enum'],['deal_value','float'],['start_date','date'],['end_date','date'],['terms','text'],['is_active','bool'],['deleted_at','timestamp']]],
+  CAMPAIGN: ['promo', [['id','int','PK'],['business_id','int','FK'],['banner_media_id','int','FK'],['name','varchar'],['message','varchar'],['start_date','date'],['end_date','date'],['is_published','bool'],['notify_savers','bool']]],
+  CAMPAIGN_OFFER: ['promo', [['id','int','PK'],['campaign_id','int','FK'],['offer_id','int','FK'],['position','int']]],
+  CAMPAIGN_SERVICE: ['promo', [['id','int','PK'],['campaign_id','int','FK'],['service_id','int','FK'],['position','int']]],
+  REVIEW: ['rev', [['id','int','PK'],['business_id','int','FK'],['user_id','int','FK'],['rating','int (1–5)'],['comment','text'],['helpful_count','int'],['owner_reply','text'],['is_approved','bool'],['created_at','timestamp'],['deleted_at','timestamp']]],
+  REVIEW_PHOTO: ['rev', [['id','int','PK'],['review_id','int','FK'],['media_id','int','FK'],['position','int']]],
+  REVIEW_VOTE: ['rev', [['id','int','PK'],['review_id','int','FK'],['user_id','int','FK']]],
+  REVIEW_REPORT: ['rev', [['id','int','PK'],['review_id','int','FK'],['reporter_id','int','FK'],['resolved_by_id','int','FK'],['reason','enum'],['status','enum']]],
+  CONVERSATION: ['chat', [['id','int','PK'],['customer_id','int','FK'],['business_id','int','FK'],['last_message_at','timestamp'],['blocked_by','varchar'],['closed_at','timestamp']]],
+  MESSAGE: ['chat', [['id','int','PK'],['conversation_id','int','FK'],['sender_id','int','FK'],['media_id','int','FK'],['from_business','bool'],['body','text'],['created_at','timestamp']]],
+  CONVERSATION_REPORT: ['chat', [['id','int','PK'],['conversation_id','int','FK'],['reporter_id','int','FK'],['resolved_by_id','int','FK'],['reason','enum'],['status','enum']]],
+  NOTIFICATION: ['chat', [['id','int','PK'],['user_id','int','FK'],['kind','enum'],['title','varchar'],['body','varchar'],['read_at','timestamp']]],
+  DEVICE_TOKEN: ['chat', [['id','int','PK'],['user_id','int','FK'],['token','varchar','UK'],['platform','enum']]],
+  BUSINESS_REPORT: ['mod', [['id','int','PK'],['business_id','int','FK'],['reporter_id','int','FK'],['resolved_by_id','int','FK'],['reason','enum'],['status','enum']]],
+  MODERATION_FLAG: ['mod', [['id','int','PK'],['business_id','int','FK'],['user_id','int','FK'],['resolved_by_id','int','FK'],['target_type','enum'],['target_id','int'],['rule','varchar'],['label','enum'],['status','enum']]],
+  MODERATION_ACTION: ['mod', [['id','int','PK'],['admin_id','int','FK'],['subject_user_id','int','FK'],['action','enum'],['target_type','varchar'],['target_id','int'],['reason','enum'],['note','varchar'],['created_at','timestamp']]],
+  MEDIA: ['sup', [['id','int','PK'],['owner_id','int','FK'],['key','varchar','UK'],['content_type','varchar'],['width','int'],['height','int'],['data','bytea']]],
+  SEARCH_QUERY: ['sup', [['id','int','PK'],['user_id','int','FK'],['query','varchar'],['filters','json'],['result_count','int']]],
+};
+// [parent ("one" side), child (holds the FK), parentOptional (FK nullable)]
+const R = [
+  ['USER','BUSINESS',false], ['CATEGORY','BUSINESS',true], ['MEDIA','BUSINESS',true],
+  ['MEDIA','USER',true], ['USER','MEDIA',false],
+  ['USER','OTP_CODE',false], ['USER','SAVED_LIST',false], ['SAVED_LIST','SAVED_BUSINESS',false], ['BUSINESS','SAVED_BUSINESS',false],
+  ['BUSINESS','SERVICE',false], ['BUSINESS','OPENING_HOURS',false], ['BUSINESS','BUSINESS_PHOTO',false], ['MEDIA','BUSINESS_PHOTO',false],
+  ['BUSINESS','BUSINESS_VIEW',false], ['USER','BUSINESS_VIEW',true],
+  ['BUSINESS','OFFER',false], ['BUSINESS','CAMPAIGN',false], ['MEDIA','CAMPAIGN',true],
+  ['CAMPAIGN','CAMPAIGN_OFFER',false], ['OFFER','CAMPAIGN_OFFER',false], ['CAMPAIGN','CAMPAIGN_SERVICE',false], ['SERVICE','CAMPAIGN_SERVICE',false],
+  ['BUSINESS','REVIEW',false], ['USER','REVIEW',false], ['REVIEW','REVIEW_PHOTO',false], ['MEDIA','REVIEW_PHOTO',false],
+  ['REVIEW','REVIEW_VOTE',false], ['USER','REVIEW_VOTE',false], ['REVIEW','REVIEW_REPORT',false], ['USER','REVIEW_REPORT',false],
+  ['USER','CONVERSATION',false], ['BUSINESS','CONVERSATION',false], ['CONVERSATION','MESSAGE',false], ['USER','MESSAGE',false], ['MEDIA','MESSAGE',true],
+  ['CONVERSATION','CONVERSATION_REPORT',false], ['USER','CONVERSATION_REPORT',false],
+  ['USER','NOTIFICATION',false], ['USER','DEVICE_TOKEN',false], ['USER','SEARCH_QUERY',true],
+  ['BUSINESS','BUSINESS_REPORT',false], ['USER','BUSINESS_REPORT',false],
+  ['BUSINESS','MODERATION_FLAG',true], ['USER','MODERATION_FLAG',true],
+  ['USER','MODERATION_ACTION',true], ['USER','MODERATION_ACTION',true],
+];
+// Column layout, left to right, top to bottom. null = the column's free space goes here.
+const COLS = [
+  ['NOTIFICATION', 'DEVICE_TOKEN', 'OTP_CODE', 'SEARCH_QUERY', 'MODERATION_ACTION'],
+  [null, 'USER', 'MEDIA', null],
+  ['REVIEW_VOTE', 'REVIEW_REPORT', 'REVIEW_PHOTO', 'SAVED_LIST', 'CONVERSATION_REPORT', 'MESSAGE'],
+  ['REVIEW', 'SAVED_BUSINESS', 'CONVERSATION', 'BUSINESS_VIEW', 'BUSINESS_REPORT', 'MODERATION_FLAG'],
+  ['CATEGORY', 'BUSINESS', 'CAMPAIGN'],
+  ['OPENING_HOURS', 'BUSINESS_PHOTO', 'OFFER', 'CAMPAIGN_OFFER', 'CAMPAIGN_SERVICE', 'SERVICE'],
+];
+
+// ---------- geometry
+const G = 5;                                   // routing grid
+const snap = v => Math.round(v / G) * G;
+const HEAD = 20, LINE = 14.5, PADB = 5, VGAP = 25, HGAP = 70, M = 30;
+const boxH = n => snap(HEAD + E[n][1].length * LINE + PADB + 2);
+const boxW = n => Math.max(n.length * 7.4 + 18, ...E[n][1].map(([a, t]) => 24 + a.length * 6.05 + 14 + t.length * 5.5 + 8));
+const colW = COLS.map(c => snap(Math.max(...c.filter(Boolean).map(boxW))));
+// stacked entities that are linked to each other need room for both line ends
+const gapAfter = (a, b) => (b && R.some(r => (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a)) ? 55 : VGAP);
+const colH = COLS.map(c => { const it = c.filter(Boolean); return it.reduce((s, n, k) => s + boxH(n) + (k < it.length - 1 ? gapAfter(n, it[k + 1]) : 0), 0); });
+const DH = snap(Math.max(...colH));
+const B = {};
+let cx = M;
+COLS.forEach((col, ci) => {
+  const items = col.filter(Boolean), free = DH - colH[ci];
+  const spacers = col.filter(v => v === null).length;
+  const extra = spacers ? 0 : free / Math.max(items.length - 1, 1);
+  let y = M;
+  col.forEach(n => {
+    if (n === null) { y += free / spacers; return; }
+    B[n] = { x: cx, y: snap(y), w: colW[ci], h: boxH(n) };
+    const k = items.indexOf(n);
+    y += boxH(n) + gapAfter(n, items[k + 1]) + extra;
+  });
+  cx += colW[ci] + HGAP;
+});
+const DW = cx - HGAP + M, DHT = DH + 2 * M;
+
+// ---------- orthogonal router (A* on a grid, penalising bends, overlaps and crossings)
+const NX = Math.ceil(DW / G) + 1, NY = Math.ceil(DHT / G) + 1;
+const blocked = new Uint8Array(NX * NY), nearBox = new Uint8Array(NX * NY);
+const occH = new Uint8Array(NX * NY), occV = new Uint8Array(NX * NY);
+const id = (i, j) => j * NX + i;
+Object.values(B).forEach(b => {
+  for (let i = Math.floor((b.x - 3) / G); i <= Math.ceil((b.x + b.w + 3) / G); i++)
+    for (let j = Math.floor((b.y - 3) / G); j <= Math.ceil((b.y + b.h + 3) / G); j++) if (i >= 0 && j >= 0 && i < NX && j < NY) blocked[id(i, j)] = 1;
+  for (let i = Math.floor((b.x - 12) / G); i <= Math.ceil((b.x + b.w + 12) / G); i++)
+    for (let j = Math.floor((b.y - 12) / G); j <= Math.ceil((b.y + b.h + 12) / G); j++) if (i >= 0 && j >= 0 && i < NX && j < NY) nearBox[id(i, j)] = 1;
+});
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];   // right, down, left, up
+class Heap { constructor() { this.a = []; } push(x) { const a = this.a; a.push(x); let i = a.length - 1; while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; } get size() { return this.a.length; } }
+function route(s, sd, t, td) {          // grid points s, t; sd = outward dir at s; td = outward dir at t
+  const N = NX * NY * 4, g = new Float32Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
+  const h = (i, j) => Math.abs(i - t[0]) + Math.abs(j - t[1]);
+  const st = id(s[0], s[1]) * 4 + sd; g[st] = 0;
+  const heap = new Heap(); heap.push([h(s[0], s[1]), st]);
+  const want = (td + 2) % 4;
+  while (heap.size) {
+    const [, cur] = heap.pop();
+    const c = cur >> 2, d = cur & 3, ci = c % NX, cj = (c / NX) | 0;
+    if (ci === t[0] && cj === t[1] && d === want) { const path = []; let k = cur; while (k !== -1) { path.push([(k >> 2) % NX, ((k >> 2) / NX) | 0]); k = prev[k]; } return path.reverse(); }
+    for (let nd = 0; nd < 4; nd++) {
+      if (nd === (d + 2) % 4) continue;
+      const ni = ci + DIRS[nd][0], nj = cj + DIRS[nd][1];
+      if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+      const nc = id(ni, nj);
+      if (blocked[nc] && !(ni === t[0] && nj === t[1])) continue;
+      const horiz = nd % 2 === 0;
+      let cost = 1 + (nd !== d ? 6 : 0) + (nearBox[nc] ? 0.6 : 0);
+      cost += horiz ? (occH[nc] ? 40 : 0) + (occV[nc] ? 5 : 0) : (occV[nc] ? 40 : 0) + (occH[nc] ? 5 : 0);
+      const ns = nc * 4 + nd, ng = g[cur] + cost;
+      if (ng < g[ns]) { g[ns] = ng; prev[ns] = cur; heap.push([ng + h(ni, nj), ns]); }
+    }
+  }
+  return null;
+}
+function mark(path) {
+  for (let k = 1; k < path.length; k++) {
+    const [a, b] = [path[k - 1], path[k]];
+    const horiz = a[1] === b[1];
+    (horiz ? occH : occV)[id(a[0], a[1])] = 1; (horiz ? occH : occV)[id(b[0], b[1])] = 1;
+  }
+}
+// ports: each box side hands out slots nearest to where the other end wants to go
+const used = {};
+function sides(a, b) {
+  if (b.x >= a.x + a.w) return ['R', 'L'];
+  if (b.x + b.w <= a.x) return ['L', 'R'];
+  return b.y > a.y ? ['B', 'T'] : ['T', 'B'];
+}
+function port(name, side, toward) {
+  const b = B[name], key = name + side; used[key] ||= [];
+  const vertical = side === 'L' || side === 'R';
+  const lo = vertical ? b.y + HEAD + 10 : b.x + 15, hi = vertical ? b.y + b.h - 10 : b.x + b.w - 15;
+  const want = snap(Math.min(hi, Math.max(lo, vertical ? toward.y : toward.x)));
+  for (let k = 0; k < 200; k++) {
+    for (const v of [want + k * G, want - k * G]) {
+      if (v < lo || v > hi) continue;
+      if (used[key].some(u => Math.abs(u - v) < 10)) continue;
+      used[key].push(v);
+      const p = side === 'L' ? [b.x, v] : side === 'R' ? [b.x + b.w, v] : side === 'T' ? [v, b.y] : [v, b.y + b.h];
+      const dir = { R: 0, B: 1, L: 2, T: 3 }[side];
+      return { p, dir };
+    }
+  }
+  throw new Error('no port on ' + key);
+}
+const center = n => ({ x: B[n].x + B[n].w / 2, y: B[n].y + B[n].h / 2 });
+const STUB = 20;
+const edges = R.map(([p, c, opt], i) => ({ p, c, opt, i }));
+edges.forEach(e => { const [sp, sc] = sides(B[e.p], B[e.c]); e.sp = sp; e.sc = sc; });
+edges.sort((a, b) => {
+  const d = e => Math.abs(center(e.p).x - center(e.c).x) + Math.abs(center(e.p).y - center(e.c).y);
+  return d(a) - d(b);
+});
+edges.forEach(e => {
+  const a = port(e.p, e.sp, center(e.c)), b = port(e.c, e.sc, center(e.p));
+  const out = (q, d) => [(q.p[0] + DIRS[d][0] * STUB) / G, (q.p[1] + DIRS[d][1] * STUB) / G];
+  const s = out(a, a.dir), t = out(b, b.dir);
+  const path = route(s, a.dir, t, b.dir);
+  if (!path) throw new Error('no route ' + e.p + '→' + e.c);
+  mark(path);
+  const pts = [a.p, ...path.map(([i, j]) => [i * G, j * G]), b.p];
+  const simp = pts.filter((q, k) => k === 0 || k === pts.length - 1 ||
+    !((pts[k - 1][0] === q[0] && q[0] === pts[k + 1][0]) || (pts[k - 1][1] === q[1] && q[1] === pts[k + 1][1])));
+  e.pts = simp; e.a = a; e.b = b;
+});
+
+// ---------- draw
+const TITLE = 62, LEG = 74;
+const W = DW, H = DHT + TITLE + LEG;
+const svg = document.getElementById('erd');
+svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p = svg) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); p.appendChild(n); return n; };
+const tx = (s, a, p) => { const n = el('text', a, p); n.textContent = s; return n; };
+tx('Khojlo — Entity Relationship Diagram', { x: M, y: 32, style: 'font-size: 21px; font-weight: 700; fill: #1F2328' });
+tx(`Crow's Foot notation  ·  PostgreSQL database as implemented: ${Object.keys(E).length} entities, ${R.length} relationships`, { x: M, y: 53, style: 'font-size: 12.5px; fill: #57606A' });
+const root = el('g', { transform: `translate(0, ${TITLE - M + 8})` });
+const LC = '#4B5563';
+function endMark(at, dir, kind, parent) {
+  const dx = DIRS[dir][0], dy = DIRS[dir][1], px = -dy, py = dx;
+  const P = (d, o) => `${at[0] + dx * d + px * o} ${at[1] + dy * d + py * o}`;
+  const st = `fill: none; stroke: ${LC}; stroke-width: 1.15`;
+  const ring = d => el('circle', { cx: at[0] + dx * d, cy: at[1] + dy * d, r: 3.4, style: `fill: white; stroke: ${LC}; stroke-width: 1.15` }, parent);
+  if (kind === 'zeroMany') { el('path', { d: `M${P(0, -5.5)} L${P(9, 0)} L${P(0, 5.5)}`, style: st }, parent); ring(13.5); }
+  else { el('path', { d: `M${P(5, -5)} L${P(5, 5)}`, style: st }, parent); if (kind === 'one') el('path', { d: `M${P(9, -5)} L${P(9, 5)}`, style: st }, parent); else ring(13); }
+}
+const edgeG = el('g', {}, root), nodeG = el('g', {}, root), markG = el('g', {}, root);
+edges.forEach(e => {
+  el('path', { d: 'M' + e.pts.map(q => q.join(' ')).join(' L'), style: `fill: none; stroke: ${LC}; stroke-width: 1.05; stroke-linejoin: round` }, edgeG);
+  endMark(e.a.p, e.a.dir, e.opt ? 'zeroOne' : 'one', markG);
+  endMark(e.b.p, e.b.dir, 'zeroMany', markG);
+});
+Object.entries(B).forEach(([n, b]) => {
+  const [area, attrs] = E[n], col = AREA[area].color;
+  const g = el('g', { transform: `translate(${b.x}, ${b.y})` }, nodeG);
+  el('rect', { x: 0, y: 0, width: b.w, height: b.h, rx: 3, style: 'fill: white; stroke: #8C959F; stroke-width: 1' }, g);
+  el('path', { d: `M0 ${HEAD} V3 a3 3 0 0 1 3 -3 H${b.w - 3} a3 3 0 0 1 3 3 V${HEAD} Z`, style: `fill: ${col}` }, g);
+  tx(n, { x: 7, y: 14, style: 'font-size: 11.5px; font-weight: 700; fill: white; letter-spacing: .02em' }, g);
+  attrs.forEach(([name, type, key], i) => {
+    const y = HEAD + i * LINE + 11;
+    if (key === 'PK') el('rect', { x: 1, y: HEAD, width: b.w - 2, height: LINE, style: 'fill: #F1F3F5' }, g);
+    const kc = key === 'PK' ? '#B8680A' : key === 'FK' ? '#2F5D8A' : '#7A3E9D';
+    if (key) tx(key, { x: 5, y, class: 'mono', style: `font-size: 8.5px; font-weight: 500; fill: ${kc}` }, g);
+    tx(name, { x: 24, y, style: `font-size: 10.5px; fill: #1F2328; font-weight: ${key === 'PK' ? 700 : 400}${key === 'PK' ? '; text-decoration: underline' : ''}` }, g);
+    tx(type, { x: b.w - 6, y, 'text-anchor': 'end', class: 'mono', style: 'font-size: 9px; fill: #8C959F' }, g);
+  });
+});
+
+// legend
+const ly = H - LEG + 22;
+el('line', { x1: M, y1: ly - 16, x2: W - M, y2: ly - 16, style: 'stroke: #E1E4E8' });
+let lx = M;
+const item = (draw, w, label) => { draw(lx); tx(label, { x: lx + w + 8, y: ly + 4, style: 'font-size: 11.5px; fill: #57606A' }); lx += w + 8 + label.length * 6.1 + 24; };
+const sample = kind => x => { el('path', { d: `M${x} ${ly} H${x + 44}`, style: `stroke: ${LC}; stroke-width: 1.05` }); endMark([x, ly], 0, kind, svg); };
+item(sample('one'), 44, 'exactly one');
+item(sample('zeroOne'), 44, 'zero or one');
+item(sample('zeroMany'), 44, 'zero or many');
+item(x => tx('PK', { x, y: ly + 4, class: 'mono', style: 'font-size: 10px; fill: #B8680A' }), 14, 'primary key');
+item(x => tx('FK', { x, y: ly + 4, class: 'mono', style: 'font-size: 10px; fill: #2F5D8A' }), 14, 'foreign key');
+item(x => tx('UK', { x, y: ly + 4, class: 'mono', style: 'font-size: 10px; fill: #7A3E9D' }), 14, 'unique');
+tx('resolved_by_id and verified_by_id also reference USER (the admin who acted); those lines are left out for readability.', { x: lx, y: ly + 4, style: 'font-size: 11px; fill: #8C959F' });
+let ax = M; const ay = ly + 26;
+Object.values(AREA).forEach(ar => { el('rect', { x: ax, y: ay - 9, width: 12, height: 12, rx: 2, style: `fill: ${ar.color}` }); tx(ar.name, { x: ax + 17, y: ay + 1, style: 'font-size: 11.5px; fill: #57606A' }); ax += 17 + ar.name.length * 6.1 + 22; });
+document.title = 'done ' + Math.ceil(W) + 'x' + Math.ceil(H);
+</script>
+</body>
+</html>

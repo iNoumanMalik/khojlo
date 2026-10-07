@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "156196820923-v3am6l59ard2e4jrk96g511r3bc5aqot.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.khojlo.khojlo",
+            "certificate_hash": "dbb2779538409b060fea92b8583256e556ed1ae0"
+          }
+        },
+        {
           "client_id": "156196820923-pq71ltadr7ime89pgv581hkdm7b9194o.apps.googleusercontent.com",
           "client_type": 3
         }
